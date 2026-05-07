@@ -72,11 +72,11 @@ def fetch_usdt_historico() -> tuple[dict[str, float], dict[str, float]]:
             if not line:
                 continue
             parts = line.split(",")
-            if len(parts) < 5 or not parts[4]:
+            if len(parts) < 4 or not parts[3]:
                 continue
             fecha = parts[0][:10]  # "2026-05-06"
             try:
-                per_date.setdefault(fecha, []).append(float(parts[4]))
+                per_date.setdefault(fecha, []).append(float(parts[3]))
             except ValueError:
                 pass
         return {f: round(sum(v) / len(v), 4) for f, v in per_date.items()}

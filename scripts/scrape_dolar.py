@@ -257,21 +257,21 @@ def fetch_parse_v2() -> dict:
 
 # ── USDT desde mauforonda/dolares ────────────────────────────────────────────
 
-def _mau_daily_vwap(url: str, fecha: str) -> float | None:
-    """Descarga el CSV de mauforonda y promedia el VWAP del día indicado."""
+def _mau_daily_median(url: str, fecha: str) -> float | None:
+    """Descarga el CSV de mauforonda y promedia la mediana del día indicado."""
     r = requests.get(url, headers=HEADERS_BCB, timeout=40)
     r.raise_for_status()
-    vwaps = []
+    medians = []
     for line in r.text.splitlines()[1:]:
         if not line.startswith(fecha):
             continue
         parts = line.split(",")
-        if len(parts) >= 5 and parts[4]:
+        if len(parts) >= 4 and parts[3]:
             try:
-                vwaps.append(float(parts[4]))
+                medians.append(float(parts[3]))
             except ValueError:
                 pass
-    return round(sum(vwaps) / len(vwaps), 4) if vwaps else None
+    return round(sum(medians) / len(medians), 4) if medians else None
 
 
 def fetch_usdt(fecha: str) -> dict:
@@ -283,8 +283,8 @@ def fetch_usdt(fecha: str) -> dict:
     """
     try:
         return {
-            "venta":  _mau_daily_vwap(MAU_BUY_CSV,  fecha),
-            "compra": _mau_daily_vwap(MAU_SELL_CSV, fecha),
+            "venta":  _mau_daily_median(MAU_BUY_CSV,  fecha),
+            "compra": _mau_daily_median(MAU_SELL_CSV, fecha),
         }
     except Exception as e:
         print(f"[WARN] mauforonda USDT: {e}", file=sys.stderr)
