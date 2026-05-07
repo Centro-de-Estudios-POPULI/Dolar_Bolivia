@@ -1,0 +1,1452 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dólar Referencial Bolivia · Populi</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <style>
+    /* ── Variables — Tema Claro ──────────────────────────────────────── */
+    :root {
+      --red:    #C71E1D;
+      --red2:   #A81817;
+      --garnet: #8B2226;
+      --petro:  #005F73;
+      --teal:   #0A9396;
+      --mint:   #94D2BD;
+      --orange: #D4920A;
+      --navy:   #001219;
+
+      --bg:         #EEF1F5;
+      --card:       #FFFFFF;
+      --card2:      #F7F9FB;
+      --border:     #DDE3EA;
+      --border2:    #EEF1F5;
+      --text:       #0D1B2A;
+      --text2:      #364555;
+      --muted:      #6B7A8D;
+      --muted2:     #9AACBA;
+
+      --shadow:     0 1px 3px rgba(0,18,25,.05), 0 4px 18px rgba(0,18,25,.06);
+      --shadow-xs:  0 1px 2px rgba(0,18,25,.06);
+      --radius:     13px;
+      --transition: .18s ease;
+
+      --ct-axis:    #92A4B4;
+      --ct-grid:    #E8EDF2;
+      --ct-legend:  #5A6A7A;
+      --ct-tip-bg:  #0A1622;
+      --ct-tip-bd:  #1E3045;
+    }
+
+    /* ── Variables — Tema Oscuro (negro puro) ──────────────────────── */
+    [data-theme="dark"] {
+      --bg:         #050505;
+      --card:       #101010;
+      --card2:      #161616;
+      --border:     #222222;
+      --border2:    #181818;
+      --text:       #E8E8E8;
+      --text2:      #A0A0A0;
+      --muted:      #5A5A5A;
+      --muted2:     #303030;
+
+      --shadow:     0 2px 10px rgba(0,0,0,.6), 0 6px 28px rgba(0,0,0,.5);
+      --shadow-xs:  0 1px 4px rgba(0,0,0,.5);
+
+      --ct-axis:    #909090;
+      --ct-grid:    #1E1E1E;
+      --ct-legend:  #909090;
+      --ct-tip-bg:  #080808;
+      --ct-tip-bd:  #242424;
+    }
+
+    [data-theme="dark"] .navbar {
+      background: linear-gradient(160deg, #1A0606 0%, #0A0202 100%);
+      border-top-color: rgba(199,30,29,.2);
+      box-shadow: 0 1px 0 rgba(199,30,29,.12), 0 4px 20px rgba(0,0,0,.7);
+    }
+    [data-theme="dark"] .brand-badge {
+      color: rgba(199,30,29,.9);
+      background: rgba(199,30,29,.1);
+      border-color: rgba(199,30,29,.2);
+    }
+    [data-theme="dark"] .brand-mark { border-color: rgba(199,30,29,.2); }
+    [data-theme="dark"] .brand-mark svg { fill: rgba(199,30,29,.8); }
+    [data-theme="dark"] .nav-divider { background: rgba(255,255,255,.08); }
+    [data-theme="dark"] .brand-sub  { color: rgba(255,255,255,.25); }
+    [data-theme="dark"] .nav-center { color: rgba(255,255,255,.7); }
+    [data-theme="dark"] .theme-btn  {
+      background: rgba(199,30,29,.1);
+      border-color: rgba(199,30,29,.2);
+    }
+    [data-theme="dark"] .theme-btn:hover {
+      background: rgba(199,30,29,.2);
+      border-color: rgba(199,30,29,.35);
+    }
+    [data-theme="dark"] .hero {
+      background: linear-gradient(180deg, #0A0202 0%, #040101 50%, #000000 100%);
+    }
+    [data-theme="dark"] .hero h1        { color: rgba(255,255,255,.85); }
+    [data-theme="dark"] .hero h1 em     { color: rgba(255,255,255,.3); }
+    [data-theme="dark"] .hero-desc      { color: rgba(255,255,255,.28); }
+    [data-theme="dark"] .hero-watermark { color: rgba(255,255,255,.022); }
+    [data-theme="dark"] .info-strip { background: #0A0A0A; border-bottom-color: #1A1A1A; }
+    [data-theme="dark"] thead tr { background: #080808; }
+    [data-theme="dark"] .alert-banner {
+      background: linear-gradient(90deg, rgba(199,30,29,.12), rgba(199,30,29,.02));
+    }
+
+    /* ── Reset ──────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg); color: var(--text);
+      line-height: 1.5; -webkit-font-smoothing: antialiased;
+      transition: background var(--transition), color var(--transition);
+    }
+    a { color: var(--teal); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Navbar ─────────────────────────────────────────────────────── */
+    .navbar {
+      background: linear-gradient(180deg, #CE2020 0%, #A81414 100%);
+      position: sticky; top: 0; z-index: 100;
+      border-top: 2px solid rgba(255,255,255,.15);
+      box-shadow: none;
+    }
+    .navbar-inner {
+      max-width: 1320px; margin: auto; padding: 0 24px; height: 58px;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 12px;
+    }
+    .nav-left { display: flex; align-items: center; gap: 10px; }
+    .brand-mark {
+      display: flex; align-items: center; justify-content: center;
+      width: 30px; height: 30px; border-radius: 7px;
+      background: rgba(0,0,0,.22);
+      border: 1px solid rgba(255,255,255,.14);
+      flex-shrink: 0;
+    }
+    .brand-mark svg { width: 16px; height: 16px; fill: rgba(255,255,255,.9); }
+    .brand-badge {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px; font-weight: 500; letter-spacing: 2.5px;
+      color: rgba(255,255,255,.95);
+      background: rgba(0,0,0,.2);
+      border: 1px solid rgba(255,255,255,.16);
+      padding: 4px 11px; border-radius: 5px;
+    }
+    .nav-divider {
+      width: 1px; height: 18px;
+      background: rgba(255,255,255,.16);
+    }
+    .brand-sub {
+      font-size: 11px; font-weight: 400; color: rgba(255,255,255,.45);
+      letter-spacing: .2px; white-space: nowrap;
+    }
+    .nav-center {
+      text-align: center;
+      font-size: 13px; font-weight: 600; letter-spacing: -.1px;
+      color: rgba(255,255,255,.92);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .nav-right {
+      display: flex; align-items: center; justify-content: flex-end; gap: 12px;
+    }
+    .nav-meta {
+      font-size: 11px; color: rgba(255,255,255,.5); white-space: nowrap;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .nav-meta b { color: rgba(255,255,255,.85); font-weight: 600; }
+    .live-dot {
+      display: inline-block; width: 6px; height: 6px;
+      border-radius: 50%; background: #4ADE80; margin-right: 5px;
+      vertical-align: middle;
+      animation: livepulse 2.4s ease-in-out infinite;
+    }
+    @keyframes livepulse {
+      0%,100% { opacity:1; transform:scale(1); }
+      50%      { opacity:.45; transform:scale(.7); }
+    }
+    .theme-btn {
+      width: 34px; height: 34px; border-radius: 8px; border: none;
+      background: rgba(0,0,0,.2);
+      border: 1px solid rgba(255,255,255,.16);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .14s, border-color .14s; flex-shrink: 0;
+    }
+    .theme-btn:hover { background: rgba(0,0,0,.32); border-color: rgba(255,255,255,.28); }
+    .theme-btn svg { width: 15px; height: 15px; fill: rgba(255,255,255,.85); }
+
+    /* ── Hero ───────────────────────────────────────────────────────── */
+    .hero {
+      background: linear-gradient(180deg, #A81414 0%, #6A0C0C 40%, #1A0404 80%, #000000 100%);
+      padding: 40px 24px 44px;
+      text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .hero-inner { max-width: 680px; margin: auto; position: relative; z-index: 1; }
+    .hero-watermark {
+      position: absolute;
+      right: -10px; bottom: -20px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: clamp(90px, 14vw, 180px);
+      font-weight: 500; letter-spacing: -6px;
+      color: rgba(255,255,255,.05);
+      line-height: 1; pointer-events: none; user-select: none;
+      z-index: 0;
+    }
+    .hero h1 {
+      font-size: clamp(22px, 3vw, 30px); font-weight: 800;
+      color: rgba(255,255,255,.95); letter-spacing: -.5px;
+      line-height: 1.15; margin-bottom: 10px;
+    }
+    .hero h1 em { color: rgba(255,255,255,.45); font-style: normal; font-weight: 400; }
+    .hero-desc {
+      font-size: 13.5px; color: rgba(255,255,255,.42); line-height: 1.7;
+    }
+
+    /* ── Info strip ──────────────────────────────────────────────────── */
+    .info-strip {
+      background: var(--card2); border-bottom: 1px solid var(--border);
+      padding: 12px 28px;
+      transition: background var(--transition);
+    }
+    .info-strip-inner {
+      max-width: 1320px; margin: auto;
+      display: flex; align-items: flex-start; gap: 8px;
+      font-size: 12.5px; color: var(--muted);
+    }
+    .info-strip-inner b { color: var(--text2); font-weight: 600; }
+    .info-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Alert Banner ──────────────────────────────────────────────── */
+    .alert-banner {
+      display: none;
+      border-bottom: 1px solid var(--border);
+      padding: 13px 24px;
+      background: linear-gradient(90deg, rgba(199,30,29,.06), rgba(199,30,29,.015));
+    }
+    .alert-banner.visible { display: block; }
+    .alert-inner {
+      max-width: 1320px; margin: auto;
+      display: flex; align-items: center; gap: 10px;
+      font-size: 12.5px; color: var(--text); line-height: 1.55;
+    }
+    .alert-inner b {
+      color: var(--red);
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    /* ── Layout ─────────────────────────────────────────────────────── */
+    .container { max-width: 1320px; margin: auto; padding: 32px 24px 60px; }
+    .section { margin-bottom: 48px; }
+
+    .section-header { margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px; }
+    .section-num {
+      font-size: 9.5px; font-weight: 800; letter-spacing: 1.2px;
+      color: var(--red); border: 1.5px solid rgba(199,30,29,.25);
+      padding: 2px 7px; border-radius: 20px; margin-top: 3px; flex-shrink: 0;
+    }
+    .section-titles h2 { font-size: 15.5px; font-weight: 700; color: var(--text); letter-spacing: -.15px; }
+    .section-titles p  { font-size: 12.5px; color: var(--muted); margin-top: 3px; line-height: 1.55; }
+
+    /* ── KPI Grid ────────────────────────────────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+    }
+    @media (max-width: 1080px) { .kpi-grid { grid-template-columns: repeat(3,1fr); } }
+    @media (max-width:  680px) { .kpi-grid { grid-template-columns: repeat(2,1fr); } }
+    @media (max-width:  400px) { .kpi-grid { grid-template-columns: 1fr; } }
+
+    .kpi-card {
+      background: var(--card); border-radius: var(--radius);
+      box-shadow: var(--shadow); padding: 16px 18px 14px;
+      border-left: 3px solid transparent;
+      display: flex; flex-direction: column; gap: 3px;
+      transition: background var(--transition), box-shadow var(--transition), border-color var(--transition);
+      position: relative;
+    }
+    .kpi-card.venta  { border-left-color: var(--red); }
+    .kpi-card.compra { border-left-color: var(--petro); }
+    .kpi-card.usdt   { border-left-color: var(--orange); }
+    .kpi-card.spread { border-left-color: var(--teal); }
+    .kpi-card.prima  { border-left-color: var(--garnet); }
+
+    .kpi-hover-badge {
+      position: absolute; top: 9px; right: 10px;
+      font-size: 9px; font-weight: 700; letter-spacing: .6px;
+      color: var(--teal); text-transform: uppercase;
+      opacity: 0; transition: opacity .18s;
+      background: rgba(10,147,150,.1); border-radius: 4px;
+      padding: 2px 5px;
+    }
+    .kpis-hovering .kpi-hover-badge { opacity: 1; }
+
+    .kpi-label {
+      font-size: 9.5px; font-weight: 700; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--muted);
+    }
+    .kpi-value {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 26px; font-weight: 500;
+      color: var(--text); line-height: 1.1; margin-top: 5px;
+      letter-spacing: -.5px;
+      transition: color var(--transition);
+    }
+    .kpi-unit { font-size: 12px; font-weight: 400; color: var(--muted); }
+    .kpi-sub  { font-size: 10.5px; color: var(--muted); margin-top: 5px; line-height: 1.45; }
+
+    /* ── KPI Deltas ────────────────────────────────────────────────── */
+    .kpi-delta {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 11px; font-weight: 600;
+      font-family: 'IBM Plex Mono', monospace;
+      margin-top: 3px; min-height: 16px;
+    }
+    .kpi-delta.up { color: #C71E1D; }
+    .kpi-delta.down { color: #0A9396; }
+    .kpi-delta .pct {
+      font-weight: 400; color: var(--muted);
+      font-size: 10px; margin-left: 1px;
+    }
+
+    /* ── KPI Sparklines ────────────────────────────────────────────── */
+    .kpi-spark {
+      width: 100%; height: 30px;
+      margin-top: 6px; display: block;
+    }
+
+    /* ── Hint de uso ─────────────────────────────────────────────────── */
+    .chart-hint {
+      font-size: 11px; color: var(--muted2);
+      display: flex; align-items: center; gap: 5px;
+      margin-top: 8px;
+    }
+    .chart-hint svg { width: 13px; height: 13px; fill: var(--muted2); flex-shrink: 0; }
+
+    /* ── Chart Cards ─────────────────────────────────────────────────── */
+    .chart-card {
+      background: var(--card); border-radius: var(--radius);
+      box-shadow: var(--shadow); padding: 20px 20px 16px;
+      transition: background var(--transition), box-shadow var(--transition);
+    }
+    .chart-card-top {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 16px; margin-bottom: 14px; flex-wrap: wrap;
+    }
+    .chart-card-meta { display: flex; flex-direction: column; gap: 3px; }
+    .chart-card-title { font-size: 12.5px; font-weight: 700; color: var(--text); }
+    .chart-card-sub   { font-size: 11px; color: var(--muted); }
+
+    .chart { width: 100%; height: 350px; }
+    .chart-tall { height: 390px; }
+    .chart-med  { height: 280px; }
+    @media (max-width: 700px) {
+      .chart { height: 240px; }
+      .chart-tall { height: 280px; }
+      .chart-med  { height: 220px; }
+    }
+
+    /* ── Range Buttons ───────────────────────────────────────────────── */
+    .range-btns { display: flex; gap: 4px; flex-shrink: 0; }
+    .rbtn {
+      padding: 4px 11px; border-radius: 20px;
+      border: 1.5px solid var(--border); background: transparent;
+      color: var(--muted); font-family: 'Inter', sans-serif;
+      font-size: 11px; font-weight: 600;
+      cursor: pointer; white-space: nowrap; transition: all .14s;
+    }
+    .rbtn:hover { border-color: var(--red); color: var(--red); background: rgba(199,30,29,.06); }
+    .rbtn.active { background: var(--red); border-color: var(--red); color: #fff; }
+
+    /* ── Tabla bancos ─────────────────────────────────────────────────── */
+    .table-wrap {
+      background: var(--card); border-radius: var(--radius);
+      box-shadow: var(--shadow); overflow: auto;
+      transition: background var(--transition);
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: #0A0A0A; }
+    [data-theme="dark"] thead tr { background: #050505; }
+    thead th {
+      padding: 11px 16px; text-align: left;
+      font-size: 9.5px; font-weight: 700; letter-spacing: .7px;
+      text-transform: uppercase; color: rgba(255,255,255,.6); white-space: nowrap;
+    }
+    thead th:nth-child(4),
+    thead th:nth-child(5) { text-align: center; }
+    tbody tr { border-bottom: 1px solid var(--border2); transition: background .1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--card2); }
+    tbody td { padding: 12px 16px; vertical-align: middle; font-size: 13px; color: var(--text); }
+    tbody td:nth-child(4),
+    tbody td:nth-child(5) { text-align: center; }
+
+    .banco-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
+    .banco-name { font-weight: 600; font-size: 12.5px; display: flex; align-items: center; }
+
+    .vol-cell { display: flex; flex-direction: column; gap: 5px; }
+    .vol-num {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px; font-weight: 500; color: var(--text);
+    }
+    .vol-track { height: 4px; background: var(--border); border-radius: 2px; min-width: 80px; }
+    .vol-fill  { height: 4px; border-radius: 2px; }
+
+    .tasa-num {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13.5px; font-weight: 500;
+    }
+    .tx-num {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12.5px; color: var(--text2);
+    }
+    .pct-num {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px; color: var(--muted);
+    }
+
+    /* ── Footer ──────────────────────────────────────────────────────── */
+    footer {
+      background: #060D16; color: #3D5568;
+      border-top: 3px solid var(--red); padding: 24px 28px;
+    }
+    .footer-inner {
+      max-width: 1320px; margin: auto;
+      display: flex; flex-wrap: wrap; justify-content: space-between;
+      gap: 6px; font-size: 11.5px; line-height: 1.6;
+    }
+    .footer-sources { color: #3D5568; }
+    .footer-sources a { color: #52788C; }
+    .footer-brand { color: #3D5568; }
+    .footer-brand a { color: #94D2BD; font-weight: 600; }
+
+    /* ── Heatmap Legend (HTML) ────────────────────────────────────────── */
+    .hm-legend {
+      display: flex; align-items: center; gap: 10px;
+      justify-content: center; padding: 10px 20px 4px;
+    }
+    .hm-legend-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px; color: var(--muted); white-space: nowrap; min-width: 32px;
+    }
+    .hm-legend-label:last-child { text-align: right; }
+    .hm-legend-bar {
+      position: relative; flex: 0 1 220px; height: 10px;
+      border-radius: 5px; overflow: visible;
+    }
+    .hm-legend-marker {
+      position: absolute; top: -3px;
+      width: 3px; height: 16px; border-radius: 2px;
+      background: var(--text); opacity: 0;
+      transition: left .15s ease, opacity .15s ease;
+      pointer-events: none;
+    }
+    .hm-legend-marker.visible { opacity: 1; }
+    @media (max-width: 520px) {
+      .hm-legend-bar { flex: 0 1 140px; }
+    }
+
+    /* ── Loading ─────────────────────────────────────────────────────── */
+    .loading {
+      display: flex; align-items: center; justify-content: center;
+      height: 100%; min-height: 180px; color: var(--muted); font-size: 13px;
+    }
+
+    /* ── Mobile ────────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .brand-sub, .nav-divider { display: none; }
+      .navbar-inner { padding: 0 16px; height: 50px; }
+      .nav-center { font-size: 11px; }
+    }
+    @media (max-width: 520px) {
+      .navbar-inner {
+        display: flex; justify-content: space-between;
+        height: 48px; padding: 0 14px;
+      }
+      .nav-center { display: none; }
+      .nav-meta { font-size: 10px; }
+      .hero { padding: 28px 16px 32px; }
+      .hero h1 { font-size: 20px; }
+      .info-strip { padding: 12px 16px; }
+      .info-strip-inner {
+        flex-direction: column; font-size: 11.5px; line-height: 1.7;
+      }
+      .alert-banner { padding: 11px 14px; }
+      .alert-inner { font-size: 11.5px; }
+      .container { padding: 24px 14px 40px; }
+      .section { margin-bottom: 32px; }
+      .section-titles h2 { font-size: 14px; }
+      .chart-card { padding: 14px 10px 12px; }
+      .chart-card-top { flex-direction: column; gap: 10px; }
+      .range-btns { align-self: flex-start; }
+      .chart-hint { font-size: 10px; }
+      .kpi-value { font-size: 22px; }
+      .kpi-card { padding: 13px 14px 11px; }
+      .kpi-spark { height: 24px; }
+      .table-wrap { font-size: 12px; }
+      thead th { padding: 9px 12px; font-size: 9px; }
+      tbody td { padding: 10px 12px; font-size: 12px; }
+      footer { padding: 18px 16px; }
+      .footer-inner { flex-direction: column; gap: 8px; font-size: 10.5px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Navbar ───────────────────────────────────────────────────────────── -->
+<nav class="navbar">
+  <div class="navbar-inner">
+    <div class="nav-left">
+      <div class="brand-mark">
+        <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 3h7a4 4 0 0 1 0 8H7v6H4V3zm3 3v5h4a2 2 0 0 0 0-4H7z"/>
+        </svg>
+      </div>
+      <span class="brand-badge">POPULI</span>
+      <span class="nav-divider"></span>
+      <span class="brand-sub">Centro de Estudios</span>
+    </div>
+    <div class="nav-center">Dólar Referencial · Bolivia</div>
+    <div class="nav-right">
+      <div class="nav-meta">
+        <span class="live-dot"></span>
+        Actualizado&nbsp;<b id="nav-updated">—</b>
+      </div>
+      <button class="theme-btn" id="theme-btn" title="Modo oscuro/claro">
+        <svg id="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg id="icon-sun"  viewBox="0 0 24 24" style="display:none"><circle cx="12" cy="12" r="4.5" fill="#fff"/><g stroke="#fff" stroke-width="2" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.78" y2="4.22"/></g></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Hero ─────────────────────────────────────────────────────────────── -->
+<div class="hero">
+  <div class="hero-watermark">DÓLAR</div>
+  <div class="hero-inner">
+    <h1>Dólar Referencial Bolivia <em>· 2025–2026</em></h1>
+    <p class="hero-desc">
+      Seguimiento diario del valor referencial publicado por el BCB,
+      con volúmenes bancarios y precio de mercado USDT/BOB.
+    </p>
+  </div>
+</div>
+
+<!-- ── Info strip ────────────────────────────────────────────────────────── -->
+<div class="info-strip">
+  <div class="info-strip-inner">
+    <span class="info-icon">ℹ</span>
+    <span>
+      <b>Compra:</b> precio promedio al que los bancos <em>adquieren</em> dólares de sus clientes. &nbsp;|&nbsp;
+      <b>Venta:</b> precio al que los bancos <em>venden</em> dólares. &nbsp;|&nbsp;
+      <b>Prima USDT:</b> diferencia entre el precio informal (Binance P2P) y el oficial BCB.
+      Datos actualizados automáticamente varias veces al día en horario hábil (10:00, 13:00, 16:00, 19:00 y 23:30 BOT).
+    </span>
+  </div>
+</div>
+
+<!-- ── Alert Banner ─────────────────────────────────────────────────────── -->
+<div class="alert-banner" id="alert-banner">
+  <div class="alert-inner">
+    <span style="font-size:15px;flex-shrink:0">⚠</span>
+    <span id="alert-text"></span>
+  </div>
+</div>
+
+<!-- ── Main ─────────────────────────────────────────────────────────────── -->
+<main class="container">
+
+  <!-- 01 · KPIs -->
+  <section class="section">
+    <div class="section-header">
+      <span class="section-num">01</span>
+      <div class="section-titles">
+        <h2>Cotización del Día</h2>
+        <p id="kpi-fecha">— · <em>Interactúa con el gráfico para ver valores históricos</em></p>
+      </div>
+    </div>
+    <div class="kpi-grid" id="kpi-grid">
+      <div class="kpi-card venta">
+        <span class="kpi-hover-badge">historial</span>
+        <div class="kpi-label">Venta BCB</div>
+        <div class="kpi-value"><span id="kpi-venta">—</span> <span class="kpi-unit">Bs.</span></div>
+        <div class="kpi-delta" id="delta-venta"></div>
+        <svg class="kpi-spark" id="spark-venta" viewBox="0 0 100 30" preserveAspectRatio="none"></svg>
+        <div class="kpi-sub">precio al que los bancos venden $us al cliente</div>
+      </div>
+      <div class="kpi-card compra">
+        <span class="kpi-hover-badge">historial</span>
+        <div class="kpi-label">Compra BCB</div>
+        <div class="kpi-value"><span id="kpi-compra">—</span> <span class="kpi-unit">Bs.</span></div>
+        <div class="kpi-delta" id="delta-compra"></div>
+        <svg class="kpi-spark" id="spark-compra" viewBox="0 0 100 30" preserveAspectRatio="none"></svg>
+        <div class="kpi-sub">precio al que los bancos compran $us del cliente</div>
+      </div>
+      <div class="kpi-card usdt">
+        <span class="kpi-hover-badge">historial</span>
+        <div class="kpi-label">USDT · P2P</div>
+        <div class="kpi-value"><span id="kpi-usdt">—</span> <span class="kpi-unit">Bs.</span></div>
+        <div class="kpi-delta" id="delta-usdt"></div>
+        <svg class="kpi-spark" id="spark-usdt" viewBox="0 0 100 30" preserveAspectRatio="none"></svg>
+        <div class="kpi-sub">VWAP diario — Binance P2P (ofertas de compra)</div>
+      </div>
+      <div class="kpi-card spread">
+        <span class="kpi-hover-badge">historial</span>
+        <div class="kpi-label">Spread BCB</div>
+        <div class="kpi-value"><span id="kpi-spread">—</span> <span class="kpi-unit">Bs.</span></div>
+        <div class="kpi-delta" id="delta-spread"></div>
+        <svg class="kpi-spark" id="spark-spread" viewBox="0 0 100 30" preserveAspectRatio="none"></svg>
+        <div class="kpi-sub">venta − compra · margen de intermediación</div>
+      </div>
+      <div class="kpi-card prima">
+        <span class="kpi-hover-badge">historial</span>
+        <div class="kpi-label">Prima USDT</div>
+        <div class="kpi-value"><span id="kpi-prima">—</span> <span class="kpi-unit">Bs.</span></div>
+        <div class="kpi-delta" id="delta-prima"></div>
+        <svg class="kpi-spark" id="spark-prima" viewBox="0 0 100 30" preserveAspectRatio="none"></svg>
+        <div class="kpi-sub">USDT − venta BCB · mercado informal vs. oficial</div>
+      </div>
+    </div>
+    <div class="chart-hint" style="margin-top:10px">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+      Los KPI se actualizan al interactuar con el gráfico de precios. Usa los botones de rango para filtrar el período.
+    </div>
+  </section>
+
+  <!-- 02 · Precios -->
+  <section class="section">
+    <div class="section-header">
+      <span class="section-num">02</span>
+      <div class="section-titles">
+        <h2>Evolución del Precio Referencial</h2>
+        <p>BCB venta, compra y USDT Binance P2P — Bs./$us · Fuentes: BCB + mauforonda/dolares</p>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-top">
+        <div class="chart-card-meta">
+          <span class="chart-card-title">Venta · Compra BCB · USDT P2P</span>
+          <span class="chart-card-sub">Bolivianos por dólar estadounidense</span>
+        </div>
+        <div class="range-btns" id="rb-precios">
+          <button class="rbtn" data-dias="7">1S</button>
+          <button class="rbtn" data-dias="30">1M</button>
+          <button class="rbtn" data-dias="90">3M</button>
+          <button class="rbtn active" data-dias="0">Todo</button>
+        </div>
+      </div>
+      <div id="chart-precios" class="chart"><div class="loading">Cargando…</div></div>
+      <div class="chart-hint" style="margin-top:8px">
+        <svg viewBox="0 0 24 24"><path d="M13 2.05v2.02c3.95.49 7 3.85 7 7.93 0 3.21-1.81 6-4.72 7.72L13 17v5h5l-1.22-1.22C19.91 19.07 22 15.76 22 12c0-5.18-3.95-9.45-9-9.95zM11 2.05C5.95 2.55 2 6.82 2 12c0 3.76 2.09 7.07 5.22 8.78L6 22h5V17l-2.28 2.28C7.06 18.13 6 15.19 6 12c0-4.08 3.05-7.44 7-7.93V2.05z"/></svg>
+        Pellizca o usa scroll para hacer zoom · Arrastra para desplazarte
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 · Prima USDT -->
+  <section class="section">
+    <div class="section-header">
+      <span class="section-num">03</span>
+      <div class="section-titles">
+        <h2>Prima USDT sobre el Tipo de Cambio Oficial</h2>
+        <p>Diferencia diaria entre el precio informal (Binance P2P) y la venta referencial BCB</p>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-top">
+        <div class="chart-card-meta">
+          <span class="chart-card-title">Brecha mercado informal vs. oficial</span>
+          <span class="chart-card-sub">Valores positivos = USDT cotiza por encima del BCB</span>
+        </div>
+        <div class="range-btns" id="rb-prima">
+          <button class="rbtn" data-dias="30">1M</button>
+          <button class="rbtn" data-dias="90">3M</button>
+          <button class="rbtn active" data-dias="0">Todo</button>
+        </div>
+      </div>
+      <div id="chart-prima" class="chart-med chart"><div class="loading">Cargando…</div></div>
+    </div>
+  </section>
+
+  <!-- 04 · Volúmenes -->
+  <section class="section">
+    <div class="section-header">
+      <span class="section-num">04</span>
+      <div class="section-titles">
+        <h2>Volumen de Compra por Entidad Bancaria</h2>
+        <p>$us operados diariamente por banco. Línea = tasa de compra promedio ponderado (eje der.). Datos desde ene. 2026.</p>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-top">
+        <div class="chart-card-meta">
+          <span class="chart-card-title">Operaciones diarias por banco + Tasa promedio</span>
+          <span class="chart-card-sub">Volúmenes en $us · Eje derecho: Bs./$us — Fuente: BCB v2</span>
+        </div>
+        <div class="range-btns" id="rb-volumen">
+          <button class="rbtn active" data-dias="30">1M</button>
+          <button class="rbtn" data-dias="90">3M</button>
+          <button class="rbtn" data-dias="0">Todo</button>
+        </div>
+      </div>
+      <div id="chart-volumen" class="chart chart-tall"><div class="loading">Cargando…</div></div>
+      <div class="chart-hint" style="margin-top:8px">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        Eje izquierdo = volumen en millones de $us · Interactúa con una serie para resaltarla
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 · Heatmap Calendario -->
+  <section class="section">
+    <div class="section-header">
+      <span class="section-num">05</span>
+      <div class="section-titles">
+        <h2>Mapa de Actividad Diaria</h2>
+        <p>Volumen total de operaciones por día — intensidad del color proporcional al monto</p>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-top">
+        <div class="chart-card-meta">
+          <span class="chart-card-title">Calendario de volumen de compra</span>
+          <span class="chart-card-sub">Días más oscuros = mayor volumen operado en el sistema bancario</span>
+        </div>
+      </div>
+      <div id="chart-heatmap" class="chart-med chart"><div class="loading">Cargando…</div></div>
+      <div class="hm-legend" id="hm-legend" style="display:none">
+        <span class="hm-legend-label" id="hm-leg-min">$0M</span>
+        <div class="hm-legend-bar" id="hm-leg-bar">
+          <div class="hm-legend-marker" id="hm-leg-marker"></div>
+        </div>
+        <span class="hm-legend-label" id="hm-leg-max">—</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 · Tabla -->
+  <section class="section">
+    <div class="section-header">
+      <span class="section-num">06</span>
+      <div class="section-titles">
+        <h2>Detalle por Entidad — Hoy</h2>
+        <p id="tabla-fecha-sub">Tipos de cambio y volúmenes declarados al BCB por cada EIF</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Entidad</th>
+            <th>T.C. compra (Bs./$us)</th>
+            <th>Volumen operado ($us)</th>
+            <th>Transacciones</th>
+            <th>% del total</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-body">
+          <tr><td colspan="5" style="text-align:center;padding:28px;color:var(--muted)">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<!-- ── Footer ───────────────────────────────────────────────────────────── -->
+<footer>
+  <div class="footer-inner">
+    <span class="footer-sources">
+      Fuentes: <a href="https://www.bcb.gob.bo">Banco Central de Bolivia</a> ·
+      <a href="https://github.com/mauforonda/dolares">mauforonda/dolares</a> ·
+      Binance P2P
+    </span>
+    <span class="footer-brand">
+      © <span id="foot-year"></span> <a href="https://populi.org.bo">Centro de Estudios POPULI</a>
+    </span>
+  </div>
+</footer>
+
+<script>
+/* ── Paleta ─────────────────────────────────────────────────────────────── */
+const PAL = ['#C0392B','#2A7FAF','#0E9396','#C89010','#C06030','#6B3F8C','#2E7D4F','#7B8C9E'];
+
+/* ── Estado global ──────────────────────────────────────────────────────── */
+let preciosChart = null, volumenChart = null, primaChart = null, heatmapChart = null;
+let g_serie = [], g_hoy = {}, g_bancos = {};
+
+/* ── Utilidades ─────────────────────────────────────────────────────────── */
+const fmt2 = n => n != null ? Number(n).toFixed(2) : '—';
+const fmtM = n => {
+  if (n == null) return '—';
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+  return (n / 1e3).toFixed(0) + 'K';
+};
+const fmtDate = s => {
+  if (!s) return '—';
+  const [y, m, d] = s.split('-');
+  const M = ['','ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return `${+d} ${M[+m]}. ${y}`;
+};
+const fmtMes = s => {
+  if (!s) return '';
+  const [y, m, d] = s.split('-');
+  const M = ['','ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return `${+d}-${M[+m]}`;
+};
+const mob = () => window.innerWidth <= 520;
+
+/* ── Tokens de tema para ECharts ────────────────────────────────────────── */
+const ct = () => {
+  const s = getComputedStyle(document.documentElement);
+  return {
+    axis:  s.getPropertyValue('--ct-axis').trim(),
+    grid:  s.getPropertyValue('--ct-grid').trim(),
+    leg:   s.getPropertyValue('--ct-legend').trim(),
+    tipBg: s.getPropertyValue('--ct-tip-bg').trim(),
+    tipBd: s.getPropertyValue('--ct-tip-bd').trim(),
+    card:  s.getPropertyValue('--card').trim(),
+  };
+};
+const tipBase = () => {
+  const c = ct();
+  return {
+    backgroundColor: c.tipBg, borderColor: c.tipBd, borderWidth: 1,
+    textStyle: { color: '#D0E4F0', fontSize: 12.5, fontFamily: 'Inter' },
+    extraCssText: 'box-shadow:0 8px 28px rgba(0,0,0,.45);border-radius:10px;padding:12px 16px',
+  };
+};
+
+/* ── Sparklines (SVG) ──────────────────────────────────────────────────── */
+function drawSparkline(svgId, data, color) {
+  const svg = document.getElementById(svgId);
+  if (!svg) return;
+  svg.innerHTML = '';
+  const vals = data.filter(v => v != null);
+  if (vals.length < 2) return;
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const range = max - min || 1;
+  const w = 100, h = 30, pad = 2;
+  const pts = vals.map((v, i) => {
+    const x = (i / (vals.length - 1)) * w;
+    const y = h - pad - ((v - min) / range) * (h - pad * 2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  const area = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  area.setAttribute('points', `0,${h} ${pts.join(' ')} ${w},${h}`);
+  area.setAttribute('fill', color);
+  area.setAttribute('opacity', '0.1');
+  svg.appendChild(area);
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+  line.setAttribute('points', pts.join(' '));
+  line.setAttribute('fill', 'none');
+  line.setAttribute('stroke', color);
+  line.setAttribute('stroke-width', '1.5');
+  line.setAttribute('stroke-linecap', 'round');
+  line.setAttribute('stroke-linejoin', 'round');
+  svg.appendChild(line);
+  const lp = pts[pts.length - 1].split(',');
+  const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  dot.setAttribute('cx', lp[0]);
+  dot.setAttribute('cy', lp[1]);
+  dot.setAttribute('r', '2.5');
+  dot.setAttribute('fill', color);
+  svg.appendChild(dot);
+}
+
+function renderAllSparklines(serie) {
+  const last = serie.slice(-14);
+  drawSparkline('spark-venta',  last.map(p => p.v), '#C71E1D');
+  drawSparkline('spark-compra', last.map(p => p.c), '#005F73');
+  drawSparkline('spark-usdt',   last.map(p => p.usdt), '#D4920A');
+  drawSparkline('spark-spread', last.map(p => p.v != null && p.c != null ? p.v - p.c : null), '#0A9396');
+  drawSparkline('spark-prima',  last.map(p => p.usdt != null && p.v != null ? p.usdt - p.v : null), '#8B2226');
+}
+
+/* ── Deltas ─────────────────────────────────────────────────────────────── */
+function updateDelta(id, curr, prev) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (curr == null || prev == null || prev === 0) { el.innerHTML = ''; el.className = 'kpi-delta'; return; }
+  const diff = curr - prev;
+  const pct = (diff / Math.abs(prev)) * 100;
+  const up = diff > 0;
+  const arrow = up ? '▲' : (diff < 0 ? '▼' : '–');
+  el.className = `kpi-delta ${up ? 'up' : (diff < 0 ? 'down' : '')}`;
+  el.innerHTML = `${arrow} ${diff > 0 ? '+' : ''}${diff.toFixed(2)} <span class="pct">(${pct > 0 ? '+' : ''}${pct.toFixed(1)}%)</span>`;
+}
+
+/* ── KPIs ───────────────────────────────────────────────────────────────── */
+function updateKPIs(p, hover, prevP) {
+  const spread = p.v != null && p.c != null ? p.v - p.c : null;
+  const prima  = p.usdt != null && p.v != null ? p.usdt - p.v : null;
+  document.getElementById('kpi-venta').textContent  = fmt2(p.v);
+  document.getElementById('kpi-compra').textContent = fmt2(p.c);
+  document.getElementById('kpi-usdt').textContent   = p.usdt != null ? fmt2(p.usdt) : 'N/D';
+  document.getElementById('kpi-spread').textContent = fmt2(spread);
+  document.getElementById('kpi-prima').textContent  = prima != null ? fmt2(prima) : 'N/D';
+  document.getElementById('kpi-fecha').textContent  = hover
+    ? `Datos al ${fmtDate(p.f)}`
+    : `Hoy · ${fmtDate(p.f)} · Interactúa con el gráfico para ver histórico`;
+  document.getElementById('kpi-grid').classList.toggle('kpis-hovering', hover);
+
+  if (prevP) {
+    updateDelta('delta-venta', p.v, prevP.v);
+    updateDelta('delta-compra', p.c, prevP.c);
+    updateDelta('delta-usdt', p.usdt, prevP.usdt);
+    const prevSpread = prevP.v != null && prevP.c != null ? prevP.v - prevP.c : null;
+    updateDelta('delta-spread', spread, prevSpread);
+    const prevPrima = prevP.usdt != null && prevP.v != null ? prevP.usdt - prevP.v : null;
+    updateDelta('delta-prima', prima, prevPrima);
+  }
+}
+
+/* ── Alert Banner ──────────────────────────────────────────────────────── */
+function updateAlert(serie, hoy) {
+  const banner = document.getElementById('alert-banner');
+  const text = document.getElementById('alert-text');
+  if (!hoy.usdt || !hoy.v) { banner.classList.remove('visible'); return; }
+  const prima = hoy.usdt - hoy.v;
+  const msgs = [];
+  if (prima > 0.5) {
+    const pct = ((prima / hoy.v) * 100).toFixed(1);
+    msgs.push(`La prima USDT es de <b>Bs. ${prima.toFixed(2)}</b> — el dólar informal cotiza ${pct}% por encima del oficial.`);
+  }
+  if (hoy.v >= 10) {
+    msgs.push(`El tipo de cambio de venta alcanzó <b>Bs. ${hoy.v.toFixed(2)}</b>.`);
+  }
+  const recent = serie.slice(-30).filter(p => p.v != null);
+  if (recent.length >= 5) {
+    const avg30 = recent.reduce((s, p) => s + p.v, 0) / recent.length;
+    const change = ((hoy.v - avg30) / avg30 * 100);
+    if (Math.abs(change) >= 5) {
+      msgs.push(`La venta BCB está <b>${Math.abs(change).toFixed(1)}%</b> ${change > 0 ? 'por encima' : 'por debajo'} del promedio de 30 días.`);
+    }
+  }
+  if (msgs.length) {
+    text.innerHTML = msgs.join(' ');
+    banner.classList.add('visible');
+  } else {
+    banner.classList.remove('visible');
+  }
+}
+
+/* ── Zoom ───────────────────────────────────────────────────────────────── */
+const applyZoom = (chart, dias) => {
+  if (!chart) return;
+  if (!dias) {
+    chart.setOption({ dataZoom: [{ type:'inside', start:0, end:100 }] });
+  } else {
+    const end = new Date().toISOString().slice(0,10);
+    const start = new Date(Date.now() - dias*864e5).toISOString().slice(0,10);
+    chart.setOption({ dataZoom: [{ type:'inside', startValue:start, endValue:end }] });
+  }
+};
+const wireRange = (id, getter) => {
+  document.querySelectorAll(`#${id} .rbtn`).forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll(`#${id} .rbtn`).forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      applyZoom(getter(), parseInt(btn.dataset.dias));
+    });
+  });
+};
+
+/* ── Gráfico Precios ────────────────────────────────────────────────────── */
+function renderPrecios(serie) {
+  const venta = [], compra = [], usdt = [];
+  for (const p of serie) {
+    if (p.v    != null) venta.push( [p.f, p.v]);
+    if (p.c    != null) compra.push([p.f, p.c]);
+    if (p.usdt != null) usdt.push(  [p.f, p.usdt]);
+  }
+  if (preciosChart) preciosChart.dispose();
+  const el = document.getElementById('chart-precios');
+  el.innerHTML = '';
+  preciosChart = echarts.init(el, null, { renderer:'canvas' });
+  const c = ct();
+
+  preciosChart.setOption({
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger:'axis',
+      axisPointer:{ lineStyle:{ color:'rgba(199,30,29,.3)', width:1.5, type:'dashed' } },
+      ...tipBase(),
+      formatter(params) {
+        if (!params.length) return '';
+        let o = `<div style="font-weight:700;margin-bottom:7px;font-size:11.5px;color:#7AA8C0">${fmtDate(params[0].value[0])}</div>`;
+        for (const p of params) {
+          if (p.value[1] == null) continue;
+          o += `<div style="display:flex;justify-content:space-between;gap:18px;margin:3px 0">
+            <span style="color:${p.color}">● ${p.seriesName}</span>
+            <b style="font-family:'IBM Plex Mono',monospace">Bs. ${Number(p.value[1]).toFixed(2)}</b>
+          </div>`;
+        }
+        const pv = params.find(p => p.seriesName==='Venta BCB');
+        const pc = params.find(p => p.seriesName==='Compra BCB');
+        const pu = params.find(p => p.seriesName==='USDT P2P');
+        if (pv?.value[1] && pc?.value[1]) {
+          o += `<div style="margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,.08);
+            display:flex;justify-content:space-between;gap:18px">
+            <span style="color:#60A8B8;font-size:12px">● Spread BCB</span>
+            <b style="font-family:'IBM Plex Mono',monospace;font-size:12px">Bs. ${(pv.value[1]-pc.value[1]).toFixed(2)}</b>
+          </div>`;
+        }
+        if (pu?.value[1] && pv?.value[1]) {
+          const prima = pu.value[1]-pv.value[1];
+          o += `<div style="display:flex;justify-content:space-between;gap:18px;margin-top:2px">
+            <span style="color:#A07080;font-size:12px">● Prima USDT</span>
+            <b style="font-family:'IBM Plex Mono',monospace;font-size:12px">Bs. ${prima.toFixed(2)}</b>
+          </div>`;
+        }
+        return o;
+      }
+    },
+    legend:{
+      data:['Venta BCB','Compra BCB','USDT P2P'],
+      textStyle:{ color:c.leg, fontSize: mob() ? 10.5 : 12, fontFamily:'Inter' },
+      icon:'roundRect', itemWidth:10, itemHeight:4, itemGap: mob() ? 10 : 18, top:2, right:4,
+    },
+    grid:{ left:12, right:12, top:44, bottom:40, containLabel:true },
+    xAxis:{
+      type:'time',
+      axisLabel:{ formatter:v=>fmtMes(new Date(v).toISOString().slice(0,10)), fontSize:11, color:c.axis, fontFamily:'Inter' },
+      axisLine:{ lineStyle:{ color:c.grid } },
+      splitLine:{ lineStyle:{ color:c.grid, type:'dashed' } },
+    },
+    yAxis:{
+      type:'value', name:'Bs./$us',
+      nameTextStyle:{ color:c.axis, fontSize:10, fontFamily:'Inter', padding:[0,0,0,40] },
+      axisLabel:{
+        formatter: v => v.toFixed(0),
+        fontSize:11, color:c.axis, fontFamily:'IBM Plex Mono', margin:8,
+      },
+      axisLine:{ show:false },
+      splitLine:{ lineStyle:{ color:c.grid, type:'dashed' } },
+      min: v => Math.floor(v.min),
+      interval: 1,
+    },
+    dataZoom:[{ type:'inside', filterMode:'filter' }],
+    series:[
+      {
+        name:'Venta BCB', type:'line', data:venta,
+        itemStyle:{ color:'#C71E1D' }, lineStyle:{ width:2, color:'#C71E1D' },
+        areaStyle:{ color:{ type:'linear',x:0,y:0,x2:0,y2:1,
+          colorStops:[{offset:0,color:'rgba(199,30,29,.15)'},{offset:1,color:'rgba(199,30,29,0)'}] } },
+        symbol:'none', smooth:0.55, z:4,
+      },
+      {
+        name:'Compra BCB', type:'line', data:compra,
+        itemStyle:{ color:'#005F73' }, lineStyle:{ width:2, color:'#005F73' },
+        areaStyle:{ color:{ type:'linear',x:0,y:0,x2:0,y2:1,
+          colorStops:[{offset:0,color:'rgba(0,95,115,.13)'},{offset:1,color:'rgba(0,95,115,0)'}] } },
+        symbol:'none', smooth:0.55, z:3,
+      },
+      {
+        name:'USDT P2P', type:'line', data:usdt,
+        itemStyle:{ color:'#D4920A' }, lineStyle:{ width:1.8, color:'#D4920A', type:'dashed' },
+        symbol:'circle', symbolSize:4, smooth:0.4, z:5,
+      },
+    ],
+  });
+
+  preciosChart.on('updateAxisPointer', evt => {
+    const ai = evt.axesInfo;
+    if (!ai?.length) return;
+    const d = new Date(ai[0].value).toISOString().slice(0,10);
+    const idx = g_serie.findIndex(x => x.f === d);
+    if (idx >= 0) updateKPIs(g_serie[idx], true, idx > 0 ? g_serie[idx-1] : null);
+  });
+  preciosChart.on('globalout', () => {
+    const idx = g_serie.length - 1;
+    updateKPIs(g_hoy, false, idx > 0 ? g_serie[idx-1] : null);
+  });
+  wireRange('rb-precios', () => preciosChart);
+}
+
+/* ── Gráfico Prima USDT ────────────────────────────────────────────────── */
+function renderPrima(serie) {
+  const data = serie
+    .filter(p => p.usdt != null && p.v != null)
+    .map(p => [p.f, +(p.usdt - p.v).toFixed(4)]);
+  if (!data.length) return;
+
+  if (primaChart) primaChart.dispose();
+  const el = document.getElementById('chart-prima');
+  el.innerHTML = '';
+  primaChart = echarts.init(el, null, { renderer:'canvas' });
+  const c = ct();
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+
+  primaChart.setOption({
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger:'axis',
+      axisPointer:{ lineStyle:{ color:'rgba(139,34,38,.3)', width:1.5, type:'dashed' } },
+      ...tipBase(),
+      formatter(params) {
+        if (!params.length) return '';
+        const v = params[0].value[1];
+        if (v == null) return '';
+        const col = v >= 0 ? '#C71E1D' : '#0A9396';
+        return `<div style="font-weight:700;margin-bottom:5px;font-size:11.5px;color:#7AA8C0">${fmtDate(params[0].value[0])}</div>
+          <div style="display:flex;justify-content:space-between;gap:18px">
+            <span style="color:${col}">● Prima USDT</span>
+            <b style="font-family:'IBM Plex Mono',monospace">Bs. ${Number(v).toFixed(2)}</b>
+          </div>`;
+      }
+    },
+    grid:{ left:12, right:12, top:30, bottom:40, containLabel:true },
+    xAxis:{
+      type:'time',
+      axisLabel:{ formatter:v=>fmtMes(new Date(v).toISOString().slice(0,10)), fontSize:11, color:c.axis, fontFamily:'Inter' },
+      axisLine:{ lineStyle:{ color:c.grid } },
+      splitLine:{ lineStyle:{ color:c.grid, type:'dashed' } },
+    },
+    yAxis:{
+      type:'value', name:'Prima USDT (Bs.)',
+      nameTextStyle:{ color:c.axis, fontSize:10, fontFamily:'Inter', padding:[0,0,0,4] },
+      nameLocation:'end',
+      axisLabel:{
+        formatter: v => v.toFixed(2),
+        fontSize:11, color:c.axis, fontFamily:'IBM Plex Mono',
+      },
+      axisLine:{ show:false },
+      splitLine:{ lineStyle:{ color:c.grid, type:'dashed' } },
+    },
+    dataZoom:[{ type:'inside', filterMode:'filter' }],
+    series:[{
+      name:'Prima USDT', type:'line', data:data,
+      itemStyle:{ color:'#8B2226' },
+      lineStyle:{ width:2, color:'#8B2226' },
+      areaStyle:{ color:{ type:'linear', x:0, y:0, x2:0, y2:1,
+        colorStops:[{offset:0,color:'rgba(139,34,38,.2)'},{offset:1,color:'rgba(139,34,38,0)'}] } },
+      symbol:'none', smooth:0.4,
+      markLine:{
+        data:[{ yAxis:0 }],
+        label:{ formatter:'Paridad', fontSize:10, position:'insideEndTop', color:c.axis },
+        lineStyle:{ color:c.axis, type:'dashed', width:1 },
+        symbol:'none',
+      },
+    }],
+  });
+  wireRange('rb-prima', () => primaChart);
+}
+
+/* ── Gráfico Volumen ────────────────────────────────────────────────────── */
+function renderVolumen(bancos) {
+  const fechas      = bancos.fechas;
+  const bancosList  = bancos.bancos;
+  const compraSerie = bancos.compra_serie;
+
+  let maxStack = 0;
+  for (let j = 0; j < fechas.length; j++) {
+    let daySum = 0;
+    for (const b of bancosList) daySum += (bancos.series[b] || [])[j] || 0;
+    if (daySum > maxStack) maxStack = daySum;
+  }
+
+  if (volumenChart) volumenChart.dispose();
+  const el = document.getElementById('chart-volumen');
+  el.innerHTML = '';
+  volumenChart = echarts.init(el, null, { renderer:'canvas' });
+  const c = ct();
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const lineCompraColor = dark ? '#94D2BD' : '#005F73';
+
+  const seriesArea = bancosList.map((banco, i) => {
+    const color = banco === 'OTROS' ? (dark ? '#555' : '#9AACBA') : PAL[i % PAL.length];
+    return {
+      name: banco, type:'line', stack:'total',
+      areaStyle:{ color, opacity: banco === 'OTROS' ? .12 : .22 },
+      lineStyle:{ width: banco === 'OTROS' ? 0.5 : 1, color, opacity:.4 },
+      itemStyle:{ color },
+      symbol:'none', smooth:.45,
+      emphasis:{ focus:'series', areaStyle:{ opacity:.45 }, lineStyle:{ width:2, opacity:1 } },
+      blur:{ areaStyle:{ opacity:.04 }, lineStyle:{ opacity:.1 } },
+      data:(bancos.series[banco]||[]).map((v,j)=>[fechas[j], v||0]),
+    };
+  });
+
+  const serieCompra = {
+    name:'Compra prom. pond.', type:'line', yAxisIndex:1,
+    data: compraSerie.map((v,i)=>[fechas[i],v]),
+    lineStyle:{ width:2, color:lineCompraColor },
+    itemStyle:{ color:lineCompraColor },
+    symbol:'none', smooth:.4, z:10,
+  };
+
+  volumenChart.setOption({
+    backgroundColor:'transparent',
+    tooltip:{
+      trigger:'axis',
+      axisPointer:{ type:'cross', lineStyle:{ color:'rgba(100,150,180,.2)', type:'dashed' } },
+      ...tipBase(),
+      formatter(params) {
+        const fecha = params[0]?.value[0];
+        let o = `<div style="font-weight:700;margin-bottom:7px;font-size:11.5px;color:#7AA8C0">${fmtDate(fecha)}</div>`;
+        let total = 0;
+        const bd = [];
+        for (const p of params) {
+          if (p.seriesName === 'Compra prom. pond.') {
+            o += `<div style="margin-bottom:6px">
+              <span style="color:#94D2BD">● Compra prom.: </span>
+              <b style="font-family:'IBM Plex Mono',monospace">Bs. ${Number(p.value[1]).toFixed(2)}</b>
+            </div>`;
+          } else if (p.value[1]) {
+            total += p.value[1]; bd.push({ name:p.seriesName, v:p.value[1], color:p.color });
+          }
+        }
+        o += `<div style="font-weight:700;margin-bottom:4px">Total: $${(total/1e6).toFixed(2)}M</div>`;
+        for (const b of bd.sort((a,x)=>x.v-a.v))
+          o += `<div style="display:flex;justify-content:space-between;gap:14px;font-size:12px;margin:2px 0">
+            <span style="color:${b.color}">■ ${b.name}</span>
+            <span style="font-family:'IBM Plex Mono',monospace">$${(b.v/1e6).toFixed(2)}M</span>
+          </div>`;
+        return o;
+      }
+    },
+    legend:{
+      data:[...bancosList,'Compra prom. pond.'],
+      textStyle:{ color:c.leg, fontSize: mob() ? 10 : 11.5, fontFamily:'Inter' },
+      type:'scroll', bottom:0, itemGap: mob() ? 8 : 12,
+      icon:'roundRect', itemWidth:12, itemHeight:5,
+    },
+    grid:{ left:12, right:12, top:10, bottom:56, containLabel:true },
+    xAxis:{
+      type:'time',
+      axisLabel:{ formatter:v=>fmtMes(new Date(v).toISOString().slice(0,10)), fontSize:11, color:c.axis, fontFamily:'Inter' },
+      axisLine:{ lineStyle:{ color:c.grid } },
+      splitLine:{ lineStyle:{ color:c.grid, type:'dashed' } },
+    },
+    yAxis:[
+      {
+        type:'value', name:'Volumen ($us)', position:'left',
+        max: Math.ceil(maxStack * 1.1 / 1e6) * 1e6,
+        nameTextStyle:{ color:c.axis, fontSize:10, fontFamily:'Inter' },
+        axisLabel:{ formatter:v=> mob() ? (v/1e6).toFixed(1)+'M' : '$'+(v/1e6).toFixed(1)+'M', fontSize:11, color:c.axis, fontFamily:'IBM Plex Mono' },
+        axisLine:{ show:false },
+        splitLine:{ lineStyle:{ color:c.grid, type:'dashed' } },
+      },
+      {
+        type:'value', name:'Compra (Bs.)', position:'right',
+        nameTextStyle:{ color:lineCompraColor, fontSize:10, fontWeight:700, fontFamily:'Inter' },
+        min: v => Math.floor((v.min - 0.2) * 4) / 4,
+        minInterval: 0.25,
+        axisLabel:{
+          formatter: v => v.toFixed(2),
+          fontSize:11, color:c.axis, fontFamily:'IBM Plex Mono',
+        },
+        splitLine:{ show:false },
+      },
+    ],
+    dataZoom:[{ type:'inside', filterMode:'filter' }],
+    series:[...seriesArea, serieCompra],
+  });
+
+  wireRange('rb-volumen', () => volumenChart);
+  applyZoom(volumenChart, 30);
+}
+
+/* ── Heatmap Calendario ────────────────────────────────────────────────── */
+function renderHeatmap(serie) {
+  const data = serie.filter(p => p.vol != null).map(p => [p.f, p.vol]);
+  if (data.length < 3) return;
+
+  if (heatmapChart) heatmapChart.dispose();
+  const el = document.getElementById('chart-heatmap');
+  el.innerHTML = '';
+  heatmapChart = echarts.init(el, null, { renderer:'canvas' });
+  const c = ct();
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const maxVol = Math.max(...data.map(d => d[1]));
+
+  const isMob = mob();
+  const roundMax = Math.ceil(maxVol / 1e6) * 1e6;
+  const colorsLight = ['#F7E8E8','#F0C4C4','#E08888','#C74444','#C71E1D','#8B2226'];
+  const colorsDark  = ['#1a0404','#3d0a0a','#6a1515','#8B2226','#C71E1D','#E86460'];
+  const palette = dark ? colorsDark : colorsLight;
+
+  heatmapChart.setOption({
+    backgroundColor: 'transparent',
+    tooltip: {
+      formatter(params) {
+        if (!params.value || params.value[1] == null) return '';
+        return `<div style="font-weight:700;font-size:11.5px;color:#7AA8C0;margin-bottom:4px">${fmtDate(params.value[0])}</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#D0E4F0">$${(params.value[1]/1e6).toFixed(2)}M</div>`;
+      },
+      ...tipBase(),
+    },
+    visualMap: {
+      show: false,
+      type: 'continuous',
+      min: 0, max: roundMax,
+      inRange: { color: palette },
+    },
+    calendar: {
+      top: 14,
+      left: isMob ? 30 : 60,
+      right: isMob ? 10 : 30,
+      bottom: 10,
+      cellSize: ['auto', isMob ? 13 : 16],
+      range: [data[0][0], data[data.length-1][0]],
+      yearLabel: { show: false },
+      monthLabel: {
+        nameMap: ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'],
+        color: c.axis, fontSize: 11, fontFamily: 'Inter',
+      },
+      dayLabel: {
+        nameMap: ['D','L','M','M','J','V','S'],
+        color: c.axis, fontSize: 10, fontFamily: 'Inter',
+        firstDay: 1,
+      },
+      itemStyle: {
+        borderWidth: 3,
+        borderColor: c.card,
+      },
+      splitLine: { show: false },
+    },
+    series: [{
+      type: 'heatmap',
+      coordinateSystem: 'calendar',
+      data: data,
+    }],
+  });
+
+  const legend = document.getElementById('hm-legend');
+  const bar    = document.getElementById('hm-leg-bar');
+  const marker = document.getElementById('hm-leg-marker');
+  const maxLabel = document.getElementById('hm-leg-max');
+  legend.style.display = 'flex';
+  maxLabel.textContent = '$' + (roundMax / 1e6).toFixed(0) + 'M';
+  bar.style.background = `linear-gradient(to right, ${palette.join(', ')})`;
+
+  heatmapChart.on('mouseover', params => {
+    if (params.value && params.value[1] != null) {
+      const pct = Math.min(Math.max(params.value[1] / roundMax, 0), 1) * 100;
+      marker.style.left = `calc(${pct}% - 1.5px)`;
+      marker.classList.add('visible');
+    }
+  });
+  heatmapChart.on('mouseout', () => {
+    marker.classList.remove('visible');
+  });
+}
+
+/* ── Tabla ──────────────────────────────────────────────────────────────── */
+function renderTabla(tabla_hoy, fecha_hoy, bancosList) {
+  document.getElementById('tabla-fecha-sub').textContent =
+    `Operaciones del ${fmtDate(fecha_hoy)} · Datos declarados al BCB por cada Entidad de Intermediación Financiera`;
+
+  const totalVol = tabla_hoy.reduce((s, r) => s + (r.vol || 0), 0);
+  const maxVol   = Math.max(...tabla_hoy.map(r => r.vol || 0));
+  const tbody = document.getElementById('tabla-body');
+
+  tbody.innerHTML = tabla_hoy.map(r => {
+    const pct    = totalVol > 0 && r.vol ? ((r.vol / totalVol) * 100).toFixed(1) : '—';
+    const barPct = maxVol > 0 && r.vol ? ((r.vol / maxVol) * 100).toFixed(1) : 0;
+    const color  = PAL[bancosList.indexOf(r.banco) % PAL.length] || '#005F73';
+    const volM   = r.vol != null ? fmtM(r.vol) : '—';
+    return `<tr>
+      <td><span class="banco-name"><span class="banco-dot" style="background:${color}"></span>${r.banco}</span></td>
+      <td><span class="tasa-num" style="color:var(--text)">${r.compra != null ? 'Bs. ' + Number(r.compra).toFixed(2) : '—'}</span></td>
+      <td>
+        <div class="vol-cell">
+          <span class="vol-num">$${volM}</span>
+          <div class="vol-track"><div class="vol-fill" style="width:${barPct}%;background:${color}"></div></div>
+        </div>
+      </td>
+      <td><span class="tx-num">${r.tx != null ? r.tx.toLocaleString('es-BO') : '—'}</span></td>
+      <td><span class="pct-num">${pct !== '—' ? pct + '%' : '—'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── Tema ───────────────────────────────────────────────────────────────── */
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('theme', theme);
+  document.getElementById('icon-moon').style.display = theme === 'dark' ? 'none' : 'block';
+  document.getElementById('icon-sun').style.display  = theme === 'dark' ? 'block' : 'none';
+  if (g_serie.length) {
+    renderPrecios(g_serie);
+    renderPrima(g_serie);
+    renderVolumen(g_bancos);
+    renderHeatmap(g_serie);
+  }
+}
+document.getElementById('theme-btn').addEventListener('click', () => {
+  applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+});
+(function() {
+  const t = localStorage.getItem('theme');
+  if (t) {
+    document.documentElement.setAttribute('data-theme', t);
+    document.getElementById('icon-moon').style.display = t === 'dark' ? 'none' : 'block';
+    document.getElementById('icon-sun').style.display  = t === 'dark' ? 'block' : 'none';
+  }
+})();
+
+/* ── Resize con debounce ────────────────────────────────────────────────── */
+let _resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => {
+    if (g_serie.length) {
+      renderPrecios(g_serie);
+      renderPrima(g_serie);
+      renderVolumen(g_bancos);
+      renderHeatmap(g_serie);
+    }
+  }, 200);
+});
+
+/* ── Init ───────────────────────────────────────────────────────────────── */
+async function init() {
+  try {
+    const [hist, bancos] = await Promise.all([
+      fetch('./data/historico.json').then(r => r.json()),
+      fetch('./data/bancos.json').then(r => r.json()),
+    ]);
+    g_serie  = hist.serie;
+    g_hoy    = hist.hoy;
+    g_bancos = bancos;
+
+    const upd = new Date(hist.actualizado);
+    upd.setHours(upd.getHours() - 4);
+    document.getElementById('nav-updated').textContent =
+      upd.toLocaleDateString('es-BO', { day:'numeric', month:'short', year:'numeric' });
+    document.getElementById('foot-year').textContent = new Date().getFullYear();
+
+    const idx = g_serie.length - 1;
+    const prev = idx > 0 ? g_serie[idx-1] : null;
+    updateKPIs(hist.hoy, false, prev);
+    renderAllSparklines(g_serie);
+    updateAlert(g_serie, hist.hoy);
+    try { renderPrecios(hist.serie); } catch(e) { console.error('Precios:', e); }
+    try { renderPrima(hist.serie); } catch(e) { console.error('Prima:', e); }
+    try { renderVolumen(bancos); } catch(e) { console.error('Volumen:', e); }
+    try { renderHeatmap(hist.serie); } catch(e) { console.error('Heatmap:', e); }
+    try { renderTabla(bancos.tabla_hoy, bancos.fecha_hoy, bancos.bancos); } catch(e) { console.error('Tabla:', e); }
+
+  } catch(err) {
+    console.error(err);
+    document.querySelectorAll('.loading').forEach(el =>
+      el.textContent = 'Error cargando datos — intente recargar la página.');
+  }
+}
+init();
+</script>
+</body>
+</html>

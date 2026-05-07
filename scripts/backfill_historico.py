@@ -1,138 +1,176 @@
 """
-Backfill histórico (one-shot): extrae TODA la tabla del SVG de venta del BCB
-(desde 1-dic-2025 hasta hoy) y guarda cada fila en data/dolar.csv.
-
-La compra histórica no está disponible en el SVG compra (solo muestra el día actual),
-por lo que usdt_* y bcb_compra quedan vacíos para fechas pasadas.
+Backfill histórico (one-shot).
+Extrae TODA la historia disponible del BCB y de mauforonda/dolares,
+y genera los archivos de datos.
 
 Uso: python scripts/backfill_historico.py
 """
 
 import csv
+import json
 import re
+import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import requests
+from bs4 import BeautifulSoup
 
-BCB_VENTA_SVG = "https://www.bcb.gob.bo/valor_referencial_venta_svg.php"
-DATA_FILE = Path(__file__).parent.parent / "data" / "dolar.csv"
-FIELDNAMES = ["fecha", "bcb_venta", "bcb_compra", "usdt_venta", "usdt_compra", "timestamp_utc"]
-
-MONTHS_ES = {
-    "enero": "01", "febrero": "02", "marzo": "03", "abril": "04",
-    "mayo": "05", "junio": "06", "julio": "07", "agosto": "08",
-    "septiembre": "09", "octubre": "10", "noviembre": "11", "diciembre": "12",
-}
-
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-    )
-}
+# Reutilizar funciones del scraper principal
+sys.path.insert(0, str(Path(__file__).parent))
+from scrape_dolar import (
+    BCB_VENTA_SVG, BCB_V2_HTML,
+    MAU_BUY_CSV, MAU_SELL_CSV,
+    HEADERS_BCB, CSV_FILE, CSV_FIELDS, DATA_DIR,
+    parse_precio, parse_fecha_es, parse_num,
+    fetch_parse_v2,
+    exportar_historico_json, exportar_bancos_json,
+    MONTHS_ES,
+)
 
 
-def parse_fecha_es(texto: str) -> str | None:
-    pat = re.compile(
-        r'\b(\d{1,2})\s+de\s+(' + '|'.join(MONTHS_ES.keys()) + r')\s+de\s+(\d{4})\b',
-        re.IGNORECASE,
-    )
-    m = pat.search(texto)
-    if m:
-        dia, mes_str, anio = m.groups()
-        return f"{anio}-{MONTHS_ES[mes_str.lower()]}-{dia.zfill(2)}"
-    return None
-
-
-def parse_precio(texto: str) -> float | None:
-    for m in re.finditer(r'\b(\d{1,2}[,\.]\d{2,4})\b', texto):
-        val = float(m.group(1).replace(',', '.'))
-        if 5.0 < val < 25.0:
-            return val
-    return None
-
-
-def fetch_tabla_historica() -> list[dict]:
-    """
-    Descarga el SVG de venta y extrae todos los pares (fecha, precio).
-    El SVG contiene una tabla con dos columnas: fecha y valor Bs/$us.
-    """
-    r = requests.get(BCB_VENTA_SVG, headers=HEADERS, timeout=30)
+def fetch_venta_historico() -> list[tuple[str, float]]:
+    """Extrae todos los pares (fecha, precio_venta) del SVG v1."""
+    r = requests.get(BCB_VENTA_SVG, headers=HEADERS_BCB, timeout=20)
     r.raise_for_status()
-
-    # Remover namespaces para simplificar iter
     xml_text = re.sub(r'\s+xmlns(?::[^=]+)?="[^"]+"', "", r.text)
     root = ET.fromstring(xml_text)
+    textos = [e.text.strip() for e in root.iter("text") if e.text and e.text.strip()]
 
-    # Extraer todos los textos del SVG
-    texts = []
-    for elem in root.iter("text"):
-        t = (elem.text or "").strip()
-        if t:
-            texts.append(t)
-
-    # Reconstruir pares (fecha, precio) recorriendo los textos secuencialmente.
-    # La tabla tiene alternancia: fecha → precio → fecha → precio ...
-    registros = []
+    pares = []
     fecha_actual = None
-    for t in texts:
-        fecha = parse_fecha_es(t)
-        if fecha:
-            fecha_actual = fecha
+    for t in textos:
+        f = parse_fecha_es(t)
+        if f:
+            fecha_actual = f
             continue
         if fecha_actual:
-            precio = parse_precio(t)
-            if precio is not None:
-                registros.append({"fecha": fecha_actual, "bcb_venta": precio})
-                fecha_actual = None  # Resetear para el siguiente par
+            p = parse_precio(t)
+            if p is not None:
+                pares.append((fecha_actual, p))
+                fecha_actual = None
+    return pares
 
-    return registros
+
+def fetch_usdt_historico() -> tuple[dict[str, float], dict[str, float]]:
+    """
+    Descarga buy.csv y sell.csv de mauforonda/dolares y calcula el VWAP
+    promedio diario para cada fecha.
+    Timestamps usan -04:00 (BOT) — la fecha en el timestamp coincide con
+    la fecha publicada por el BCB.
+
+    Retorna:
+      usdt_venta_por_fecha  — buy.csv  (usuario compra USDT, paga BOB)
+      usdt_compra_por_fecha — sell.csv (usuario vende USDT, recibe BOB)
+    """
+    def agg_vwap(url: str) -> dict[str, float]:
+        print(f"  Descargando {url.split('/')[-1]}…")
+        r = requests.get(url, headers=HEADERS_BCB, timeout=60)
+        r.raise_for_status()
+        per_date: dict[str, list[float]] = {}
+        for line in r.text.splitlines()[1:]:
+            if not line:
+                continue
+            parts = line.split(",")
+            if len(parts) < 5 or not parts[4]:
+                continue
+            fecha = parts[0][:10]  # "2026-05-06"
+            try:
+                per_date.setdefault(fecha, []).append(float(parts[4]))
+            except ValueError:
+                pass
+        return {f: round(sum(v) / len(v), 4) for f, v in per_date.items()}
+
+    usdt_venta  = agg_vwap(MAU_BUY_CSV)
+    usdt_compra = agg_vwap(MAU_SELL_CSV)
+    return usdt_venta, usdt_compra
+
+
+def escribir_csv_historico(
+    venta_hist: list[tuple],
+    compra_total: dict,
+    usdt_venta: dict[str, float],
+    usdt_compra: dict[str, float],
+) -> list[dict]:
+    """
+    Escribe el CSV histórico completo combinando BCB + USDT mauforonda.
+    Los datos USDT de mauforonda tienen prioridad sobre valores vacíos;
+    no sobreescriben un valor ya existente en el CSV.
+    """
+    filas_existentes: dict[str, dict] = {}
+    if CSV_FILE.exists():
+        with open(CSV_FILE, newline="", encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                filas_existentes[row["fecha"]] = row
+
+    todas_fechas = sorted(
+        {f for f, _ in venta_hist} | set(compra_total.keys())
+    )
+
+    filas_finales = []
+    for fecha in todas_fechas:
+        existente = filas_existentes.get(fecha, {})
+        venta  = next((p for f, p in venta_hist if f == fecha), None)
+        compra = compra_total.get(fecha)
+
+        # USDT: usar mauforonda si la celda existente está vacía
+        usdt_v = (
+            existente.get("usdt_venta") or
+            (str(usdt_venta[fecha])  if fecha in usdt_venta  else "")
+        )
+        usdt_c = (
+            existente.get("usdt_compra") or
+            (str(usdt_compra[fecha]) if fecha in usdt_compra else "")
+        )
+
+        fila = {
+            "fecha":         fecha,
+            "bcb_venta":     venta  if venta  is not None else existente.get("bcb_venta", ""),
+            "bcb_compra":    compra if compra is not None else existente.get("bcb_compra", ""),
+            "usdt_venta":    usdt_v,
+            "usdt_compra":   usdt_c,
+            "timestamp_utc": existente.get("timestamp_utc", ""),
+        }
+        filas_finales.append(fila)
+
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=CSV_FIELDS)
+        writer.writeheader()
+        writer.writerows(filas_finales)
+
+    return filas_finales
 
 
 def main() -> None:
-    print("Descargando historial desde BCB...")
-    registros = fetch_tabla_historica()
-    print(f"Filas encontradas en SVG: {len(registros)}")
+    print("Descargando historial de venta (SVG v1)...")
+    venta_hist = fetch_venta_historico()
+    print(f"  {len(venta_hist)} registros de venta encontrados.")
 
-    # Leer fechas ya existentes
-    fechas_existentes: set[str] = set()
-    if DATA_FILE.exists():
-        with open(DATA_FILE, newline="", encoding="utf-8") as f:
-            fechas_existentes = {r["fecha"] for r in csv.DictReader(f)}
+    print("Descargando historial de compra + volúmenes (HTML v2)...")
+    v2 = fetch_parse_v2()
+    print(f"  {len(v2['compra_total'])} registros de compra (promedio ponderado).")
+    print(f"  {len(v2['vol_total'])} registros de volumen.")
 
-    nuevos = [r for r in registros if r["fecha"] not in fechas_existentes]
-    if not nuevos:
-        print("No hay datos nuevos que agregar.")
-        return
+    print("Descargando historial USDT (mauforonda/dolares)...")
+    usdt_venta, usdt_compra = fetch_usdt_historico()
+    print(f"  {len(usdt_venta)} días con dato USDT venta.")
+    print(f"  {len(usdt_compra)} días con dato USDT compra.")
 
-    # Ordenar por fecha ascendente
-    nuevos.sort(key=lambda x: x["fecha"])
+    print("Escribiendo CSV histórico...")
+    csv_rows = escribir_csv_historico(venta_hist, v2["compra_total"], usdt_venta, usdt_compra)
+    print(f"  {len(csv_rows)} filas en total.")
 
-    DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
-    escribir_header = not DATA_FILE.exists() or DATA_FILE.stat().st_size == 0
+    print("Exportando JSON...")
+    exportar_historico_json(csv_rows, v2)
+    exportar_bancos_json(v2)
 
-    with open(DATA_FILE, "a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
-        if escribir_header:
-            writer.writeheader()
-        for r in nuevos:
-            writer.writerow({
-                "fecha":       r["fecha"],
-                "bcb_venta":   r["bcb_venta"],
-                "bcb_compra":  "",
-                "usdt_venta":  "",
-                "usdt_compra": "",
-                "timestamp_utc": "",
-            })
-
-    print(f"Guardadas {len(nuevos)} filas históricas.")
-    print("\nPrimeras 5 filas:")
-    for r in nuevos[:5]:
-        print(f"  {r['fecha']} | venta={r['bcb_venta']}")
-    print("Últimas 5 filas:")
-    for r in nuevos[-5:]:
-        print(f"  {r['fecha']} | venta={r['bcb_venta']}")
+    print("\nMuestra de datos (primeros y últimos 3):")
+    for r in csv_rows[:3] + csv_rows[-3:]:
+        print(
+            f"  {r['fecha']} | venta={r['bcb_venta']} | "
+            f"compra={r['bcb_compra']} | usdt_v={r['usdt_venta']}"
+        )
 
 
 if __name__ == "__main__":

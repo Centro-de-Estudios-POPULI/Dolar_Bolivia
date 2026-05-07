@@ -2,8 +2,12 @@ name: "Actualizar precio del dólar"
 
 on:
   schedule:
-    # 23:30 BOT = 03:30 UTC (Bolivia es UTC-4), días hábiles lun-vie
-    - cron: "30 3 * * 1-5"
+    # Bolivia es UTC-4 — 5 corridas diarias en días hábiles
+    - cron: "0 14 * * 1-5"   # 10:00 BOT
+    - cron: "0 17 * * 1-5"   # 13:00 BOT
+    - cron: "0 20 * * 1-5"   # 16:00 BOT
+    - cron: "0 23 * * 1-5"   # 19:00 BOT
+    - cron: "30 3 * * 2-6"   # 23:30 BOT (mar-sáb = cierre lun-vie)
   workflow_dispatch:
 
 permissions:
@@ -24,7 +28,7 @@ jobs:
           cache: "pip"
 
       - name: Instalar dependencias
-        run: pip install requests
+        run: pip install -r requirements.txt
 
       - name: Ejecutar scraper
         run: python scripts/scrape_dolar.py
@@ -33,7 +37,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/dolar.csv
+          git add data/dolar.csv data/historico.json data/bancos.json
           if git diff --cached --quiet; then
             echo "Sin datos nuevos."
           else
