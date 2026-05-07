@@ -113,14 +113,14 @@ def escribir_csv_historico(
         venta  = next((p for f, p in venta_hist if f == fecha), None)
         compra = compra_total.get(fecha)
 
-        # USDT: usar mauforonda si la celda existente está vacía
+        # USDT: mauforonda tiene prioridad (recalcula desde fuente)
         usdt_v = (
-            existente.get("usdt_venta") or
             (str(usdt_venta[fecha])  if fecha in usdt_venta  else "")
+            or existente.get("usdt_venta", "")
         )
         usdt_c = (
-            existente.get("usdt_compra") or
             (str(usdt_compra[fecha]) if fecha in usdt_compra else "")
+            or existente.get("usdt_compra", "")
         )
 
         fila = {
