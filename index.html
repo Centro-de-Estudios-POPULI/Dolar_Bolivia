@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dólar Referencial Bolivia · Populi</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=IBM+Plex+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
   <style>
     /* ── Variables — Tema Claro ──────────────────────────────────────── */
@@ -68,13 +68,8 @@
       border-top-color: rgba(199,30,29,.2);
       box-shadow: 0 1px 0 rgba(199,30,29,.12), 0 4px 20px rgba(0,0,0,.7);
     }
-    [data-theme="dark"] .brand-badge {
-      color: rgba(199,30,29,.9);
-      background: rgba(199,30,29,.1);
-      border-color: rgba(199,30,29,.2);
-    }
-    [data-theme="dark"] .brand-mark { border-color: rgba(199,30,29,.2); }
-    [data-theme="dark"] .brand-mark svg { fill: rgba(199,30,29,.8); }
+    [data-theme="dark"] .logo-p { fill: rgba(199,30,29,.9); }
+    [data-theme="dark"] .logo-opuli { fill: rgba(245,239,224,.85); }
     [data-theme="dark"] .nav-divider { background: rgba(255,255,255,.08); }
     [data-theme="dark"] .brand-sub  { color: rgba(255,255,255,.25); }
     [data-theme="dark"] .nav-center { color: rgba(255,255,255,.7); }
@@ -126,22 +121,8 @@
       gap: 12px;
     }
     .nav-left { display: flex; align-items: center; gap: 10px; }
-    .brand-mark {
-      display: flex; align-items: center; justify-content: center;
-      width: 30px; height: 30px; border-radius: 7px;
-      background: rgba(0,0,0,.22);
-      border: 1px solid rgba(255,255,255,.14);
-      flex-shrink: 0;
-    }
-    .brand-mark svg { width: 16px; height: 16px; fill: rgba(255,255,255,.9); }
-    .brand-badge {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 11px; font-weight: 500; letter-spacing: 2.5px;
-      color: rgba(255,255,255,.95);
-      background: rgba(0,0,0,.2);
-      border: 1px solid rgba(255,255,255,.16);
-      padding: 4px 11px; border-radius: 5px;
-    }
+    .logo-p { fill: rgba(255,255,255,.95); }
+    .logo-opuli { fill: rgba(255,255,255,.78); }
     .nav-divider {
       width: 1px; height: 18px;
       background: rgba(255,255,255,.16);
@@ -416,6 +397,184 @@
       font-size: 12px; color: var(--muted);
     }
 
+    /* ── Table Context Panel ─────────────────────────────────────────── */
+    .table-context {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .ctx-stat {
+      background: var(--card); border-radius: 10px;
+      box-shadow: var(--shadow-xs); padding: 14px 16px;
+      border-left: 3px solid var(--border);
+      transition: background var(--transition);
+    }
+    .ctx-stat.up   { border-left-color: #C71E1D; }
+    .ctx-stat.down { border-left-color: #0A9396; }
+    .ctx-stat.neutral { border-left-color: var(--muted2); }
+    .ctx-stat-label {
+      font-size: 9.5px; font-weight: 700; letter-spacing: .8px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 4px;
+    }
+    .ctx-stat-value {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 20px; font-weight: 500; color: var(--text);
+      line-height: 1.2;
+    }
+    .ctx-stat-delta {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px; font-weight: 600; margin-top: 3px;
+    }
+    .ctx-stat-delta.up   { color: #C71E1D; }
+    .ctx-stat-delta.down { color: #0A9396; }
+    .ctx-stat-sub {
+      font-size: 10.5px; color: var(--muted); margin-top: 4px; line-height: 1.4;
+    }
+
+    .td-delta {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px; font-weight: 600; margin-top: 3px; display: block;
+    }
+    .td-delta.up   { color: #C71E1D; }
+    .td-delta.down { color: #0A9396; }
+    .td-avg {
+      font-size: 10px; color: var(--muted); margin-top: 2px; display: block;
+    }
+    .td-avg b {
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 500; color: var(--text2);
+    }
+
+    @media (max-width: 520px) {
+      .table-context { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+      .ctx-stat { padding: 10px 12px; }
+      .ctx-stat-value { font-size: 17px; }
+    }
+
+    /* ── Report Button ────────────────────────────────────────────────── */
+    .report-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      margin-top: 18px;
+      padding: 10px 22px; border-radius: 28px;
+      border: 1.5px solid rgba(255,255,255,.2);
+      background: rgba(0,0,0,.25);
+      color: rgba(255,255,255,.9);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all .18s;
+      backdrop-filter: blur(6px);
+    }
+    .report-btn:hover {
+      background: rgba(0,0,0,.4);
+      border-color: rgba(255,255,255,.35);
+      transform: translateY(-1px);
+    }
+    .report-btn svg { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
+    [data-theme="dark"] .report-btn {
+      border-color: rgba(199,30,29,.25);
+      background: rgba(199,30,29,.1);
+    }
+    [data-theme="dark"] .report-btn:hover {
+      background: rgba(199,30,29,.2);
+      border-color: rgba(199,30,29,.4);
+    }
+
+    /* ── Report Modal ─────────────────────────────────────────────────── */
+    .report-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(4px);
+      display: none; align-items: center; justify-content: center;
+      padding: 20px;
+      opacity: 0; transition: opacity .2s;
+    }
+    .report-overlay.open { display: flex; opacity: 1; }
+    .report-modal {
+      background: var(--card);
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.4);
+      max-width: 640px; width: 100%;
+      max-height: 85vh;
+      display: flex; flex-direction: column;
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .report-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 22px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .report-header-left { display: flex; flex-direction: column; gap: 2px; }
+    .report-header-title {
+      font-size: 15px; font-weight: 700; color: var(--text);
+    }
+    .report-header-sub {
+      font-size: 11.5px; color: var(--muted);
+    }
+    .report-actions { display: flex; gap: 8px; }
+    .report-action-btn {
+      padding: 7px 14px; border-radius: 8px;
+      border: 1.5px solid var(--border);
+      background: transparent; color: var(--text2);
+      font-family: 'Inter', sans-serif;
+      font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: all .14s;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .report-action-btn:hover {
+      border-color: var(--red); color: var(--red);
+      background: rgba(199,30,29,.06);
+    }
+    .report-action-btn.copied {
+      border-color: #0A9396; color: #0A9396;
+      background: rgba(10,147,150,.08);
+    }
+    .report-action-btn svg { width: 14px; height: 14px; fill: currentColor; }
+    .report-close {
+      width: 32px; height: 32px; border-radius: 8px;
+      border: none; background: transparent;
+      color: var(--muted); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; transition: all .14s;
+    }
+    .report-close:hover { background: var(--card2); color: var(--text); }
+
+    .report-body {
+      padding: 20px 22px 24px;
+      overflow-y: auto;
+      font-size: 13.5px; line-height: 1.75;
+      color: var(--text);
+    }
+    .report-body h3 {
+      font-size: 11px; font-weight: 700; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--red);
+      margin: 20px 0 8px; padding-top: 16px;
+      border-top: 1px solid var(--border2);
+    }
+    .report-body h3:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+    .report-body .rpt-metric {
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 600; color: var(--text);
+    }
+    .report-body .rpt-up { color: #C71E1D; }
+    .report-body .rpt-down { color: #0A9396; }
+    .report-body .rpt-muted { color: var(--muted); font-size: 12.5px; }
+    .report-footer {
+      padding: 12px 22px;
+      border-top: 1px solid var(--border);
+      font-size: 10.5px; color: var(--muted2);
+      text-align: center; flex-shrink: 0;
+    }
+
+    @media (max-width: 520px) {
+      .report-modal { max-height: 92vh; border-radius: 14px; }
+      .report-header { padding: 14px 16px 12px; }
+      .report-body { padding: 16px; font-size: 13px; }
+      .report-btn { font-size: 12px; padding: 9px 18px; }
+    }
+
     /* ── Footer ──────────────────────────────────────────────────────── */
     footer {
       background: #060D16; color: #3D5568;
@@ -468,16 +627,20 @@
       .brand-sub, .nav-divider { display: none; }
       .navbar-inner { padding: 0 16px; height: 50px; }
       .nav-center { font-size: 11px; }
+      .report-header { flex-wrap: wrap; gap: 8px; }
+      .report-header-title { font-size: 14px; }
     }
     @media (max-width: 520px) {
       .navbar-inner {
         display: flex; justify-content: space-between;
         height: 48px; padding: 0 14px;
       }
+      .nav-left svg { height: 26px; }
       .nav-center { display: none; }
       .nav-meta { font-size: 10px; }
       .hero { padding: 28px 16px 32px; }
       .hero h1 { font-size: 20px; }
+      .report-btn { font-size: 12px; padding: 9px 18px; margin-top: 14px; }
       .info-strip { padding: 12px 16px; }
       .info-strip-inner {
         flex-direction: column; font-size: 11.5px; line-height: 1.7;
@@ -494,11 +657,30 @@
       .kpi-value { font-size: 22px; }
       .kpi-card { padding: 13px 14px 11px; }
       .kpi-spark { height: 24px; }
-      .table-wrap { font-size: 12px; }
+      .table-context { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+      .ctx-stat { padding: 10px 12px; }
+      .ctx-stat-value { font-size: 17px; }
+      .ctx-stat-delta { font-size: 10px; }
+      .ctx-stat-sub { font-size: 9.5px; }
+      .td-delta { font-size: 9px; }
+      .td-avg { font-size: 9px; }
+      .table-wrap { font-size: 12px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
       thead th { padding: 9px 12px; font-size: 9px; }
       tbody td { padding: 10px 12px; font-size: 12px; }
+      .report-overlay { padding: 10px; }
+      .report-modal { max-height: 92vh; border-radius: 14px; }
+      .report-header { padding: 14px 16px 12px; }
+      .report-body { padding: 16px; font-size: 13px; line-height: 1.65; }
+      .report-footer { font-size: 9.5px; padding: 10px 16px; }
       footer { padding: 18px 16px; }
       .footer-inner { flex-direction: column; gap: 8px; font-size: 10.5px; }
+    }
+    @media (max-width: 380px) {
+      .table-context { grid-template-columns: 1fr; }
+      .kpi-grid { grid-template-columns: 1fr; }
+      .nav-left svg { height: 22px; }
+      .report-body { padding: 12px; font-size: 12.5px; }
+      .report-action-btn span { display: none; }
     }
   </style>
 </head>
@@ -508,14 +690,12 @@
 <nav class="navbar">
   <div class="navbar-inner">
     <div class="nav-left">
-      <div class="brand-mark">
-        <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-          <path d="M4 3h7a4 4 0 0 1 0 8H7v6H4V3zm3 3v5h4a2 2 0 0 0 0-4H7z"/>
-        </svg>
-      </div>
-      <span class="brand-badge">POPULI</span>
+      <svg viewBox="0 0 310 130" style="height:32px;width:auto;flex-shrink:0" aria-hidden="true">
+        <text x="6" y="112" font-family="'Playfair Display',Georgia,serif" font-size="145" font-weight="700" class="logo-p">P</text>
+        <text x="92" y="87" font-family="'Playfair Display',Georgia,serif" font-size="55" font-weight="400" font-style="italic" letter-spacing="1" class="logo-opuli">opuli</text>
+      </svg>
       <span class="nav-divider"></span>
-      <span class="brand-sub">Centro de Estudios</span>
+      <span class="brand-sub">Centro de Estudios de Políticas Públicas para la Libertad</span>
     </div>
     <div class="nav-center">Dólar Referencial · Bolivia</div>
     <div class="nav-right">
@@ -540,6 +720,10 @@
       Seguimiento diario del valor referencial publicado por el BCB,
       con volúmenes bancarios y precio de mercado USDT/BOB.
     </p>
+    <button class="report-btn" id="report-btn" onclick="openReport()">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM6 20V4h5v7h7v9H6zm2-7h8v1.5H8V13zm0 3h6v1.5H8V16zm0-6h3v1.5H8V10z"/></svg>
+      Resumen del día
+    </button>
   </div>
 </div>
 
@@ -551,7 +735,7 @@
       <b>Compra:</b> precio promedio al que los bancos <em>adquieren</em> dólares de sus clientes. &nbsp;|&nbsp;
       <b>Venta:</b> precio al que los bancos <em>venden</em> dólares. &nbsp;|&nbsp;
       <b>Prima USDT:</b> diferencia entre el precio informal (Binance P2P) y el oficial BCB.
-      Datos actualizados automáticamente varias veces al día en horario hábil (10:00, 13:00, 16:00, 19:00 y 23:30 BOT).
+      Datos actualizados automáticamente 7 veces al día en horario hábil (00:00, 07:00, 11:00, 13:00, 16:00, 19:00 y 23:30 BOT).
     </span>
   </div>
 </div>
@@ -721,7 +905,7 @@
       <div class="chart-card-top">
         <div class="chart-card-meta">
           <span class="chart-card-title">Calendario de volumen de compra</span>
-          <span class="chart-card-sub">Días más oscuros = mayor volumen operado en el sistema bancario</span>
+          <span class="chart-card-sub" id="hm-subtitle">Días más oscuros = mayor volumen operado en el sistema bancario</span>
         </div>
       </div>
       <div id="chart-heatmap" class="chart-med chart"><div class="loading">Cargando…</div></div>
@@ -744,6 +928,7 @@
         <p id="tabla-fecha-sub">Tipos de cambio y volúmenes declarados al BCB por cada EIF</p>
       </div>
     </div>
+    <div class="table-context" id="table-context"></div>
     <div class="table-wrap">
       <table>
         <thead>
@@ -763,6 +948,27 @@
   </section>
 
 </main>
+
+<!-- ── Report Modal ─────────────────────────────────────────────────────── -->
+<div class="report-overlay" id="report-overlay" onclick="if(event.target===this)closeReport()">
+  <div class="report-modal">
+    <div class="report-header">
+      <div class="report-header-left">
+        <span class="report-header-title" id="report-title">Resumen Cambiario</span>
+        <span class="report-header-sub" id="report-sub"></span>
+      </div>
+      <div class="report-actions">
+        <button class="report-action-btn" id="report-copy" onclick="copyReport()">
+          <svg viewBox="0 0 24 24"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg>
+          <span>Copiar</span>
+        </button>
+        <button class="report-close" onclick="closeReport()">×</button>
+      </div>
+    </div>
+    <div class="report-body" id="report-body"></div>
+    <div class="report-footer">Generado automáticamente por Centro de Estudios Populi · Los datos provienen del BCB y Binance P2P</div>
+  </div>
+</div>
 
 <!-- ── Footer ───────────────────────────────────────────────────────────── -->
 <footer>
@@ -1345,8 +1551,93 @@ function renderHeatmap(serie) {
   });
 }
 
+/* ── Contexto tabla ─────────────────────────────────────────────────────── */
+function computeTableContext(bancos, serie) {
+  const fechas = bancos.fechas;
+  const prevIdx = fechas.length - 2;
+  const prevFecha = prevIdx >= 0 ? fechas[prevIdx] : null;
+
+  const prevVol = {};
+  const avgVol = {};
+  for (const banco of Object.keys(bancos.series)) {
+    const data = bancos.series[banco];
+    if (prevIdx >= 0) prevVol[banco] = data[prevIdx] || 0;
+    const last22 = data.slice(-22).filter(v => v > 0);
+    avgVol[banco] = last22.length ? last22.reduce((a,b) => a+b, 0) / last22.length : 0;
+  }
+
+  const prevCompra = prevIdx >= 0 ? bancos.compra_serie[prevIdx] : null;
+  const hoyCompra = bancos.compra_serie[bancos.compra_serie.length - 1];
+
+  const hoyTotal = serie.length ? serie[serie.length - 1] : {};
+  const prevTotal = serie.length >= 2 ? serie[serie.length - 2] : {};
+
+  const last22Total = serie.slice(-22).filter(p => p.vol > 0);
+  const avgTotal = last22Total.length
+    ? last22Total.reduce((s,p) => s + p.vol, 0) / last22Total.length : 0;
+
+  return { prevVol, avgVol, prevFecha, prevCompra, hoyCompra, hoyTotal, prevTotal, avgTotal };
+}
+
+function renderTableContext(ctx, fecha_hoy) {
+  const panel = document.getElementById('table-context');
+  if (!panel) return;
+
+  const hoyVol = ctx.hoyTotal.vol || 0;
+  const prevVol = ctx.prevTotal.vol || 0;
+  const deltaVol = hoyVol - prevVol;
+  const deltaPctVol = prevVol > 0 ? (deltaVol / prevVol * 100) : 0;
+  const volDir = deltaVol > 0 ? 'up' : (deltaVol < 0 ? 'down' : 'neutral');
+
+  const hoyTx = ctx.hoyTotal.tx || 0;
+  const prevTx = ctx.prevTotal.tx || 0;
+  const deltaTx = hoyTx - prevTx;
+  const txDir = deltaTx > 0 ? 'up' : (deltaTx < 0 ? 'down' : 'neutral');
+
+  const hoyC = ctx.hoyCompra;
+  const prevC = ctx.prevCompra;
+  const deltaC = hoyC != null && prevC != null ? hoyC - prevC : null;
+  const cDir = deltaC != null ? (deltaC > 0 ? 'up' : (deltaC < 0 ? 'down' : 'neutral')) : 'neutral';
+
+  const avgDir = hoyVol > ctx.avgTotal * 1.05 ? 'up' : (hoyVol < ctx.avgTotal * 0.95 ? 'down' : 'neutral');
+
+  function mkDelta(diff, pct, prefix) {
+    if (diff == null) return '';
+    const sign = diff > 0 ? '+' : '';
+    const dir = diff > 0 ? 'up' : (diff < 0 ? 'down' : '');
+    const arrow = diff > 0 ? '▲' : (diff < 0 ? '▼' : '–');
+    return `<div class="ctx-stat-delta ${dir}">${arrow} ${sign}${prefix}${Math.abs(diff) >= 1e6 ? (diff/1e6).toFixed(2)+'M' : Math.abs(diff) >= 1e3 ? Math.abs(diff).toLocaleString('es-BO') : typeof diff === 'number' && !Number.isInteger(diff) ? diff.toFixed(2) : diff}${pct != null ? ` (${sign}${pct.toFixed(1)}%)` : ''}</div>`;
+  }
+
+  panel.innerHTML = `
+    <div class="ctx-stat ${volDir}">
+      <div class="ctx-stat-label">Volumen total hoy</div>
+      <div class="ctx-stat-value">$${(hoyVol/1e6).toFixed(2)}M</div>
+      ${mkDelta(deltaVol, deltaPctVol, '$')}
+      <div class="ctx-stat-sub">vs. sesión anterior (${fmtDate(ctx.prevFecha)})</div>
+    </div>
+    <div class="ctx-stat ${txDir}">
+      <div class="ctx-stat-label">Transacciones totales</div>
+      <div class="ctx-stat-value">${hoyTx.toLocaleString('es-BO')}</div>
+      ${mkDelta(deltaTx, null, '')}
+      <div class="ctx-stat-sub">operaciones registradas por EIFs</div>
+    </div>
+    <div class="ctx-stat ${cDir}">
+      <div class="ctx-stat-label">Compra prom. ponderado</div>
+      <div class="ctx-stat-value">Bs. ${hoyC != null ? Number(hoyC).toFixed(2) : '—'}</div>
+      ${deltaC != null ? mkDelta(deltaC, null, 'Bs. ') : ''}
+      <div class="ctx-stat-sub">precio medio pagado por los bancos</div>
+    </div>
+    <div class="ctx-stat ${avgDir}">
+      <div class="ctx-stat-label">Prom. mensual (22 días)</div>
+      <div class="ctx-stat-value">$${(ctx.avgTotal/1e6).toFixed(2)}M</div>
+      <div class="ctx-stat-sub">${hoyVol > ctx.avgTotal * 1.05 ? 'Hoy supera el promedio mensual' : hoyVol < ctx.avgTotal * 0.95 ? 'Hoy por debajo del promedio' : 'En línea con el promedio mensual'}</div>
+    </div>
+  `;
+}
+
 /* ── Tabla ──────────────────────────────────────────────────────────────── */
-function renderTabla(tabla_hoy, fecha_hoy, bancosList) {
+function renderTabla(tabla_hoy, fecha_hoy, bancosList, ctx) {
   document.getElementById('tabla-fecha-sub').textContent =
     `Operaciones del ${fmtDate(fecha_hoy)} · Datos declarados al BCB por cada Entidad de Intermediación Financiera`;
 
@@ -1359,6 +1650,23 @@ function renderTabla(tabla_hoy, fecha_hoy, bancosList) {
     const barPct = maxVol > 0 && r.vol ? ((r.vol / maxVol) * 100).toFixed(1) : 0;
     const color  = PAL[bancosList.indexOf(r.banco) % PAL.length] || '#005F73';
     const volM   = r.vol != null ? fmtM(r.vol) : '—';
+
+    let deltaHtml = '';
+    let avgHtml = '';
+    if (ctx && r.vol != null) {
+      const prev = ctx.prevVol[r.banco];
+      if (prev != null && prev > 0) {
+        const diff = r.vol - prev;
+        const dir = diff > 0 ? 'up' : (diff < 0 ? 'down' : '');
+        const arrow = diff > 0 ? '▲' : (diff < 0 ? '▼' : '–');
+        deltaHtml = `<span class="td-delta ${dir}">${arrow} ${diff > 0 ? '+' : ''}$${fmtM(diff)} vs ant.</span>`;
+      }
+      const avg = ctx.avgVol[r.banco];
+      if (avg > 0) {
+        avgHtml = `<span class="td-avg">Prom. 30d: <b>$${fmtM(avg)}</b></span>`;
+      }
+    }
+
     return `<tr>
       <td><span class="banco-name"><span class="banco-dot" style="background:${color}"></span>${r.banco}</span></td>
       <td><span class="tasa-num" style="color:var(--text)">${r.compra != null ? 'Bs. ' + Number(r.compra).toFixed(2) : '—'}</span></td>
@@ -1366,6 +1674,7 @@ function renderTabla(tabla_hoy, fecha_hoy, bancosList) {
         <div class="vol-cell">
           <span class="vol-num">$${volM}</span>
           <div class="vol-track"><div class="vol-fill" style="width:${barPct}%;background:${color}"></div></div>
+          ${deltaHtml}${avgHtml}
         </div>
       </td>
       <td><span class="tx-num">${r.tx != null ? r.tx.toLocaleString('es-BO') : '—'}</span></td>
@@ -1374,12 +1683,271 @@ function renderTabla(tabla_hoy, fecha_hoy, bancosList) {
   }).join('');
 }
 
+/* ── Reporte automático ─────────────────────────────────────────────────── */
+let g_reportPlain = '';
+
+function generateReport() {
+  const serie = g_serie;
+  const hoy = g_hoy;
+  const bancos = g_bancos;
+  if (!serie.length || !hoy.f) return null;
+
+  const idx = serie.length - 1;
+  const prev = idx > 0 ? serie[idx - 1] : null;
+  const hace7 = idx >= 7 ? serie[idx - 7] : null;
+  const hace30 = idx >= 30 ? serie[idx - 30] : null;
+
+  const spread = hoy.v != null && hoy.c != null ? hoy.v - hoy.c : null;
+  const prima = hoy.usdt != null && hoy.v != null ? hoy.usdt - hoy.v : null;
+  const primaPct = prima != null && hoy.v ? (prima / hoy.v * 100) : null;
+
+  const m = (v) => v != null ? `<span class="rpt-metric">Bs.&nbsp;${Number(v).toFixed(2)}</span>` : 'N/D';
+  const mu = (v) => v != null ? `<span class="rpt-metric">$${(v/1e6).toFixed(2)}M</span>` : 'N/D';
+  const dir = (diff) => diff > 0 ? 'subiendo' : (diff < 0 ? 'bajando' : 'sin cambios');
+  const arrow = (diff) => diff > 0
+    ? `<span class="rpt-up">▲ +${Math.abs(diff).toFixed(2)}</span>`
+    : (diff < 0 ? `<span class="rpt-down">▼ −${Math.abs(diff).toFixed(2)}</span>` : `<span class="rpt-muted">sin cambio</span>`);
+
+  let html = '';
+  let plain = '';
+
+  // ── Tipo de cambio
+  html += `<h3>Tipo de cambio</h3>`;
+  let tcText = `El dólar referencial de venta cerró en ${m(hoy.v)}`;
+  let tcPlain = `TIPO DE CAMBIO\nEl dólar referencial de venta cerró en Bs. ${fmt2(hoy.v)}`;
+  if (prev && hoy.v != null && prev.v != null) {
+    const dv = hoy.v - prev.v;
+    tcText += `, ${dir(dv)} ${arrow(dv)} respecto a la sesión anterior`;
+    tcPlain += `, ${dir(dv)} ${dv > 0 ? '+' : ''}${dv.toFixed(2)} respecto a la sesión anterior`;
+  }
+  tcText += `. El precio de compra ponderado se ubicó en ${m(hoy.c)}`;
+  tcPlain += `. El precio de compra ponderado se ubicó en Bs. ${fmt2(hoy.c)}`;
+  if (spread != null) {
+    tcText += `, con un spread de ${m(spread)}`;
+    tcPlain += `, con un spread de Bs. ${spread.toFixed(2)}`;
+  }
+  tcText += '.';
+  tcPlain += '.';
+  html += `<p>${tcText}</p>`;
+  plain += tcPlain + '\n\n';
+
+  // ── Mercado informal
+  html += `<h3>Mercado informal (USDT)</h3>`;
+  let usdtText = '';
+  let usdtPlain = 'MERCADO INFORMAL (USDT)\n';
+  if (hoy.usdt != null) {
+    usdtText = `El USDT en Binance P2P cotizó en ${m(hoy.usdt)}`;
+    usdtPlain += `El USDT en Binance P2P cotizó en Bs. ${fmt2(hoy.usdt)}`;
+    if (prima != null) {
+      const above = prima >= 0;
+      const primaWord = above ? 'por encima' : 'por debajo';
+      usdtText += `, generando una prima de ${m(Math.abs(prima))} (${primaPct.toFixed(1)}%) ${primaWord} del tipo de cambio oficial`;
+      usdtPlain += `, generando una prima de Bs. ${Math.abs(prima).toFixed(2)} (${primaPct.toFixed(1)}%) ${primaWord} del tipo de cambio oficial`;
+    }
+    usdtText += '.';
+    usdtPlain += '.';
+
+    if (prima != null) {
+      if (prima > 1.0) {
+        usdtText += ' La brecha es significativa, reflejando presión en el mercado informal.';
+        usdtPlain += ' La brecha es significativa, reflejando presión en el mercado informal.';
+      } else if (prima > 0.3) {
+        usdtText += ' La brecha se mantiene moderada.';
+        usdtPlain += ' La brecha se mantiene moderada.';
+      } else if (prima >= -0.1) {
+        usdtText += ' El mercado informal se encuentra prácticamente alineado con el oficial.';
+        usdtPlain += ' El mercado informal se encuentra prácticamente alineado con el oficial.';
+      } else {
+        usdtText += ' El tipo informal cotiza por debajo del oficial, situación atípica.';
+        usdtPlain += ' El tipo informal cotiza por debajo del oficial, situación atípica.';
+      }
+    }
+  } else {
+    usdtText = 'No hay datos de USDT disponibles para esta fecha.';
+    usdtPlain += 'No hay datos de USDT disponibles para esta fecha.';
+  }
+  html += `<p>${usdtText}</p>`;
+  plain += usdtPlain + '\n\n';
+
+  // ── Tendencia
+  html += `<h3>Tendencia</h3>`;
+  let tendText = '';
+  let tendPlain = 'TENDENCIA\n';
+  if (hace30 && hoy.v != null && hace30.v != null) {
+    const d30 = ((hoy.v - hace30.v) / hace30.v * 100);
+    const d30dir = d30 > 0 ? 'subido' : (d30 < 0 ? 'bajado' : 'mantenido');
+    tendText = `En los últimos 30 días, el dólar de venta ha ${d30dir} un <span class="rpt-metric ${d30 > 0 ? 'rpt-up' : 'rpt-down'}">${Math.abs(d30).toFixed(1)}%</span>, pasando de ${m(hace30.v)} a ${m(hoy.v)}.`;
+    tendPlain += `En los últimos 30 días, el dólar de venta ha ${d30dir} un ${Math.abs(d30).toFixed(1)}%, pasando de Bs. ${fmt2(hace30.v)} a Bs. ${fmt2(hoy.v)}.`;
+  }
+  if (hace7 && hoy.v != null && hace7.v != null) {
+    const d7 = ((hoy.v - hace7.v) / hace7.v * 100);
+    const d7dir = d7 > 0 ? 'sube' : (d7 < 0 ? 'baja' : 'se mantiene');
+    tendText += ` En la última semana ${d7dir} <span class="rpt-metric">${Math.abs(d7).toFixed(1)}%</span>.`;
+    tendPlain += ` En la última semana ${d7dir} ${Math.abs(d7).toFixed(1)}%.`;
+  }
+  // Media móvil 7d
+  const last7 = serie.slice(-7).filter(p => p.v != null);
+  if (last7.length >= 3) {
+    const ma7 = last7.reduce((s,p) => s + p.v, 0) / last7.length;
+    tendText += ` Media móvil 7 días: ${m(ma7)}.`;
+    tendPlain += ` Media móvil 7 días: Bs. ${ma7.toFixed(2)}.`;
+  }
+  // Rango 30d
+  const last30v = serie.slice(-30).filter(p => p.v != null).map(p => p.v);
+  if (last30v.length >= 5) {
+    const min30 = Math.min(...last30v);
+    const max30 = Math.max(...last30v);
+    tendText += ` Rango 30 días: ${m(min30)} – ${m(max30)}.`;
+    tendPlain += ` Rango 30 días: Bs. ${fmt2(min30)} – Bs. ${fmt2(max30)}.`;
+  }
+  if (tendText) {
+    html += `<p>${tendText}</p>`;
+    plain += tendPlain + '\n\n';
+  }
+
+  // ── Volumen
+  html += `<h3>Volumen bancario</h3>`;
+  let volText = '';
+  let volPlain = 'VOLUMEN BANCARIO\n';
+  if (hoy.vol) {
+    volText = `Se operaron ${mu(hoy.vol)} en el sistema bancario`;
+    volPlain += `Se operaron $${(hoy.vol/1e6).toFixed(2)}M en el sistema bancario`;
+    if (hoy.tx) {
+      volText += ` en <span class="rpt-metric">${hoy.tx.toLocaleString('es-BO')}</span> transacciones`;
+      volPlain += ` en ${hoy.tx.toLocaleString('es-BO')} transacciones`;
+    }
+    volText += '.';
+    volPlain += '.';
+
+    const last22 = serie.slice(-22).filter(p => p.vol > 0);
+    if (last22.length >= 5) {
+      const avgVol = last22.reduce((s,p) => s + p.vol, 0) / last22.length;
+      const vsAvg = ((hoy.vol - avgVol) / avgVol * 100);
+      if (Math.abs(vsAvg) >= 5) {
+        const dir2 = vsAvg > 0 ? 'por encima' : 'por debajo';
+        volText += ` Esto es un <span class="rpt-metric ${vsAvg > 0 ? 'rpt-up' : 'rpt-down'}">${Math.abs(vsAvg).toFixed(0)}%</span> ${dir2} del promedio mensual (${mu(avgVol)}).`;
+        volPlain += ` Esto es un ${Math.abs(vsAvg).toFixed(0)}% ${dir2} del promedio mensual ($${(avgVol/1e6).toFixed(2)}M).`;
+      } else {
+        volText += ` En línea con el promedio mensual de ${mu(avgVol)}.`;
+        volPlain += ` En línea con el promedio mensual de $${(avgVol/1e6).toFixed(2)}M.`;
+      }
+    }
+  }
+  // Top banco
+  if (bancos.tabla_hoy && bancos.tabla_hoy.length) {
+    const top = bancos.tabla_hoy[0];
+    const totalVol = bancos.tabla_hoy.reduce((s,r) => s + (r.vol||0), 0);
+    if (top.vol && totalVol > 0) {
+      const topPct = (top.vol / totalVol * 100).toFixed(0);
+      volText += ` <span class="rpt-metric">${top.banco}</span> lideró las operaciones con $${fmtM(top.vol)} (${topPct}% del total).`;
+      volPlain += ` ${top.banco} lideró las operaciones con $${fmtM(top.vol)} (${topPct}% del total).`;
+    }
+  }
+  html += `<p>${volText}</p>`;
+  plain += volPlain + '\n\n';
+
+  // ── Evaluación
+  html += `<h3>Evaluación</h3>`;
+  let evalText = '';
+  let evalPlain = 'EVALUACIÓN\n';
+
+  const last5v = serie.slice(-5).filter(p => p.v != null).map(p => p.v);
+  const trending = last5v.length >= 3 && last5v[last5v.length-1] > last5v[0];
+  const allUp = last5v.length >= 3 && last5v.every((v,i) => i === 0 || v >= last5v[i-1]);
+
+  if (hoy.v >= 11) {
+    evalText = 'El tipo de cambio se encuentra en niveles históricamente altos, con presión sostenida sobre el boliviano.';
+    evalPlain += 'El tipo de cambio se encuentra en niveles históricamente altos, con presión sostenida sobre el boliviano.';
+  } else if (hoy.v >= 10) {
+    evalText = 'El tipo de cambio se mantiene por encima de la barrera de Bs. 10, indicando un nivel elevado de depreciación del boliviano.';
+    evalPlain += 'El tipo de cambio se mantiene por encima de la barrera de Bs. 10, indicando un nivel elevado de depreciación del boliviano.';
+  } else if (hoy.v >= 9) {
+    evalText = 'El tipo de cambio se mantiene en un rango alto, mostrando presiones cambiarias persistentes.';
+    evalPlain += 'El tipo de cambio se mantiene en un rango alto, mostrando presiones cambiarias persistentes.';
+  } else {
+    evalText = 'El tipo de cambio opera en un rango moderado.';
+    evalPlain += 'El tipo de cambio opera en un rango moderado.';
+  }
+
+  if (allUp && last5v.length >= 3) {
+    evalText += ' La tendencia de corto plazo es alcista con sesiones consecutivas al alza.';
+    evalPlain += ' La tendencia de corto plazo es alcista con sesiones consecutivas al alza.';
+  } else if (trending) {
+    evalText += ' La tendencia de corto plazo apunta al alza.';
+    evalPlain += ' La tendencia de corto plazo apunta al alza.';
+  }
+
+  if (prima != null && prima > 0.5 && prima < 1) {
+    evalText += ' La prima del mercado informal es moderada, sugiriendo demanda sostenida de divisas fuera del sistema bancario.';
+    evalPlain += ' La prima del mercado informal es moderada, sugiriendo demanda sostenida de divisas fuera del sistema bancario.';
+  } else if (prima != null && prima >= 1) {
+    evalText += ' La prima elevada del mercado informal señala restricciones de acceso a dólares en el sistema formal.';
+    evalPlain += ' La prima elevada del mercado informal señala restricciones de acceso a dólares en el sistema formal.';
+  } else if (prima != null && prima <= 0.1) {
+    evalText += ' La convergencia entre mercado oficial e informal indica oferta adecuada de divisas.';
+    evalPlain += ' La convergencia entre mercado oficial e informal indica oferta adecuada de divisas.';
+  }
+
+  html += `<p>${evalText}</p>`;
+  plain += evalPlain;
+
+  // Header
+  const titulo = `Resumen Cambiario — ${fmtDate(hoy.f)}`;
+  plain = `${titulo.toUpperCase()}\n${'='.repeat(40)}\n\n${plain}\n\n—\nGenerado por Centro de Estudios Populi\npopuli.org.bo`;
+
+  g_reportPlain = plain;
+  return { html, titulo };
+}
+
+function openReport() {
+  const result = generateReport();
+  if (!result) return;
+  document.getElementById('report-title').textContent = result.titulo;
+  document.getElementById('report-sub').textContent = `Generado el ${new Date().toLocaleDateString('es-BO', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' })}`;
+  document.getElementById('report-body').innerHTML = result.html;
+  const overlay = document.getElementById('report-overlay');
+  overlay.style.display = 'flex';
+  requestAnimationFrame(() => overlay.classList.add('open'));
+}
+
+function closeReport() {
+  const overlay = document.getElementById('report-overlay');
+  overlay.classList.remove('open');
+  setTimeout(() => overlay.style.display = 'none', 200);
+}
+
+function copyReport() {
+  navigator.clipboard.writeText(g_reportPlain).then(() => {
+    const btn = document.getElementById('report-copy');
+    btn.classList.add('copied');
+    btn.querySelector('span').textContent = 'Copiado';
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.querySelector('span').textContent = 'Copiar';
+    }, 2000);
+  });
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeReport();
+});
+
 /* ── Tema ───────────────────────────────────────────────────────────────── */
+function updateHmSubtitle() {
+  const el = document.getElementById('hm-subtitle');
+  if (!el) return;
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  el.textContent = dark
+    ? 'Días más brillantes = mayor volumen operado en el sistema bancario'
+    : 'Días más oscuros = mayor volumen operado en el sistema bancario';
+}
+
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem('theme', theme);
   document.getElementById('icon-moon').style.display = theme === 'dark' ? 'none' : 'block';
   document.getElementById('icon-sun').style.display  = theme === 'dark' ? 'block' : 'none';
+  updateHmSubtitle();
   if (g_serie.length) {
     renderPrecios(g_serie);
     renderPrima(g_serie);
@@ -1396,6 +1964,7 @@ document.getElementById('theme-btn').addEventListener('click', () => {
     document.documentElement.setAttribute('data-theme', t);
     document.getElementById('icon-moon').style.display = t === 'dark' ? 'none' : 'block';
     document.getElementById('icon-sun').style.display  = t === 'dark' ? 'block' : 'none';
+    updateHmSubtitle();
   }
 })();
 
@@ -1438,8 +2007,12 @@ async function init() {
     try { renderPrecios(hist.serie); } catch(e) { console.error('Precios:', e); }
     try { renderPrima(hist.serie); } catch(e) { console.error('Prima:', e); }
     try { renderVolumen(bancos); } catch(e) { console.error('Volumen:', e); }
-    try { renderHeatmap(hist.serie); } catch(e) { console.error('Heatmap:', e); }
-    try { renderTabla(bancos.tabla_hoy, bancos.fecha_hoy, bancos.bancos); } catch(e) { console.error('Tabla:', e); }
+    try { renderHeatmap(hist.serie); updateHmSubtitle(); } catch(e) { console.error('Heatmap:', e); }
+    try {
+      const tableCtx = computeTableContext(bancos, hist.serie);
+      renderTableContext(tableCtx, bancos.fecha_hoy);
+      renderTabla(bancos.tabla_hoy, bancos.fecha_hoy, bancos.bancos, tableCtx);
+    } catch(e) { console.error('Tabla:', e); }
 
   } catch(err) {
     console.error(err);
