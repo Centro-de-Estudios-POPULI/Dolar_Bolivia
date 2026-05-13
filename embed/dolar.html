@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tipo de Cambio y USDT · Populi</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <style>
+    /* ── Variables — Tema Claro (Populi Website) ─────────────────── */
+    :root {
+      --populi:       #8B1A1A;
+      --populi-dark:  #6B0300;
+      --populi-light: #C00000;
+      --populi-gold:  #D4A017;
+      --cream:        #F5EFE0;
+      --brown:        #5C3D1E;
+      --brown-dark:   #3D2B1F;
+      --navy:         #0D1B2A;
+      --navy-light:   #1A2940;
+      --slate:        #475569;
+      --slate-light:  #64748B;
+      --warm-white:   #FAF8F3;
+      --light-gray:   #F1EDE5;
+      --border:       #E2DDD3;
+      --dark-border:  #2A3A50;
+
+      --bg:   var(--warm-white);
+      --card: #FFFFFF;
+      --text: var(--brown-dark);
+      --text2: var(--slate);
+      --muted: var(--slate-light);
+
+      --ct-venta:   #C71E1D;
+      --ct-compra:  #0D9488;
+      --ct-usdt:    #D97706;
+      --ct-oficial: #6366F1;
+
+      --shadow: 0 1px 3px rgba(13,27,42,.04), 0 4px 16px rgba(13,27,42,.06);
+      --radius: 12px;
+    }
+
+    /* ── Variables — Tema Oscuro ──────────────────────────────────── */
+    [data-theme="dark"] {
+      --bg:          #080808;
+      --card:        #141414;
+      --text:        #E2E8F0;
+      --text2:       #94A3B8;
+      --muted:       #64748B;
+      --border:      #2A3A50;
+      --light-gray:  #1A1A1A;
+      --cream:       #1A2940;
+      --shadow: 0 2px 8px rgba(0,0,0,.5), 0 6px 24px rgba(0,0,0,.4);
+    }
+
+    /* ── Reset ────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      padding: 0;
+      margin: 0;
+      transition: background .25s ease, color .25s ease;
+    }
+
+    .embed-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px 16px;
+    }
+
+    /* ── Section Header ──────────────────────────────────────────── */
+    .section-header {
+      margin-bottom: 16px;
+    }
+    .section-title {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.55rem;
+      font-weight: 700;
+      color: var(--navy);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      line-height: 1.15;
+    }
+    [data-theme="dark"] .section-title { color: #fff; }
+    .section-title .accent-bar {
+      width: 4px;
+      height: 26px;
+      background: var(--ct-usdt);
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    .section-subtitle {
+      font-size: 0.78rem;
+      color: var(--muted);
+      padding-left: 14px;
+      margin-top: 2px;
+    }
+    [data-theme="dark"] .section-subtitle { color: rgba(255,255,255,.4); }
+
+    /* ── KPI Strip ───────────────────────────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 700px) {
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    .kpi-card {
+      background: var(--warm-white);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      position: relative;
+      overflow: hidden;
+      cursor: default;
+      transition: transform .2s, box-shadow .2s;
+    }
+    [data-theme="dark"] .kpi-card {
+      background: #141414;
+      border-color: var(--dark-border);
+    }
+    .kpi-card:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(0,0,0,.08);
+    }
+    .kpi-card::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 3px;
+    }
+    .kpi-card[data-s="v"]::after { background: var(--ct-venta); }
+    .kpi-card[data-s="c"]::after { background: var(--ct-compra); }
+    .kpi-card[data-s="u"]::after { background: var(--ct-usdt); }
+    .kpi-card[data-s="b"]::after { background: var(--ct-oficial); }
+    .kpi-label {
+      font-size: 0.62rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    [data-theme="dark"] .kpi-label { color: rgba(255,255,255,.4); }
+    .kpi-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+    .kpi-delta {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 1px 7px;
+      border-radius: 5px;
+      margin-top: 5px;
+    }
+    .kpi-delta.up { background: rgba(199,30,29,.08); color: #C71E1D; }
+    .kpi-delta.down { background: rgba(5,150,105,.08); color: #059669; }
+    .kpi-delta.flat { background: rgba(100,116,139,.08); color: #64748B; }
+    [data-theme="dark"] .kpi-delta.up { background: rgba(199,30,29,.15); }
+    [data-theme="dark"] .kpi-delta.down { background: rgba(5,150,105,.15); }
+
+    /* ── Main Grid: Chart + Panel ────────────────────────────────── */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 3fr 2fr;
+      grid-template-rows: 540px;
+      gap: 16px;
+    }
+    @media (max-width: 900px) {
+      .main-grid { grid-template-columns: 1fr; grid-template-rows: 480px auto; }
+    }
+    @media (min-width: 1100px) {
+      .main-grid { grid-template-rows: 580px; }
+    }
+
+    /* ── Chart Card ──────────────────────────────────────────────── */
+    .chart-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+    [data-theme="dark"] .chart-card {
+      background: #141414;
+      border-color: var(--dark-border);
+    }
+    .chart-controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .toggle-group { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .toggle-pill {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 12px;
+      border: 1.5px solid;
+      border-radius: 8px;
+      background: transparent;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      transition: all .2s;
+    }
+    .toggle-pill:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    }
+    .toggle-pill .line-prev {
+      width: 16px; height: 0;
+      border-top: 2.5px solid;
+      border-radius: 1px;
+    }
+    .toggle-pill .line-prev.dashed { border-top-style: dashed; }
+
+    .range-group { display: flex; gap: 4px; }
+    .range-btn {
+      padding: 4px 10px;
+      border: 1.5px solid var(--border);
+      border-radius: 7px;
+      background: transparent;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--muted);
+      transition: all .2s;
+    }
+    [data-theme="dark"] .range-btn { border-color: var(--dark-border); color: #94A3B8; }
+    .range-btn:hover, .range-btn.active {
+      border-color: var(--populi);
+      color: var(--populi);
+    }
+    [data-theme="dark"] .range-btn:hover, [data-theme="dark"] .range-btn.active {
+      border-color: var(--populi-light);
+      color: var(--populi-light);
+    }
+
+    .chart-area {
+      flex: 1;
+      min-height: 0;
+    }
+
+    .chart-source {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 8px;
+      padding: 0 2px;
+    }
+    .chart-source-text {
+      font-size: 0.58rem;
+      color: var(--muted);
+      opacity: .6;
+    }
+    .chart-source-text a {
+      color: var(--populi);
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .chart-source-text a:hover { text-decoration: underline; }
+
+    /* ── Panel ────────────────────────────────────────────────────── */
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    [data-theme="dark"] .panel {
+      background: #141414;
+      border-color: var(--dark-border);
+    }
+    .panel-header {
+      background: var(--navy);
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    [data-theme="dark"] .panel-header { background: var(--navy-light); }
+    .panel-header-title {
+      font-size: 0.56rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(255,255,255,.8);
+    }
+    .panel-header-date {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.56rem;
+      font-weight: 600;
+      color: var(--populi-light);
+      background: rgba(199,30,29,.15);
+      padding: 2px 8px;
+      border-radius: 5px;
+    }
+    .panel-body {
+      padding: 14px;
+      flex: 1;
+      overflow-y: auto;
+    }
+    .panel-block {
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    [data-theme="dark"] .panel-block { border-color: var(--dark-border); }
+    .panel-block:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .panel-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.58rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 2px;
+      padding: 2px 9px 2px 6px;
+      border-radius: 4px;
+      border-left: 3px solid;
+    }
+    .panel-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.92rem;
+      font-weight: 700;
+      margin-bottom: 3px;
+    }
+    .panel-desc {
+      font-size: 0.66rem;
+      line-height: 1.55;
+      color: var(--slate-light);
+    }
+    [data-theme="dark"] .panel-desc { color: rgba(255,255,255,.45); }
+    .panel-desc strong { color: var(--navy); }
+    [data-theme="dark"] .panel-desc strong { color: #E2E8F0; }
+
+    .delta-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 0.82em;
+      white-space: nowrap;
+    }
+    .dt-red { background: rgba(199,30,29,.08); color: #C71E1D; }
+    .dt-teal { background: rgba(13,148,136,.08); color: #0D9488; }
+    .dt-amber { background: rgba(217,119,6,.08); color: #D97706; }
+    .dt-indigo { background: rgba(99,102,241,.08); color: #6366F1; }
+
+    /* ── Edu Boxes ────────────────────────────────────────────────── */
+    .edu-box {
+      background: var(--cream);
+      border-radius: 8px;
+      padding: 10px 12px;
+      border-left: 3px solid var(--populi);
+      margin-top: 4px;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    [data-theme="dark"] .edu-box { background: var(--navy-light); }
+    .edu-box:hover { transform: translateY(-1px); }
+    .edu-box-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .edu-box-title {
+      font-size: 0.62rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--populi);
+    }
+    [data-theme="dark"] .edu-box-title { color: var(--populi-light); }
+    .edu-box-arrow {
+      font-size: 0.6rem;
+      color: var(--muted);
+      transition: transform .2s;
+    }
+    .edu-box.open .edu-box-arrow { transform: rotate(180deg); }
+    .edu-box-content {
+      display: none;
+      margin-top: 8px;
+    }
+    .edu-box.open .edu-box-content { display: block; }
+    .edu-box-content p {
+      font-size: 0.66rem;
+      line-height: 1.6;
+      color: var(--slate-light);
+      margin-bottom: 6px;
+    }
+    .edu-box-content p:last-child { margin-bottom: 0; }
+    [data-theme="dark"] .edu-box-content p { color: #94A3B8; }
+    .edu-box-content p strong { color: var(--navy); }
+    [data-theme="dark"] .edu-box-content p strong { color: #E2E8F0; }
+    .edu-box-content .highlight {
+      display: inline;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.92em;
+      font-weight: 600;
+      padding: 0 4px;
+      border-radius: 3px;
+    }
+    .hl-red { background: rgba(199,30,29,.08); color: #C71E1D; }
+    .hl-teal { background: rgba(13,148,136,.08); color: #0D9488; }
+    .hl-amber { background: rgba(217,119,6,.08); color: #D97706; }
+    .hl-indigo { background: rgba(99,102,241,.08); color: #6366F1; }
+
+    /* ── Ampliar Button ──────────────────────────────────────────── */
+    .panel-footer {
+      padding: 10px 14px;
+      border-top: 1px solid var(--border);
+    }
+    [data-theme="dark"] .panel-footer { border-color: var(--dark-border); }
+    .ampliar-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      padding: 8px 0;
+      border-radius: 8px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.66rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--populi);
+      background: rgba(139,26,26,.06);
+      border: 1.5px solid rgba(139,26,26,.15);
+      transition: all .2s;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    [data-theme="dark"] .ampliar-btn {
+      background: rgba(192,0,0,.08);
+      border-color: rgba(192,0,0,.2);
+      color: var(--populi-light);
+    }
+    .ampliar-btn:hover {
+      background: rgba(139,26,26,.12);
+      border-color: rgba(139,26,26,.3);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(139,26,26,.1);
+      text-decoration: none;
+    }
+    .ampliar-btn svg {
+      width: 13px; height: 13px;
+    }
+
+    /* ── Context Analysis ─────────────────────────────────────────── */
+    .ctx-box {
+      background: var(--cream);
+      border-radius: 6px;
+      padding: 8px 10px;
+      border-left: 3px solid var(--populi);
+      margin-top: 6px;
+    }
+    [data-theme="dark"] .ctx-box { background: var(--navy-light); }
+    .ctx-box p {
+      font-size: 0.66rem;
+      line-height: 1.55;
+      color: var(--slate-light);
+    }
+    [data-theme="dark"] .ctx-box p { color: #94A3B8; }
+    .ctx-box p strong { color: var(--navy); }
+    [data-theme="dark"] .ctx-box p strong { color: #E2E8F0; }
+
+    /* ── Watermark ────────────────────────────────────────────────── */
+    .watermark {
+      height: 15px;
+      width: auto;
+      opacity: .18;
+    }
+    [data-theme="dark"] .watermark { opacity: .10; }
+
+    /* ── Loading ──────────────────────────────────────────────────── */
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      min-height: 400px;
+      color: var(--muted);
+    }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--populi);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-size: 0.75rem; }
+  </style>
+</head>
+<body>
+  <div class="embed-container" id="app">
+    <div class="loading" id="loader">
+      <div class="spinner"></div>
+      <span class="loading-text">Cargando datos de tipo de cambio...</span>
+    </div>
+  </div>
+
+  <script>
+  (function() {
+    const BCB_OFICIAL = 6.96;
+    const DATA_URL = 'https://centro-de-estudios-populi.github.io/Dolar_Bolivia/data/historico.json';
+    const DASHBOARD_URL = 'https://centro-de-estudios-populi.github.io/Dolar_Bolivia/';
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('theme') === 'dark') document.documentElement.dataset.theme = 'dark';
+
+    window.addEventListener('message', e => {
+      if (e.data && e.data.theme) document.documentElement.dataset.theme = e.data.theme;
+    });
+
+    function getCSS(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+    function isDark() { return document.documentElement.dataset.theme === 'dark'; }
+    function fbs(v) { return v.toFixed(2) + ' Bs'; }
+    function fpct(v) { return (v >= 0 ? '+' : '') + v.toFixed(1) + '%'; }
+    function fdate(f) {
+      const d = new Date(f + 'T00:00:00');
+      return d.toLocaleDateString('es-BO', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    async function init() {
+      let data;
+      try {
+        const r = await fetch(DATA_URL);
+        data = await r.json();
+      } catch(e) {
+        document.getElementById('loader').innerHTML =
+          '<span class="loading-text" style="color:var(--ct-venta)">Error al cargar datos. Intente recargar.</span>';
+        return;
+      }
+
+      const serie = data.serie;
+      const hoy = data.hoy;
+      const N = serie.length;
+      const prev = serie[N - 2] || serie[N - 1];
+
+      const brecha = ((hoy.v - BCB_OFICIAL) / BCB_OFICIAL * 100);
+      const brechaPrev = ((prev.v - BCB_OFICIAL) / BCB_OFICIAL * 100);
+
+      const app = document.getElementById('app');
+      app.innerHTML = `
+        <!-- Section Header -->
+        <div class="section-header">
+          <h2 class="section-title">
+            <span class="accent-bar"></span>
+            Tipo de Cambio y Cotización USDT
+          </h2>
+          <p class="section-subtitle">Dólar paralelo, USDT Binance P2P y referencial BCB · Serie diaria</p>
+        </div>
+
+        <!-- KPIs -->
+        <div class="kpi-grid" id="kpis"></div>
+
+        <!-- Main Grid -->
+        <div class="main-grid">
+          <!-- Chart -->
+          <div class="chart-card">
+            <div class="chart-controls">
+              <div class="toggle-group" id="toggles"></div>
+              <div class="range-group" id="ranges"></div>
+            </div>
+            <div class="chart-area" id="chart"></div>
+            <div class="chart-source">
+              <span class="chart-source-text">
+                Fuente: <a href="https://www.bcb.gob.bo" target="_blank">BCB</a> · <a href="https://p2p.binance.com" target="_blank">Binance P2P</a> ·
+                Elaboración: <a href="https://populi.org.bo" target="_blank">Centro de Estudios POPULI</a>
+              </span>
+              <svg viewBox="0 0 310 130" xmlns="http://www.w3.org/2000/svg" class="watermark">
+                <text x="6" y="112" font-family="'Playfair Display', Georgia, serif" font-size="145" font-weight="700" fill="${isDark() ? '#C00000' : '#8B1A1A'}">P</text>
+                <text x="92" y="87" font-family="'Playfair Display', Georgia, serif" font-size="55" font-weight="400" font-style="italic" letter-spacing="1" fill="${isDark() ? '#F5EFE0' : '#3D2B1F'}">opuli</text>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Panel -->
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-header-title">Lectura del indicador</span>
+              <span class="panel-header-date" id="panel-date"></span>
+            </div>
+            <div class="panel-body" id="panel-body"></div>
+            <div class="panel-footer">
+              <a href="${DASHBOARD_URL}" target="_blank" class="ampliar-btn">
+                <span>Ampliar análisis</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                  <polyline points="15 3 21 3 21 9"/>
+                  <line x1="10" y1="14" x2="21" y2="3"/>
+                </svg>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Educational Boxes -->
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:10px; margin-top:16px;" id="edu-boxes"></div>
+      `;
+
+      // ── KPIs ──────────────────────────────────────────────────
+      const kpis = [
+        { s:'v', label:'Paralelo Venta', value: hoy.v, prev: prev.v, color:'var(--ct-venta)' },
+        { s:'c', label:'Paralelo Compra', value: hoy.c, prev: prev.c, color:'var(--ct-compra)' },
+        { s:'u', label:'USDT Binance', value: hoy.usdt, prev: prev.usdt, color:'var(--ct-usdt)' },
+        { s:'b', label:'Brecha vs BCB', value: brecha, prev: brechaPrev, color:'var(--ct-oficial)', isPct: true },
+      ];
+      document.getElementById('kpis').innerHTML = kpis.map(k => {
+        const d = k.value - k.prev;
+        const cls = Math.abs(d) < 0.01 ? 'flat' : (k.s === 'b' ? (d > 0 ? 'up' : 'down') : (d > 0 ? 'up' : 'down'));
+        const arrow = cls === 'up' ? '&#9650;' : cls === 'down' ? '&#9660;' : '&#8212;';
+        return `<div class="kpi-card" data-s="${k.s}">
+          <div class="kpi-label">${k.label}</div>
+          <div class="kpi-value" style="color:${k.color}">${k.isPct ? fpct(k.value) : fbs(k.value)}</div>
+          <div class="kpi-delta ${cls}">${arrow} ${k.isPct ? Math.abs(d).toFixed(1) + ' pp' : Math.abs(d).toFixed(2) + ' Bs'}</div>
+        </div>`;
+      }).join('');
+
+      // ── Series config ─────────────────────────────────────────
+      const SERIES = [
+        { key:'v', label:'Venta', color:'#C71E1D', dashed: false },
+        { key:'c', label:'Compra', color:'#0D9488', dashed: false },
+        { key:'usdt', label:'USDT', color:'#D97706', dashed: true },
+      ];
+      let active = new Set(SERIES.map(s => s.key));
+
+      // ── Toggle pills ──────────────────────────────────────────
+      const togglesEl = document.getElementById('toggles');
+      SERIES.forEach(s => {
+        const btn = document.createElement('button');
+        btn.className = 'toggle-pill';
+        btn.dataset.key = s.key;
+        btn.innerHTML = `<span class="line-prev${s.dashed ? ' dashed' : ''}" style="border-color:#fff"></span>${s.label}`;
+        btn.addEventListener('click', () => {
+          if (active.has(s.key)) {
+            if (active.size === 1) return;
+            active.delete(s.key);
+          } else {
+            active.add(s.key);
+          }
+          syncPills();
+          buildChart();
+        });
+        togglesEl.appendChild(btn);
+      });
+
+      function syncPills() {
+        document.querySelectorAll('.toggle-pill').forEach(btn => {
+          const s = SERIES.find(x => x.key === btn.dataset.key);
+          const on = active.has(s.key);
+          btn.style.backgroundColor = on ? s.color : 'transparent';
+          btn.style.color = on ? '#fff' : s.color;
+          btn.style.borderColor = s.color;
+          const line = btn.querySelector('.line-prev');
+          if (line) line.style.borderColor = on ? '#fff' : s.color;
+        });
+      }
+      syncPills();
+
+      // ── Range buttons ─────────────────────────────────────────
+      const ranges = [
+        { label:'1M', days: 22 },
+        { label:'3M', days: 66 },
+        { label:'Todo', days: 0 },
+      ];
+      let currentRange = 0;
+      const rangesEl = document.getElementById('ranges');
+      ranges.forEach((r, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'range-btn' + (i === ranges.length - 1 ? ' active' : '');
+        btn.textContent = r.label;
+        btn.addEventListener('click', () => {
+          currentRange = r.days;
+          document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          buildChart();
+        });
+        rangesEl.appendChild(btn);
+      });
+
+      // ── Panel update ──────────────────────────────────────────
+      let curIdx = N - 1;
+      function updatePanel(idx) {
+        if (idx < 0 || idx >= N) return;
+        curIdx = idx;
+        const p = serie[idx];
+        const pr = idx > 0 ? serie[idx - 1] : p;
+        const brechaPt = ((p.v - BCB_OFICIAL) / BCB_OFICIAL * 100);
+        const spread = p.v - p.c;
+
+        document.getElementById('panel-date').textContent = fdate(p.f);
+
+        let analysis;
+        if (brechaPt > 40) {
+          analysis = `La brecha cambiaria alcanza <span class="delta-tag dt-indigo">${fpct(brechaPt)}</span>, un nivel que refleja <strong>severa presión sobre la moneda nacional</strong>. La diferencia entre el tipo de cambio oficial y el mercado libre es tan amplia que el tipo de cambio fijo del BCB ha perdido efectividad como referencia real de precios en la economía. La dolarización de facto se acelera.`;
+        } else if (brechaPt > 25) {
+          analysis = `Con una brecha de <span class="delta-tag dt-indigo">${fpct(brechaPt)}</span>, el mercado paralelo refleja <strong>un desequilibrio significativo</strong> entre la oferta y demanda de dólares. La escasez de divisas en el sistema formal empuja a empresas y personas a buscar dólares en el mercado informal, alimentando un ciclo de depreciación de facto.`;
+        } else if (brechaPt > 10) {
+          analysis = `La brecha de <span class="delta-tag dt-indigo">${fpct(brechaPt)}</span> indica <strong>presión cambiaria moderada</strong>. Si bien el BCB mantiene el tipo oficial, el mercado revela que el boliviano se cotiza por debajo de su valor nominal frente al dólar, lo que impacta costos de importación y expectativas.`;
+        } else {
+          analysis = `La brecha de <span class="delta-tag dt-indigo">${fpct(brechaPt)}</span> se mantiene <strong>relativamente contenida</strong>, sugiriendo que la presión sobre el tipo de cambio es baja y el tipo oficial del BCB aún es representativo del mercado.`;
+        }
+
+        document.getElementById('panel-body').innerHTML = `
+          <div class="panel-block">
+            <div class="panel-label" style="color:#C71E1D; background:rgba(199,30,29,.08); border-left-color:#C71E1D">Paralelo Venta</div>
+            <div class="panel-val" style="color:#C71E1D">${fbs(p.v)}</div>
+            <p class="panel-desc">Precio al que se <strong>vende</strong> un dólar en el mercado paralelo el <strong>${fdate(p.f)}</strong>. Variación de <span class="delta-tag dt-red">${(p.v - pr.v >= 0 ? '+' : '') + (p.v - pr.v).toFixed(2)} Bs</span> respecto a la sesión anterior.</p>
+          </div>
+          <div class="panel-block">
+            <div class="panel-label" style="color:#0D9488; background:rgba(13,148,136,.08); border-left-color:#0D9488">Paralelo Compra</div>
+            <div class="panel-val" style="color:#0D9488">${fbs(p.c)}</div>
+            <p class="panel-desc">Precio al que se <strong>compra</strong> un dólar. El spread compra-venta es <span class="delta-tag dt-teal">${spread.toFixed(2)} Bs</span> — ${spread > 0.3 ? 'refleja baja liquidez en el mercado' : 'un spread normal de mercado'}.</p>
+          </div>
+          <div class="panel-block">
+            <div class="panel-label" style="color:#D97706; background:rgba(217,119,6,.08); border-left-color:#D97706">USDT Binance P2P</div>
+            <div class="panel-val" style="color:#D97706">${p.usdt ? fbs(p.usdt) : '—'}</div>
+            <p class="panel-desc">${p.usdt ? `Mediana del USDT/BOB en Binance P2P. ${Math.abs(p.v - p.usdt) < 0.2 ? 'Convergencia con el paralelo físico — ambos mercados se alinean.' : p.usdt < p.v ? 'Cotiza <strong>por debajo</strong> del paralelo físico, indicando mayor liquidez digital.' : 'Cotiza <strong>por encima</strong> del paralelo, reflejando prima digital por conveniencia y rapidez.'}` : 'Sin datos de USDT para esta fecha.'}</p>
+          </div>
+          <div class="ctx-box"><p>${analysis}</p></div>
+        `;
+      }
+
+      // ── ECharts ───────────────────────────────────────────────
+      let chart = null;
+      function buildChart() {
+        const container = document.getElementById('chart');
+        if (!chart) chart = echarts.init(container);
+
+        const dk = isDark();
+        const slicedSerie = currentRange > 0 ? serie.slice(-currentRange) : serie;
+        const dates = slicedSerie.map(d => d.f);
+
+        const seriesData = [];
+        const colors = [];
+
+        if (active.has('v')) {
+          colors.push('#C71E1D');
+          const vals = slicedSerie.map(d => d.v);
+          const lastV = vals[vals.length - 1];
+          seriesData.push({
+            name: 'Venta',
+            type: 'line',
+            data: vals,
+            symbol: 'none',
+            lineStyle: { width: 2.5 },
+            areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1, [
+              { offset: 0, color: 'rgba(199,30,29,.12)' },
+              { offset: 1, color: 'rgba(199,30,29,.01)' }
+            ])},
+            markPoint: {
+              data: [{ coord: [dates.length - 1, lastV] }],
+              symbol: 'circle', symbolSize: 8,
+              itemStyle: { color: '#C71E1D', borderColor: dk ? '#141414' : '#fff', borderWidth: 2 },
+              label: { show: false }
+            },
+            z: 3
+          });
+        }
+        if (active.has('c')) {
+          colors.push('#0D9488');
+          const vals = slicedSerie.map(d => d.c);
+          const lastV = vals[vals.length - 1];
+          seriesData.push({
+            name: 'Compra',
+            type: 'line',
+            data: vals,
+            symbol: 'none',
+            lineStyle: { width: 2 },
+            areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1, [
+              { offset: 0, color: 'rgba(13,148,136,.08)' },
+              { offset: 1, color: 'rgba(13,148,136,.01)' }
+            ])},
+            markPoint: {
+              data: [{ coord: [dates.length - 1, lastV] }],
+              symbol: 'circle', symbolSize: 7,
+              itemStyle: { color: '#0D9488', borderColor: dk ? '#141414' : '#fff', borderWidth: 2 },
+              label: { show: false }
+            },
+            z: 2
+          });
+        }
+        if (active.has('usdt')) {
+          colors.push('#D97706');
+          const vals = slicedSerie.map(d => d.usdt);
+          const lastValid = vals.filter(v => v != null).pop();
+          const lastIdx = vals.lastIndexOf(lastValid);
+          seriesData.push({
+            name: 'USDT',
+            type: 'line',
+            data: vals,
+            symbol: 'none',
+            lineStyle: { width: 2, type: [6, 4] },
+            connectNulls: true,
+            markPoint: lastIdx >= 0 ? {
+              data: [{ coord: [lastIdx, lastValid] }],
+              symbol: 'circle', symbolSize: 7,
+              itemStyle: { color: '#D97706', borderColor: dk ? '#141414' : '#fff', borderWidth: 2 },
+              label: { show: false }
+            } : undefined,
+            z: 2
+          });
+        }
+
+        // BCB reference line
+        seriesData.push({
+          name: 'BCB Oficial',
+          type: 'line',
+          data: dates.map(() => BCB_OFICIAL),
+          symbol: 'none',
+          lineStyle: { width: 1.5, color: '#6366F1', type: [5, 4] },
+          itemStyle: { color: '#6366F1' },
+          z: 1
+        });
+
+        const option = {
+          color: colors,
+          backgroundColor: 'transparent',
+          grid: { top: 30, right: 16, bottom: 44, left: 52 },
+          tooltip: {
+            trigger: 'axis',
+            backgroundColor: dk ? '#080808' : 'rgba(13,27,42,.96)',
+            borderColor: dk ? '#2A3A50' : '#1A2940',
+            textStyle: { fontFamily: 'Inter', fontSize: 12, color: '#fff' },
+            padding: [12, 16],
+            extraCssText: 'border-radius:10px; box-shadow:0 8px 32px rgba(0,0,0,.3);',
+            formatter: function(params) {
+              if (!params.length) return '';
+              const idx = params[0].dataIndex;
+              const startIdx = currentRange > 0 ? N - currentRange : 0;
+              updatePanel(startIdx + idx);
+
+              let html = `<div style="font-weight:700; margin-bottom:6px; color:#E9D8A6; font-size:12px">${fdate(dates[idx])}</div>`;
+              params.forEach(p => {
+                if (p.value == null) return;
+                const isOficial = p.seriesName === 'BCB Oficial';
+                const c = isOficial ? '#6366F1' : p.color;
+                html += `<div style="display:flex; align-items:center; gap:8px; margin:3px 0">
+                  <span style="width:8px;height:8px;border-radius:50%;background:${c};display:inline-block"></span>
+                  <span style="flex:1;font-size:11px;color:rgba(255,255,255,.7)">${p.seriesName}</span>
+                  <span style="font-family:'JetBrains Mono';font-weight:700;font-size:12px">${typeof p.value === 'number' ? p.value.toFixed(2) : p.value} Bs</span>
+                </div>`;
+              });
+              return html;
+            }
+          },
+          xAxis: {
+            type: 'category',
+            data: dates,
+            axisLine: { lineStyle: { color: dk ? '#2A3A50' : '#E2DDD3' } },
+            axisTick: { show: false },
+            axisLabel: {
+              fontFamily: 'Inter',
+              fontSize: 10,
+              fontWeight: 500,
+              color: dk ? '#64748B' : '#94A3B8',
+              formatter: function(v, idx) {
+                const d = new Date(v + 'T00:00:00');
+                const total = dates.length;
+                if (idx === 0 || idx === total - 1) {
+                  return d.toLocaleDateString('es-BO', { day:'numeric', month:'short' });
+                }
+                if (idx > 0) {
+                  const prev = new Date(dates[idx - 1] + 'T00:00:00');
+                  if (d.getMonth() !== prev.getMonth()) {
+                    return d.toLocaleDateString('es-BO', { day:'numeric', month:'short' });
+                  }
+                }
+                const step = Math.max(1, Math.round(total / 8));
+                if (idx % step === 0) {
+                  return d.toLocaleDateString('es-BO', { day:'numeric', month:'short' });
+                }
+                return '';
+              },
+              showMinLabel: true,
+              showMaxLabel: true,
+            }
+          },
+          yAxis: {
+            type: 'value',
+            min: function(v) { return Math.floor((Math.min(v.min, BCB_OFICIAL) - 0.3) * 2) / 2; },
+            splitLine: { lineStyle: { color: dk ? '#1E1E1E' : '#F1F5F9', type: 'dashed' } },
+            axisLine: { show: false },
+            axisTick: { show: false },
+            axisLabel: {
+              fontFamily: 'JetBrains Mono',
+              fontSize: 11,
+              color: dk ? '#64748B' : '#94A3B8',
+              formatter: '{value} Bs'
+            }
+          },
+          series: seriesData
+        };
+
+        chart.setOption(option, true);
+      }
+
+      buildChart();
+      updatePanel(N - 1);
+
+      window.addEventListener('resize', () => chart && chart.resize());
+
+      new MutationObserver(() => {
+        buildChart();
+        updatePanel(curIdx);
+      }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+      // ── Educational Boxes ─────────────────────────────────────
+      const eduData = [
+        {
+          title: '¿Qué es el tipo de cambio oficial?',
+          content: `<p>El <strong>Banco Central de Bolivia (BCB)</strong> fija el tipo de cambio oficial en <span class="highlight hl-indigo">${BCB_OFICIAL} Bs/$</span> desde noviembre de 2011. Este tipo de cambio es un <strong>ancla nominal</strong>: su objetivo es mantener estable el valor del boliviano frente al dólar para controlar la inflación y dar certidumbre a la economía.</p>
+          <p>Sin embargo, para que el tipo fijo funcione, el BCB necesita tener <strong>suficientes reservas internacionales</strong> (dólares, oro, DEG) para vender dólares a quien los demande al precio oficial. Cuando las reservas caen, el BCB no puede atender toda la demanda, y surge el <strong>mercado paralelo</strong>.</p>`
+        },
+        {
+          title: '¿Qué es el mercado paralelo?',
+          content: `<p>El <strong>mercado paralelo</strong> (o mercado libre) es donde se intercambian dólares a precios determinados por <strong>oferta y demanda real</strong>, fuera del sistema bancario formal. Surge cuando el BCB no puede proveer suficientes dólares al tipo oficial.</p>
+          <p>La <strong>brecha cambiaria</strong> actual es de <span class="highlight hl-indigo">${fpct(brecha)}</span> — es decir, conseguir un dólar en el mercado libre cuesta <strong>${fpct(brecha)} más</strong> que el precio oficial. Una brecha elevada indica que el tipo de cambio oficial ya no refleja el valor real del boliviano.</p>`
+        },
+        {
+          title: '¿Qué es el USDT y por qué importa?',
+          content: `<p>El <strong>USDT (Tether)</strong> es una criptomoneda estable ("stablecoin") cuyo valor está vinculado 1:1 al dólar estadounidense. En Bolivia, se negocia en la plataforma <strong>Binance P2P</strong> (persona a persona) y funciona como un <strong>"dólar digital"</strong>.</p>
+          <p>Su precio en bolivianos refleja la demanda real de dólares en el mercado digital. Hoy cotiza a <span class="highlight hl-amber">${fbs(hoy.usdt)}</span>, ${Math.abs(hoy.v - hoy.usdt) < 0.2 ? 'prácticamente al mismo nivel que el paralelo físico, lo que sugiere convergencia entre ambos mercados.' : hoy.usdt < hoy.v ? 'por debajo del paralelo físico — el mercado digital tiene más liquidez.' : 'por encima del paralelo físico — hay prima por la conveniencia y velocidad digital.'}</p>`
+        },
+        {
+          title: '¿Qué significa el spread compra-venta?',
+          content: `<p>El <strong>spread</strong> es la diferencia entre el precio de venta y el de compra: <span class="highlight hl-teal">${(hoy.v - hoy.c).toFixed(2)} Bs</span> hoy. Representa el <strong>margen del intermediario</strong> y es un indicador de la <strong>liquidez del mercado</strong>.</p>
+          <p>${(hoy.v - hoy.c) > 0.3 ? 'Un spread amplio (como el actual) indica <strong>baja liquidez</strong>: hay poca oferta de dólares y los intermediarios cobran más por el riesgo de no poder reponerlos fácilmente.' : 'Un spread reducido indica <strong>buena liquidez</strong>: hay suficiente oferta y demanda, y los costos de transacción son bajos.'} En mercados cambiarios maduros, el spread suele ser menor a 0.05.</p>`
+        }
+      ];
+
+      document.getElementById('edu-boxes').innerHTML = eduData.map(e => `
+        <div class="edu-box" onclick="this.classList.toggle('open')">
+          <div class="edu-box-toggle">
+            <span class="edu-box-title">${e.title}</span>
+            <span class="edu-box-arrow">&#9660;</span>
+          </div>
+          <div class="edu-box-content">${e.content}</div>
+        </div>
+      `).join('');
+    }
+
+    init();
+  })();
+  </script>
+</body>
+</html>
