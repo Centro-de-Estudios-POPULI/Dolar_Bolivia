@@ -2,14 +2,13 @@ name: "Actualizar precio del dólar"
 
 on:
   schedule:
-    # Bolivia es UTC-4 — 7 corridas diarias en días hábiles
-    - cron: "0 4 * * 1-5"    # 00:00 BOT — medianoche, primer dato USDT del día
-    - cron: "0 11 * * 1-5"   # 07:00 BOT — apertura matutina
-    - cron: "0 15 * * 1-5"   # 11:00 BOT — media mañana
-    - cron: "0 17 * * 1-5"   # 13:00 BOT — mediodía
-    - cron: "0 20 * * 1-5"   # 16:00 BOT — tarde
-    - cron: "0 23 * * 1-5"   # 19:00 BOT — cierre vespertino
-    - cron: "30 3 * * 2-6"   # 23:30 BOT — cierre final (mar-sáb = lun-vie noche)
+    - cron: "0 4 * * 1-5"
+    - cron: "0 11 * * 1-5"
+    - cron: "0 15 * * 1-5"
+    - cron: "0 17 * * 1-5"
+    - cron: "0 20 * * 1-5"
+    - cron: "0 23 * * 1-5"
+    - cron: "30 3 * * 2-6"
   workflow_dispatch:
 
 permissions:
@@ -46,3 +45,10 @@ jobs:
             git commit -m "datos: dólar $(date -u +%Y-%m-%d)"
             git push
           fi
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy . --project-name=dolar-bolivia
