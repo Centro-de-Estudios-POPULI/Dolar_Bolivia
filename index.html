@@ -996,8 +996,10 @@ let g_serie = [], g_hoy = {}, g_bancos = {};
 const fmt2 = n => n != null ? Number(n).toFixed(2) : '—';
 const fmtM = n => {
   if (n == null) return '—';
-  if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
-  return (n / 1e3).toFixed(0) + 'K';
+  const signo = n < 0 ? '-' : '';
+  const abs = Math.abs(n);
+  if (abs >= 1e6) return signo + (abs / 1e6).toFixed(2) + 'M';
+  return signo + (abs / 1e3).toFixed(0) + 'K';
 };
 const fmtDate = s => {
   if (!s) return '—';
