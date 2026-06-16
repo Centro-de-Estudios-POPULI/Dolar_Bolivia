@@ -16,6 +16,7 @@ import csv
 import json
 import re
 import sys
+import time
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
@@ -155,12 +156,60 @@ def alias_banco(nombre: str) -> str:
     return BANCO_ALIAS.get(nombre_up, nombre_up.replace("BANCO ", "")[:14])
 
 
+# ── HTTP con reintentos ────────────────────────────────────────────────────────
+
+# El WAF del BCB devuelve 403 intermitente a las IPs de los runners de GitHub.
+# Reintentamos con backoff antes de rendirnos; quien llama decide si degradar.
+RETRY_STATUS = {403, 429, 500, 502, 503, 504}
+BACKOFF_SEGS = [5, 15, 30]  # esperas entre intentos (nº de reintentos = len)
+
+
+def request_bcb(url: str, timeout: int) -> requests.Response:
+    """GET al BCB con reintentos+backoff ante 403/429/5xx o errores de red."""
+    intentos = len(BACKOFF_SEGS) + 1
+    ultimo_err: Exception | None = None
+    for i in range(intentos):
+        try:
+            r = requests.get(url, headers=HEADERS_BCB, timeout=timeout)
+            if r.status_code in RETRY_STATUS and i < intentos - 1:
+                espera = BACKOFF_SEGS[i]
+                print(
+                    f"  Intento {i + 1}/{intentos}: {r.status_code} en {url} "
+                    f"— reintentando en {espera}s...",
+                    file=sys.stderr,
+                )
+                time.sleep(espera)
+                continue
+            r.raise_for_status()
+            return r
+        except requests.RequestException as e:
+            ultimo_err = e
+            if i < intentos - 1:
+                espera = BACKOFF_SEGS[i]
+                print(
+                    f"  Intento {i + 1}/{intentos}: {e} — reintentando en {espera}s...",
+                    file=sys.stderr,
+                )
+                time.sleep(espera)
+            else:
+                raise
+    # Inalcanzable salvo que el bucle termine sin return; re-lanzar por seguridad
+    raise ultimo_err if ultimo_err else RuntimeError(f"Sin respuesta de {url}")
+
+
+def empty_v2() -> dict:
+    """Estructura v2 vacía para degradar sin romper a quien consume el dict."""
+    return {
+        "compra_total": {}, "vol_total": {}, "tx_total": {},
+        "compra_banco": {}, "vol_banco": {}, "tx_banco": {},
+    }
+
+
 # ── Parsers de fuentes BCB ─────────────────────────────────────────────────────
 
 def fetch_venta_hoy() -> tuple[float | None, str | None]:
     """Obtiene precio de venta del día desde el SVG v1."""
-    r = requests.get(BCB_VENTA_SVG, headers=HEADERS_BCB, timeout=20)
-    r.raise_for_status()
+    r = request_bcb(BCB_VENTA_SVG, timeout=20)
     xml_text = re.sub(r'\s+xmlns(?::[^=]+)?="[^"]+"', "", r.text)
     root = ET.fromstring(xml_text)
     textos = [e.text.strip() for e in root.iter("text") if e.text and e.text.strip()]
@@ -216,8 +265,7 @@ def parse_tabla_pivot(tabla, start_month: int, start_year: int, etiqueta_total: 
 
 def fetch_parse_v2() -> dict:
     """Descarga y parsea el HTML v2 del BCB (compra, montos, transacciones)."""
-    r = requests.get(BCB_V2_HTML, headers=HEADERS_BCB, timeout=30)
-    r.raise_for_status()
+    r = request_bcb(BCB_V2_HTML, timeout=30)
     html = r.text
     soup = BeautifulSoup(html, "lxml")
     tablas = soup.find_all("table")
@@ -428,9 +476,24 @@ def exportar_bancos_json(v2: dict) -> None:
 def main() -> None:
     print("Obteniendo datos...")
 
-    # 1. BCB — determinar fecha antes de pedir USDT
-    venta, fecha = fetch_venta_hoy()
-    v2 = fetch_parse_v2()
+    # 1. BCB — determinar fecha antes de pedir USDT.
+    # El WAF del BCB devuelve 403 intermitente a los runners de GitHub. Tras
+    # agotar los reintentos degradamos: conservamos el último dato (el CSV es la
+    # fuente de verdad) y NO tumbamos el workflow por un bloqueo transitorio.
+    fallo_bcb = False
+    try:
+        venta, fecha = fetch_venta_hoy()
+    except requests.RequestException as e:
+        print(f"[WARN] BCB venta no disponible (se conserva último dato): {e}", file=sys.stderr)
+        venta, fecha = None, None
+        fallo_bcb = True
+
+    try:
+        v2 = fetch_parse_v2()
+    except requests.RequestException as e:
+        print(f"[WARN] BCB v2 no disponible (se conserva último dato): {e}", file=sys.stderr)
+        v2 = empty_v2()
+        fallo_bcb = True
 
     fecha_v2 = max(v2["compra_total"].keys()) if v2["compra_total"] else None
     compra = v2["compra_total"].get(fecha_v2) if fecha_v2 else None
@@ -443,7 +506,11 @@ def main() -> None:
     csv_rows = leer_csv()
     fechas_existentes = {r["fecha"] for r in csv_rows}
 
-    if fecha not in fechas_existentes:
+    # No escribir una fila nueva sin ningún dato BCB (evita filas en blanco
+    # cuando el WAF bloquea); regeneramos el JSON desde el CSV ya existente.
+    if fecha not in fechas_existentes and venta is None and compra is None:
+        print(f"[WARN] Sin dato BCB para {fecha}; no se agrega fila. Se regenera JSON.", file=sys.stderr)
+    elif fecha not in fechas_existentes:
         nueva_fila = {
             "fecha":       fecha,
             "bcb_venta":   venta,
