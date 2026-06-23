@@ -18,6 +18,7 @@
       --mint:   #94D2BD;
       --orange: #D4920A;
       --navy:   #001219;
+      --indigo: #6366F1;
 
       --bg:         #EEF1F5;
       --card:       #FFFFFF;
@@ -242,7 +243,7 @@
     /* ── KPI Grid ────────────────────────────────────────────────────── */
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(6, 1fr);
       gap: 12px;
     }
     @media (max-width: 1080px) { .kpi-grid { grid-template-columns: repeat(3,1fr); } }
@@ -262,6 +263,36 @@
     .kpi-card.usdt   { border-left-color: var(--orange); }
     .kpi-card.spread { border-left-color: var(--teal); }
     .kpi-card.prima  { border-left-color: var(--garnet); }
+    .kpi-card.brecha { border-left-color: var(--indigo); }
+
+    /* ── Explicador de los tres tipos de cambio ────────────────────── */
+    .rates-explainer {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    }
+    .rate-box {
+      background: var(--card); border-radius: var(--radius);
+      box-shadow: var(--shadow); padding: 15px 17px;
+      border-top: 3px solid transparent;
+    }
+    .rate-box.oficial     { border-top-color: var(--indigo); }
+    .rate-box.referencial { border-top-color: var(--red); }
+    .rate-box.informal    { border-top-color: var(--orange); }
+    .rate-box h4 {
+      font-size: 12.5px; font-weight: 700; margin: 0 0 6px;
+      color: var(--text); display: flex; align-items: baseline; gap: 8px;
+    }
+    .rate-box h4 .rate-val {
+      font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+      font-weight: 600; color: var(--muted); margin-left: auto;
+    }
+    .rate-box p { font-size: 11.5px; line-height: 1.5; color: var(--text2); margin: 0; }
+    .rates-formula {
+      margin-top: 12px; font-size: 11.5px; color: var(--muted); line-height: 1.7;
+    }
+    .rates-formula b { color: var(--text2); }
+    .rates-formula .rf-indigo { color: var(--indigo); font-weight: 700; }
+    .rates-formula .rf-garnet { color: var(--garnet); font-weight: 700; }
+    @media (max-width: 760px) { .rates-explainer { grid-template-columns: 1fr; } }
 
     .kpi-hover-badge {
       position: absolute; top: 9px; right: 10px;
@@ -801,10 +832,48 @@
         <svg class="kpi-spark" id="spark-prima" viewBox="0 0 100 30" preserveAspectRatio="none"></svg>
         <div class="kpi-sub">USDT − venta BCB · mercado informal vs. referencial BCB</div>
       </div>
+      <div class="kpi-card brecha">
+        <span class="kpi-hover-badge">historial</span>
+        <div class="kpi-label">Brecha Oficial</div>
+        <div class="kpi-value"><span id="kpi-brecha">—</span> <span class="kpi-unit">%</span></div>
+        <div class="kpi-delta" id="delta-brecha"></div>
+        <svg class="kpi-spark" id="spark-brecha" viewBox="0 0 100 30" preserveAspectRatio="none"></svg>
+        <div class="kpi-sub">referencial BCB sobre el oficial fijo (Bs. 6,96)</div>
+      </div>
     </div>
     <div class="chart-hint" style="margin-top:10px">
       <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
       Los KPI se actualizan al interactuar con el gráfico de precios. Usa los botones de rango para filtrar el período.
+    </div>
+  </section>
+
+  <!-- Guía · Tres tipos de cambio -->
+  <section class="section">
+    <div class="section-header">
+      <span class="section-num" style="color:var(--indigo);border-color:rgba(99,102,241,.3)">GUÍA</span>
+      <div class="section-titles">
+        <h2>Cómo leer estos datos · Tres tipos de cambio</h2>
+        <p>En Bolivia conviven tres referencias distintas para el dólar. No son lo mismo, y confundirlas lleva a conclusiones erróneas.</p>
+      </div>
+    </div>
+    <div class="rates-explainer">
+      <div class="rate-box oficial">
+        <h4>Oficial (fijo) <span class="rate-val">Bs. 6,96</span></h4>
+        <p>Tipo de cambio que el <strong>BCB</strong> fija por norma desde 2011. Es un <strong>ancla nominal</strong>: no se mueve. Sostenible mientras el BCB tenga reservas para vender dólares a ese precio.</p>
+      </div>
+      <div class="rate-box referencial">
+        <h4>Referencial BCB <span class="rate-val">~Bs. 9–10</span></h4>
+        <p>Promedio <strong>ponderado</strong> de las operaciones de venta del sistema financiero con el mercado mayorista. Es el dato que el BCB publica y que <strong>actualizamos a diario</strong> en este panel.</p>
+      </div>
+      <div class="rate-box informal">
+        <h4>Informal (USDT) <span class="rate-val">P2P</span></h4>
+        <p>Precio libre del dólar digital (<strong>USDT</strong>) en Binance P2P, fijado por <strong>oferta y demanda</strong> fuera del sistema bancario. Termómetro del mercado paralelo.</p>
+      </div>
+    </div>
+    <div class="rates-formula">
+      <b>Dos diferencias clave:</b>&nbsp;
+      <span class="rf-garnet">Prima USDT</span> = informal − referencial BCB&nbsp; ·&nbsp;
+      <span class="rf-indigo">Brecha cambiaria</span> = referencial BCB − oficial fijo.
     </div>
   </section>
 
@@ -863,10 +932,39 @@
     </div>
   </section>
 
-  <!-- 04 · Volúmenes -->
+  <!-- 04 · Brecha Cambiaria -->
   <section class="section">
     <div class="section-header">
       <span class="section-num">04</span>
+      <div class="section-titles">
+        <h2>Brecha Cambiaria · Referencial BCB vs. Oficial</h2>
+        <p>Cuánto se aleja el referencial del BCB de su propio tipo de cambio oficial fijo (Bs. 6,96)</p>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-top">
+        <div class="chart-card-meta">
+          <span class="chart-card-title">Distancia del referencial sobre el ancla oficial</span>
+          <span class="chart-card-sub">0% = paridad con Bs. 6,96 · valores positivos = referencial por encima del oficial</span>
+        </div>
+        <div class="range-btns" id="rb-brecha">
+          <button class="rbtn" data-dias="30">1M</button>
+          <button class="rbtn" data-dias="90">3M</button>
+          <button class="rbtn active" data-dias="0">Todo</button>
+        </div>
+      </div>
+      <div id="chart-brecha" class="chart-med chart"><div class="loading">Cargando…</div></div>
+      <div class="chart-hint" style="margin-top:8px">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        Una brecha amplia indica que el tipo de cambio oficial dejó de reflejar el precio al que realmente se opera en el sistema financiero.
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 · Volúmenes -->
+  <section class="section">
+    <div class="section-header">
+      <span class="section-num">05</span>
       <div class="section-titles">
         <h2>Volumen de Compra por Entidad Bancaria</h2>
         <p>$us operados diariamente por banco. Línea = tasa de compra promedio ponderado (eje der.). Datos desde ene. 2026.</p>
@@ -892,10 +990,10 @@
     </div>
   </section>
 
-  <!-- 05 · Heatmap Calendario -->
+  <!-- 06 · Heatmap Calendario -->
   <section class="section">
     <div class="section-header">
-      <span class="section-num">05</span>
+      <span class="section-num">06</span>
       <div class="section-titles">
         <h2>Mapa de Actividad Diaria</h2>
         <p>Volumen total de operaciones por día — intensidad del color proporcional al monto</p>
@@ -919,10 +1017,10 @@
     </div>
   </section>
 
-  <!-- 06 · Tabla -->
+  <!-- 07 · Tabla -->
   <section class="section">
     <div class="section-header">
-      <span class="section-num">06</span>
+      <span class="section-num">07</span>
       <div class="section-titles">
         <h2>Detalle por Entidad — Hoy</h2>
         <p id="tabla-fecha-sub">Tipos de cambio y volúmenes declarados al BCB por cada EIF</p>
@@ -989,7 +1087,8 @@
 const PAL = ['#C0392B','#2A7FAF','#0E9396','#C89010','#C06030','#6B3F8C','#2E7D4F','#7B8C9E'];
 
 /* ── Estado global ──────────────────────────────────────────────────────── */
-let preciosChart = null, volumenChart = null, primaChart = null, heatmapChart = null;
+const BCB_OFICIAL = 6.96;   // tipo de cambio oficial fijo (Bs./$us) desde noviembre de 2011
+let preciosChart = null, volumenChart = null, primaChart = null, heatmapChart = null, brechaChart = null;
 let g_serie = [], g_hoy = {}, g_bancos = {};
 
 /* ── Utilidades ─────────────────────────────────────────────────────────── */
@@ -1081,6 +1180,7 @@ function renderAllSparklines(serie) {
   drawSparkline('spark-usdt',   last.map(p => p.usdt), '#D4920A');
   drawSparkline('spark-spread', last.map(p => p.v != null && p.c != null ? p.v - p.c : null), '#0A9396');
   drawSparkline('spark-prima',  last.map(p => p.usdt != null && p.v != null ? p.usdt - p.v : null), '#8B2226');
+  drawSparkline('spark-brecha', last.map(p => p.v != null ? (p.v - BCB_OFICIAL) / BCB_OFICIAL * 100 : null), '#6366F1');
 }
 
 /* ── Deltas ─────────────────────────────────────────────────────────────── */
@@ -1096,15 +1196,29 @@ function updateDelta(id, curr, prev) {
   el.innerHTML = `${arrow} ${diff > 0 ? '+' : ''}${diff.toFixed(2)} <span class="pct">(${pct > 0 ? '+' : ''}${pct.toFixed(1)}%)</span>`;
 }
 
+/* Delta en puntos porcentuales — para métricas que ya son un % (brecha) */
+function updateDeltaPP(id, curr, prev) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (curr == null || prev == null) { el.innerHTML = ''; el.className = 'kpi-delta'; return; }
+  const diff = curr - prev;
+  const up = diff > 0;
+  const arrow = up ? '▲' : (diff < 0 ? '▼' : '–');
+  el.className = `kpi-delta ${up ? 'up' : (diff < 0 ? 'down' : '')}`;
+  el.innerHTML = `${arrow} ${diff > 0 ? '+' : ''}${diff.toFixed(1)} <span class="pct">pp</span>`;
+}
+
 /* ── KPIs ───────────────────────────────────────────────────────────────── */
 function updateKPIs(p, hover, prevP) {
   const spread = p.v != null && p.c != null ? p.v - p.c : null;
   const prima  = p.usdt != null && p.v != null ? p.usdt - p.v : null;
+  const brecha = p.v != null ? (p.v - BCB_OFICIAL) / BCB_OFICIAL * 100 : null;
   document.getElementById('kpi-venta').textContent  = fmt2(p.v);
   document.getElementById('kpi-compra').textContent = fmt2(p.c);
   document.getElementById('kpi-usdt').textContent   = p.usdt != null ? fmt2(p.usdt) : 'N/D';
   document.getElementById('kpi-spread').textContent = fmt2(spread);
   document.getElementById('kpi-prima').textContent  = prima != null ? fmt2(prima) : 'N/D';
+  document.getElementById('kpi-brecha').textContent = brecha != null ? (brecha >= 0 ? '+' : '') + brecha.toFixed(1) : 'N/D';
   document.getElementById('kpi-fecha').textContent  = hover
     ? `Datos al ${fmtDate(p.f)}`
     : `Hoy · ${fmtDate(p.f)} · Interactúa con el gráfico para ver histórico`;
@@ -1118,6 +1232,8 @@ function updateKPIs(p, hover, prevP) {
     updateDelta('delta-spread', spread, prevSpread);
     const prevPrima = prevP.usdt != null && prevP.v != null ? prevP.usdt - prevP.v : null;
     updateDelta('delta-prima', prima, prevPrima);
+    const prevBrecha = prevP.v != null ? (prevP.v - BCB_OFICIAL) / BCB_OFICIAL * 100 : null;
+    updateDeltaPP('delta-brecha', brecha, prevBrecha);
   }
 }
 
@@ -1223,7 +1339,7 @@ function renderPrecios(serie) {
       }
     },
     legend:{
-      data:['Venta BCB','Compra BCB','USDT P2P'],
+      data:['Venta BCB','Compra BCB','USDT P2P','Oficial (6,96)'],
       textStyle:{ color:c.leg, fontSize: mob() ? 10.5 : 12, fontFamily:'Inter' },
       icon:'roundRect', itemWidth:10, itemHeight:4, itemGap: mob() ? 10 : 18, top:2, right:4,
     },
@@ -1266,6 +1382,11 @@ function renderPrecios(serie) {
         name:'USDT P2P', type:'line', data:usdt,
         itemStyle:{ color:'#D4920A' }, lineStyle:{ width:1.8, color:'#D4920A', type:'dashed' },
         symbol:'circle', symbolSize:4, smooth:0.4, z:5,
+      },
+      {
+        name:'Oficial (6,96)', type:'line', data: serie.map(p => [p.f, BCB_OFICIAL]),
+        itemStyle:{ color:'#6366F1' }, lineStyle:{ width:1.5, color:'#6366F1', type:'dashed' },
+        symbol:'none', z:2,
       },
     ],
   });
@@ -1351,6 +1472,90 @@ function renderPrima(serie) {
     }],
   });
   wireRange('rb-prima', () => primaChart);
+}
+
+/* ── Gráfico Brecha Cambiaria (referencial vs. oficial) ────────────────── */
+function renderBrecha(serie) {
+  const data = serie
+    .filter(p => p.v != null)
+    .map(p => [p.f, +(((p.v - BCB_OFICIAL) / BCB_OFICIAL) * 100).toFixed(2)]);
+  if (!data.length) return;
+
+  if (brechaChart) brechaChart.dispose();
+  const el = document.getElementById('chart-brecha');
+  el.innerHTML = '';
+  brechaChart = echarts.init(el, null, { renderer:'canvas' });
+  const c = ct();
+
+  brechaChart.setOption({
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger:'axis',
+      axisPointer:{ lineStyle:{ color:'rgba(99,102,241,.3)', width:1.5, type:'dashed' } },
+      ...tipBase(),
+      formatter(params) {
+        if (!params.length) return '';
+        const f = params[0].value[0];
+        const pct = params[0].value[1];
+        if (pct == null) return '';
+        const idx = g_serie.findIndex(x => x.f === f);
+        const v = idx >= 0 ? g_serie[idx].v : null;
+        let o = `<div style="font-weight:700;margin-bottom:5px;font-size:11.5px;color:#7AA8C0">${fmtDate(f)}</div>`;
+        o += `<div style="display:flex;justify-content:space-between;gap:18px">
+            <span style="color:#6366F1">● Brecha cambiaria</span>
+            <b style="font-family:'IBM Plex Mono',monospace">${pct >= 0 ? '+' : ''}${Number(pct).toFixed(1)}%</b>
+          </div>`;
+        if (v != null) {
+          o += `<div style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.08);
+            display:flex;justify-content:space-between;gap:18px">
+            <span style="color:#C71E1D;font-size:12px">Referencial BCB</span>
+            <b style="font-family:'IBM Plex Mono',monospace;font-size:12px">Bs. ${v.toFixed(2)}</b>
+          </div>`;
+          o += `<div style="display:flex;justify-content:space-between;gap:18px;margin-top:2px">
+            <span style="color:#6366F1;font-size:12px">Oficial fijo</span>
+            <b style="font-family:'IBM Plex Mono',monospace;font-size:12px">Bs. 6,96</b>
+          </div>`;
+          o += `<div style="display:flex;justify-content:space-between;gap:18px;margin-top:2px">
+            <span style="color:${c.axis};font-size:12px">Diferencia</span>
+            <b style="font-family:'IBM Plex Mono',monospace;font-size:12px">+Bs. ${(v - BCB_OFICIAL).toFixed(2)}</b>
+          </div>`;
+        }
+        return o;
+      }
+    },
+    grid:{ left:12, right:12, top:30, bottom:40, containLabel:true },
+    xAxis:{
+      type:'time',
+      axisLabel:{ formatter:v=>fmtMes(new Date(v).toISOString().slice(0,10)), fontSize:11, color:c.axis, fontFamily:'Inter' },
+      axisLine:{ lineStyle:{ color:c.grid } },
+      splitLine:{ lineStyle:{ color:c.grid, type:'dashed' } },
+    },
+    yAxis:{
+      type:'value', name:'Brecha (%)',
+      nameTextStyle:{ color:c.axis, fontSize:10, fontFamily:'Inter', padding:[0,0,0,4] },
+      nameLocation:'end',
+      axisLabel:{ formatter: v => v.toFixed(0) + '%', fontSize:11, color:c.axis, fontFamily:'IBM Plex Mono' },
+      axisLine:{ show:false },
+      splitLine:{ lineStyle:{ color:c.grid, type:'dashed' } },
+      min: 0,
+    },
+    dataZoom:[{ type:'inside', filterMode:'filter' }],
+    series:[{
+      name:'Brecha', type:'line', data:data,
+      itemStyle:{ color:'#6366F1' },
+      lineStyle:{ width:2, color:'#6366F1' },
+      areaStyle:{ color:{ type:'linear', x:0, y:0, x2:0, y2:1,
+        colorStops:[{offset:0,color:'rgba(99,102,241,.22)'},{offset:1,color:'rgba(99,102,241,0)'}] } },
+      symbol:'none', smooth:0.4,
+      markLine:{
+        data:[{ yAxis:0 }],
+        label:{ formatter:'Paridad con el oficial', fontSize:10, position:'insideEndTop', color:c.axis },
+        lineStyle:{ color:c.axis, type:'dashed', width:1 },
+        symbol:'none',
+      },
+    }],
+  });
+  wireRange('rb-brecha', () => brechaChart);
 }
 
 /* ── Gráfico Volumen ────────────────────────────────────────────────────── */
@@ -1730,6 +1935,11 @@ function generateReport() {
   }
   tcText += '.';
   tcPlain += '.';
+  if (hoy.v != null) {
+    const brechaPct = (hoy.v - BCB_OFICIAL) / BCB_OFICIAL * 100;
+    tcText += ` Frente al tipo de cambio oficial fijo (Bs.&nbsp;6,96), el referencial registra una brecha cambiaria de <span class="rpt-metric">+${brechaPct.toFixed(1)}%</span>.`;
+    tcPlain += ` Frente al tipo de cambio oficial fijo (Bs. 6,96), el referencial registra una brecha cambiaria de +${brechaPct.toFixed(1)}%.`;
+  }
   html += `<p>${tcText}</p>`;
   plain += tcPlain + '\n\n';
 
@@ -1953,6 +2163,7 @@ function applyTheme(theme) {
   if (g_serie.length) {
     renderPrecios(g_serie);
     renderPrima(g_serie);
+    renderBrecha(g_serie);
     renderVolumen(g_bancos);
     renderHeatmap(g_serie);
   }
@@ -1978,6 +2189,7 @@ window.addEventListener('resize', () => {
     if (g_serie.length) {
       renderPrecios(g_serie);
       renderPrima(g_serie);
+      renderBrecha(g_serie);
       renderVolumen(g_bancos);
       renderHeatmap(g_serie);
     }
@@ -2008,6 +2220,7 @@ async function init() {
     updateAlert(g_serie, hist.hoy);
     try { renderPrecios(hist.serie); } catch(e) { console.error('Precios:', e); }
     try { renderPrima(hist.serie); } catch(e) { console.error('Prima:', e); }
+    try { renderBrecha(hist.serie); } catch(e) { console.error('Brecha:', e); }
     try { renderVolumen(bancos); } catch(e) { console.error('Volumen:', e); }
     try { renderHeatmap(hist.serie); updateHmSubtitle(); } catch(e) { console.error('Heatmap:', e); }
     try {
