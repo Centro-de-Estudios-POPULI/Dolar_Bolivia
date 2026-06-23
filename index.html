@@ -734,7 +734,7 @@
     <span>
       <b>Compra:</b> precio promedio al que los bancos <em>adquieren</em> dólares de sus clientes. &nbsp;|&nbsp;
       <b>Venta:</b> precio al que los bancos <em>venden</em> dólares. &nbsp;|&nbsp;
-      <b>Prima USDT:</b> diferencia entre el precio informal (Binance P2P) y el oficial BCB.
+      <b>Prima USDT:</b> diferencia entre el precio informal (Binance P2P) y la venta referencial del BCB.
       Datos actualizados automáticamente 7 veces al día en horario hábil (00:00, 07:00, 11:00, 13:00, 16:00, 19:00 y 23:30 BOT).
     </span>
   </div>
@@ -799,7 +799,7 @@
         <div class="kpi-value"><span id="kpi-prima">—</span> <span class="kpi-unit">Bs.</span></div>
         <div class="kpi-delta" id="delta-prima"></div>
         <svg class="kpi-spark" id="spark-prima" viewBox="0 0 100 30" preserveAspectRatio="none"></svg>
-        <div class="kpi-sub">USDT − venta BCB · mercado informal vs. oficial</div>
+        <div class="kpi-sub">USDT − venta BCB · mercado informal vs. referencial BCB</div>
       </div>
     </div>
     <div class="chart-hint" style="margin-top:10px">
@@ -843,14 +843,14 @@
     <div class="section-header">
       <span class="section-num">03</span>
       <div class="section-titles">
-        <h2>Prima USDT sobre el Tipo de Cambio Oficial</h2>
+        <h2>Prima USDT sobre el Referencial del BCB</h2>
         <p>Diferencia diaria entre el precio informal (Binance P2P) y la venta referencial BCB</p>
       </div>
     </div>
     <div class="chart-card">
       <div class="chart-card-top">
         <div class="chart-card-meta">
-          <span class="chart-card-title">Brecha mercado informal vs. oficial</span>
+          <span class="chart-card-title">Brecha mercado informal vs. referencial BCB</span>
           <span class="chart-card-sub">Valores positivos = USDT cotiza por encima del BCB</span>
         </div>
         <div class="range-btns" id="rb-prima">
@@ -1130,7 +1130,7 @@ function updateAlert(serie, hoy) {
   const msgs = [];
   if (prima > 0.5) {
     const pct = ((prima / hoy.v) * 100).toFixed(1);
-    msgs.push(`La prima USDT es de <b>Bs. ${prima.toFixed(2)}</b> — el dólar informal cotiza ${pct}% por encima del oficial.`);
+    msgs.push(`La prima USDT es de <b>Bs. ${prima.toFixed(2)}</b> — el dólar informal cotiza ${pct}% por encima del referencial BCB.`);
   }
   if (hoy.v >= 10) {
     msgs.push(`El tipo de cambio de venta alcanzó <b>Bs. ${hoy.v.toFixed(2)}</b>.`);
@@ -1743,8 +1743,8 @@ function generateReport() {
     if (prima != null) {
       const above = prima >= 0;
       const primaWord = above ? 'por encima' : 'por debajo';
-      usdtText += `, generando una prima de ${m(Math.abs(prima))} (${primaPct.toFixed(1)}%) ${primaWord} del tipo de cambio oficial`;
-      usdtPlain += `, generando una prima de Bs. ${Math.abs(prima).toFixed(2)} (${primaPct.toFixed(1)}%) ${primaWord} del tipo de cambio oficial`;
+      usdtText += `, generando una prima de ${m(Math.abs(prima))} (${primaPct.toFixed(1)}%) ${primaWord} de la venta referencial del BCB`;
+      usdtPlain += `, generando una prima de Bs. ${Math.abs(prima).toFixed(2)} (${primaPct.toFixed(1)}%) ${primaWord} de la venta referencial del BCB`;
     }
     usdtText += '.';
     usdtPlain += '.';
@@ -1757,11 +1757,11 @@ function generateReport() {
         usdtText += ' La brecha se mantiene moderada.';
         usdtPlain += ' La brecha se mantiene moderada.';
       } else if (prima >= -0.1) {
-        usdtText += ' El mercado informal se encuentra prácticamente alineado con el oficial.';
-        usdtPlain += ' El mercado informal se encuentra prácticamente alineado con el oficial.';
+        usdtText += ' El mercado informal se encuentra prácticamente alineado con el referencial BCB.';
+        usdtPlain += ' El mercado informal se encuentra prácticamente alineado con el referencial BCB.';
       } else {
-        usdtText += ' El tipo informal cotiza por debajo del oficial, situación atípica.';
-        usdtPlain += ' El tipo informal cotiza por debajo del oficial, situación atípica.';
+        usdtText += ' El tipo informal cotiza por debajo del referencial BCB, situación atípica.';
+        usdtPlain += ' El tipo informal cotiza por debajo del referencial BCB, situación atípica.';
       }
     }
   } else {
@@ -1886,8 +1886,8 @@ function generateReport() {
     evalText += ' La prima elevada del mercado informal señala restricciones de acceso a dólares en el sistema formal.';
     evalPlain += ' La prima elevada del mercado informal señala restricciones de acceso a dólares en el sistema formal.';
   } else if (prima != null && prima <= 0.1) {
-    evalText += ' La convergencia entre mercado oficial e informal indica oferta adecuada de divisas.';
-    evalPlain += ' La convergencia entre mercado oficial e informal indica oferta adecuada de divisas.';
+    evalText += ' La convergencia entre el referencial BCB y el mercado informal indica oferta adecuada de divisas.';
+    evalPlain += ' La convergencia entre el referencial BCB y el mercado informal indica oferta adecuada de divisas.';
   }
 
   html += `<p>${evalText}</p>`;
