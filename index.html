@@ -907,10 +907,39 @@
     </div>
   </section>
 
-  <!-- 03 · Prima USDT -->
+  <!-- 03 · TCO vs USDT -->
   <section class="section">
     <div class="section-header">
       <span class="section-num">03</span>
+      <div class="section-titles">
+        <h2>Tipo de Cambio Oficial (TCO) vs. USDT</h2>
+        <p>Nuevo TCO del BCB (promedio ponderado de compra) y su precio de venta (+0,10 Bs) frente al USDT Binance P2P — Bs./$us</p>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-top">
+        <div class="chart-card-meta">
+          <span class="chart-card-title">TCO oficial · Venta (+0,10) · USDT P2P</span>
+          <span class="chart-card-sub">Serie construida a diario desde el cambio de política monetaria</span>
+        </div>
+        <div class="range-btns" id="rb-tco">
+          <button class="rbtn" data-dias="30">1M</button>
+          <button class="rbtn" data-dias="90">3M</button>
+          <button class="rbtn active" data-dias="0">Todo</button>
+        </div>
+      </div>
+      <div id="chart-tco" class="chart"><div class="loading">Cargando…</div></div>
+      <div class="chart-hint" style="margin-top:8px">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        Por disposición del BCB, el precio de venta oficial es el TCO + 0,10 Bs. La distancia del USDT sobre la venta oficial mide la presión del mercado informal.
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 · Prima USDT -->
+  <section class="section">
+    <div class="section-header">
+      <span class="section-num">04</span>
       <div class="section-titles">
         <h2>Prima USDT sobre el Referencial del BCB</h2>
         <p>Diferencia diaria entre el precio informal (Binance P2P) y la venta referencial BCB</p>
@@ -932,10 +961,10 @@
     </div>
   </section>
 
-  <!-- 04 · Brecha Cambiaria -->
+  <!-- 05 · Brecha Cambiaria -->
   <section class="section">
     <div class="section-header">
-      <span class="section-num">04</span>
+      <span class="section-num">05</span>
       <div class="section-titles">
         <h2>Brecha Cambiaria · Referencial BCB vs. Oficial</h2>
         <p>Cuánto se aleja el referencial del BCB de su propio tipo de cambio oficial fijo (Bs. 6,96)</p>
@@ -961,10 +990,10 @@
     </div>
   </section>
 
-  <!-- 05 · Volúmenes -->
+  <!-- 06 · Volúmenes -->
   <section class="section">
     <div class="section-header">
-      <span class="section-num">05</span>
+      <span class="section-num">06</span>
       <div class="section-titles">
         <h2>Volumen de Compra por Entidad Bancaria</h2>
         <p>$us operados diariamente por banco. Línea = tasa de compra promedio ponderado (eje der.). Datos desde ene. 2026.</p>
@@ -990,10 +1019,10 @@
     </div>
   </section>
 
-  <!-- 06 · Heatmap Calendario -->
+  <!-- 07 · Heatmap Calendario -->
   <section class="section">
     <div class="section-header">
-      <span class="section-num">06</span>
+      <span class="section-num">07</span>
       <div class="section-titles">
         <h2>Mapa de Actividad Diaria</h2>
         <p>Volumen total de operaciones por día — intensidad del color proporcional al monto</p>
@@ -1017,10 +1046,10 @@
     </div>
   </section>
 
-  <!-- 07 · Tabla -->
+  <!-- 08 · Tabla -->
   <section class="section">
     <div class="section-header">
-      <span class="section-num">07</span>
+      <span class="section-num">08</span>
       <div class="section-titles">
         <h2>Detalle por Entidad — Hoy</h2>
         <p id="tabla-fecha-sub">Tipos de cambio y volúmenes declarados al BCB por cada EIF</p>
@@ -1088,8 +1117,8 @@ const PAL = ['#C0392B','#2A7FAF','#0E9396','#C89010','#C06030','#6B3F8C','#2E7D4
 
 /* ── Estado global ──────────────────────────────────────────────────────── */
 const BCB_OFICIAL = 6.96;   // tipo de cambio oficial fijo (Bs./$us) desde noviembre de 2011
-let preciosChart = null, volumenChart = null, primaChart = null, heatmapChart = null, brechaChart = null;
-let g_serie = [], g_hoy = {}, g_bancos = {};
+let preciosChart = null, volumenChart = null, primaChart = null, heatmapChart = null, brechaChart = null, tcoChart = null;
+let g_serie = [], g_hoy = {}, g_bancos = {}, g_tco = [];
 
 /* ── Utilidades ─────────────────────────────────────────────────────────── */
 const fmt2 = n => n != null ? Number(n).toFixed(2) : '—';
@@ -1403,6 +1432,97 @@ function renderPrecios(serie) {
     updateKPIs(g_hoy, false, idx > 0 ? g_serie[idx-1] : null);
   });
   wireRange('rb-precios', () => preciosChart);
+}
+
+/* ── Gráfico TCO vs USDT ───────────────────────────────────────────────── */
+function renderTco(serie) {
+  const tco = [], venta = [], usdt = [];
+  for (const p of serie) {
+    if (p.tco       != null) tco.push(  [p.f, p.tco]);
+    if (p.tco_venta != null) venta.push([p.f, p.tco_venta]);
+    if (p.usdt      != null) usdt.push( [p.f, p.usdt]);
+  }
+  if (!tco.length) return;
+  const few = tco.length <= 12;   // con pocos puntos, mostrar símbolos para que se vean
+
+  if (tcoChart) tcoChart.dispose();
+  const el = document.getElementById('chart-tco');
+  if (!el) return;
+  el.innerHTML = '';
+  tcoChart = echarts.init(el, null, { renderer:'canvas' });
+  const c = ct();
+
+  tcoChart.setOption({
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger:'axis',
+      axisPointer:{ lineStyle:{ color:'rgba(199,30,29,.3)', width:1.5, type:'dashed' } },
+      ...tipBase(),
+      formatter(params) {
+        if (!params.length) return '';
+        let o = `<div style="font-weight:700;margin-bottom:7px;font-size:11.5px;color:#7AA8C0">${fmtDate(params[0].value[0])}</div>`;
+        for (const p of params) {
+          if (p.value[1] == null) continue;
+          o += `<div style="display:flex;justify-content:space-between;gap:18px;margin:3px 0">
+            <span style="color:${p.color}">● ${p.seriesName}</span>
+            <b style="font-family:'IBM Plex Mono',monospace">Bs. ${Number(p.value[1]).toFixed(2)}</b>
+          </div>`;
+        }
+        const pvta = params.find(p => p.seriesName === 'Venta oficial (+0,10)');
+        const pu   = params.find(p => p.seriesName === 'USDT P2P');
+        if (pu?.value[1] && pvta?.value[1]) {
+          const d = pu.value[1] - pvta.value[1];
+          o += `<div style="margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,.08);
+            display:flex;justify-content:space-between;gap:18px">
+            <span style="color:#D4920A;font-size:12px">● USDT s/ venta oficial</span>
+            <b style="font-family:'IBM Plex Mono',monospace;font-size:12px">${d >= 0 ? '+' : ''}Bs. ${d.toFixed(2)}</b>
+          </div>`;
+        }
+        return o;
+      }
+    },
+    legend:{
+      data:['TCO oficial','Venta oficial (+0,10)','USDT P2P'],
+      textStyle:{ color:c.leg, fontSize: mob() ? 10.5 : 12, fontFamily:'Inter' },
+      icon:'roundRect', itemWidth:10, itemHeight:4, itemGap: mob() ? 10 : 18, top:2, right:4,
+    },
+    grid:{ left:12, right:12, top:44, bottom:40, containLabel:true },
+    xAxis:{
+      type:'time',
+      axisLabel:{ formatter:v=>fmtMes(new Date(v).toISOString().slice(0,10)), fontSize:11, color:c.axis, fontFamily:'Inter' },
+      axisLine:{ lineStyle:{ color:c.grid } },
+      splitLine:{ lineStyle:{ color:c.grid, type:'dashed' } },
+    },
+    yAxis:{
+      type:'value', name:'Bs./$us', scale:true,
+      nameTextStyle:{ color:c.axis, fontSize:10, fontFamily:'Inter', padding:[0,0,0,40] },
+      axisLabel:{ formatter: v => v.toFixed(2), fontSize:11, color:c.axis, fontFamily:'IBM Plex Mono', margin:8 },
+      axisLine:{ show:false },
+      splitLine:{ lineStyle:{ color:c.grid, type:'dashed' } },
+    },
+    dataZoom:[{ type:'inside', filterMode:'filter' }],
+    series:[
+      {
+        name:'TCO oficial', type:'line', data:tco,
+        itemStyle:{ color:'#C71E1D' }, lineStyle:{ width:2.4, color:'#C71E1D' },
+        areaStyle:{ color:{ type:'linear',x:0,y:0,x2:0,y2:1,
+          colorStops:[{offset:0,color:'rgba(199,30,29,.15)'},{offset:1,color:'rgba(199,30,29,0)'}] } },
+        symbol:'circle', symbolSize:5, showSymbol:few, smooth:0.4, z:4,
+      },
+      {
+        name:'Venta oficial (+0,10)', type:'line', data:venta,
+        itemStyle:{ color:'#E0635F' }, lineStyle:{ width:1.6, color:'#E0635F', type:'dashed' },
+        symbol:'circle', symbolSize:4, showSymbol:few, smooth:0.4, z:3,
+      },
+      {
+        name:'USDT P2P', type:'line', data:usdt,
+        itemStyle:{ color:'#D4920A' }, lineStyle:{ width:1.8, color:'#D4920A', type:'dashed' },
+        symbol:'circle', symbolSize:4, showSymbol:true, smooth:0.4, z:5,
+      },
+    ],
+  });
+
+  wireRange('rb-tco', () => tcoChart);
 }
 
 /* ── Gráfico Prima USDT ────────────────────────────────────────────────── */
@@ -2166,6 +2286,7 @@ function applyTheme(theme) {
     renderBrecha(g_serie);
     renderVolumen(g_bancos);
     renderHeatmap(g_serie);
+    if (g_tco.length) renderTco(g_tco);
   }
 }
 document.getElementById('theme-btn').addEventListener('click', () => {
@@ -2192,6 +2313,7 @@ window.addEventListener('resize', () => {
       renderBrecha(g_serie);
       renderVolumen(g_bancos);
       renderHeatmap(g_serie);
+      if (g_tco.length) renderTco(g_tco);
     }
   }, 200);
 });
@@ -2199,13 +2321,15 @@ window.addEventListener('resize', () => {
 /* ── Init ───────────────────────────────────────────────────────────────── */
 async function init() {
   try {
-    const [hist, bancos] = await Promise.all([
+    const [hist, bancos, tco] = await Promise.all([
       fetch('./data/historico.json').then(r => r.json()),
       fetch('./data/bancos.json').then(r => r.json()),
+      fetch('./data/tco.json').then(r => r.json()).catch(() => null),
     ]);
     g_serie  = hist.serie;
     g_hoy    = hist.hoy;
     g_bancos = bancos;
+    g_tco    = tco?.serie || [];
 
     const upd = new Date(hist.actualizado);
     upd.setHours(upd.getHours() - 4);
@@ -2219,6 +2343,7 @@ async function init() {
     renderAllSparklines(g_serie);
     updateAlert(g_serie, hist.hoy);
     try { renderPrecios(hist.serie); } catch(e) { console.error('Precios:', e); }
+    try { if (g_tco.length) renderTco(g_tco); } catch(e) { console.error('TCO:', e); }
     try { renderPrima(hist.serie); } catch(e) { console.error('Prima:', e); }
     try { renderBrecha(hist.serie); } catch(e) { console.error('Brecha:', e); }
     try { renderVolumen(bancos); } catch(e) { console.error('Volumen:', e); }
