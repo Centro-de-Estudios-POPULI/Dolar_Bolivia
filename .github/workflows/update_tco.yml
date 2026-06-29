@@ -2,8 +2,15 @@ name: "Actualizar Tipo de Cambio Oficial (TCO)"
 
 on:
   schedule:
-    # 20:01 hora Bolivia (UTC-4) = 00:01 UTC del día siguiente. Todos los días.
-    - cron: "1 0 * * *"
+    # El BCB publica el reporte del próximo día hábil por la tarde/noche y lo
+    # deja estático. El WAF del BCB bloquea (403) de forma intermitente a los
+    # runners de GitHub y NO hay backfill: si todas las corridas de un día fallan,
+    # el detalle por banco de esa fecha se pierde para siempre. Por eso reintentamos
+    # en varias franjas (el scraper es idempotente: corridas extra no duplican).
+    - cron: "1 0 * * *"    # 20:01 BOT
+    - cron: "1 3 * * *"    # 23:01 BOT
+    - cron: "1 6 * * *"    # 02:01 BOT
+    - cron: "1 11 * * *"   # 07:01 BOT (red de seguridad matutina)
   workflow_dispatch:
 
 permissions:
@@ -33,10 +40,14 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/tco.csv data/tco.json
+          # Solo commiteamos cuando cambian los datos reales (CSV / raw). El
+          # tco.json se regenera con timestamp nuevo en cada corrida, así que se
+          # adjunta SOLO cuando ya hay un cambio de datos (evita commits de ruido).
+          git add data/tco.csv data/tco_bancos.csv data/tco_raw
           if git diff --cached --quiet; then
             echo "Sin datos nuevos de TCO."
           else
+            git add data/tco.json
             git commit -m "datos: TCO $(date -u +%Y-%m-%d)"
             git push
           fi

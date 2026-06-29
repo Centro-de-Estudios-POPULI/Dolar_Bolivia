@@ -765,8 +765,8 @@
     <span>
       <b>Compra:</b> precio promedio al que los bancos <em>adquieren</em> dólares de sus clientes. &nbsp;|&nbsp;
       <b>Venta:</b> precio al que los bancos <em>venden</em> dólares. &nbsp;|&nbsp;
-      <b>Prima USDT:</b> diferencia entre el precio informal (Binance P2P) y la venta referencial del BCB.
-      Datos actualizados automáticamente 7 veces al día en horario hábil (00:00, 07:00, 11:00, 13:00, 16:00, 19:00 y 23:30 BOT).
+      <b>Prima USDT:</b> diferencia entre el precio informal (Binance P2P) y la venta oficial del BCB.
+      Datos actualizados automáticamente cada día: el TCO del BCB y el USDT (Binance P2P), en horario Bolivia.
     </span>
   </div>
 </div>
@@ -882,15 +882,15 @@
     <div class="section-header">
       <span class="section-num">02</span>
       <div class="section-titles">
-        <h2>Evolución del Precio Referencial</h2>
-        <p>BCB venta, compra y USDT Binance P2P — Bs./$us · Fuentes: BCB + mauforonda/dolares</p>
+        <h2>Evolución del Tipo de Cambio Oficial</h2>
+        <p>Serie continua a través del cambio de régimen: referencial BCB (hasta 26-jun) → TCO (desde 29-jun), con el USDT Binance P2P — Bs./$us · Fuentes: BCB + mauforonda/dolares</p>
       </div>
     </div>
     <div class="chart-card">
       <div class="chart-card-top">
         <div class="chart-card-meta">
           <span class="chart-card-title">Venta · Compra BCB · USDT P2P</span>
-          <span class="chart-card-sub">Bolivianos por dólar estadounidense</span>
+          <span class="chart-card-sub">Bolivianos por dólar · línea punteada vertical = cambio de régimen (TCO)</span>
         </div>
         <div class="range-btns" id="rb-precios">
           <button class="rbtn" data-dias="7">1S</button>
@@ -941,15 +941,15 @@
     <div class="section-header">
       <span class="section-num">04</span>
       <div class="section-titles">
-        <h2>Prima USDT sobre el Referencial del BCB</h2>
-        <p>Diferencia diaria entre el precio informal (Binance P2P) y la venta referencial BCB</p>
+        <h2>Prima USDT sobre el Tipo de Cambio Oficial</h2>
+        <p>Diferencia diaria entre el precio informal (Binance P2P) y la venta oficial del BCB. Antes del cambio de régimen (26-jun) se calculaba sobre el valor referencial</p>
       </div>
     </div>
     <div class="chart-card">
       <div class="chart-card-top">
         <div class="chart-card-meta">
-          <span class="chart-card-title">Brecha mercado informal vs. referencial BCB</span>
-          <span class="chart-card-sub">Valores positivos = USDT cotiza por encima del BCB</span>
+          <span class="chart-card-title">Brecha mercado informal vs. venta oficial</span>
+          <span class="chart-card-sub">Valores positivos = USDT cotiza por encima del oficial · línea punteada = cambio de régimen</span>
         </div>
         <div class="range-btns" id="rb-prima">
           <button class="rbtn" data-dias="30">1M</button>
@@ -996,7 +996,7 @@
       <span class="section-num">06</span>
       <div class="section-titles">
         <h2>Volumen de Compra por Entidad Bancaria</h2>
-        <p>$us operados diariamente por banco. Línea = tasa de compra promedio ponderado (eje der.). Datos desde ene. 2026.</p>
+        <p>$us operados diariamente por banco. Línea = tasa de compra promedio ponderado, que continúa como TCO tras el cambio de régimen (eje der.). Datos desde ene. 2026.</p>
       </div>
     </div>
     <div class="chart-card">
@@ -1052,7 +1052,7 @@
       <span class="section-num">08</span>
       <div class="section-titles">
         <h2>Detalle por Entidad — Hoy</h2>
-        <p id="tabla-fecha-sub">Tipos de cambio y volúmenes declarados al BCB por cada EIF</p>
+        <p id="tabla-fecha-sub">TCO, montos y transacciones declarados al BCB por cada EIF</p>
       </div>
     </div>
     <div class="table-context" id="table-context"></div>
@@ -1061,7 +1061,7 @@
         <thead>
           <tr>
             <th>Entidad</th>
-            <th>T.C. compra (Bs./$us)</th>
+            <th>TCO (Bs./$us)</th>
             <th>Volumen operado ($us)</th>
             <th>Transacciones</th>
             <th>% del total</th>
@@ -1118,7 +1118,8 @@ const PAL = ['#C0392B','#2A7FAF','#0E9396','#C89010','#C06030','#6B3F8C','#2E7D4
 /* ── Estado global ──────────────────────────────────────────────────────── */
 const BCB_OFICIAL = 6.96;   // tipo de cambio oficial fijo (Bs./$us) desde noviembre de 2011
 let preciosChart = null, volumenChart = null, primaChart = null, heatmapChart = null, brechaChart = null, tcoChart = null;
-let g_serie = [], g_hoy = {}, g_bancos = {}, g_tco = [];
+let g_serie = [], g_hoy = {}, g_bancos = {}, g_tco = [], g_tcoData = null, g_bancosUni = {};
+let REGIME_TCO = null;   // primera fecha del régimen TCO (marca del cambio de régimen)
 
 /* ── Utilidades ─────────────────────────────────────────────────────────── */
 const fmt2 = n => n != null ? Number(n).toFixed(2) : '—';
@@ -1317,6 +1318,80 @@ const wireRange = (id, getter) => {
   });
 };
 
+/* ── Continuidad de régimen (referencial → TCO) ─────────────────────────── */
+function regimeMarkLineItem() {
+  return REGIME_TCO ? {
+    xAxis: REGIME_TCO,
+    label:{ formatter:'Cambio de régimen · TCO', color:'#6366F1', fontSize:10,
+            fontFamily:'Inter', position:'insideEndTop', rotate:90, padding:[0,0,6,0] },
+    lineStyle:{ color:'#6366F1', width:1.3, type:'dotted' },
+  } : null;
+}
+function regimeMarkLine() {
+  const it = regimeMarkLineItem();
+  return it ? { symbol:'none', silent:true, animation:false, data:[it] } : undefined;
+}
+
+// Volumen por banco unificado: referencial (bancos.json) + TCO (tco.json).
+// El TCO es el mismo mecanismo (promedio ponderado de compra), así que la serie
+// por banco y la tasa de compra continúan, con la marca del cambio de régimen.
+function buildUnifiedBancos(bancos, tcoData) {
+  if (!tcoData || !(tcoData.bancos_fechas || []).length) return bancos;
+  const refFechas = bancos.fechas || [];
+  const tcoFechas = tcoData.bancos_fechas;
+  const legend = bancos.bancos || [];
+  const top = legend.filter(b => b !== 'OTROS');
+  const tcoSeries = tcoData.bancos_series || {};
+  const series = {};
+  for (const b of legend) {
+    const ref = (bancos.series[b] || refFechas.map(() => 0)).slice();
+    let tcoArr;
+    if (b === 'OTROS') {
+      tcoArr = tcoFechas.map((_, i) => {
+        let s = 0;
+        for (const [name, ser] of Object.entries(tcoSeries))
+          if (!top.includes(name)) s += (ser.vol[i] || 0);
+        return s;
+      });
+    } else {
+      const ser = tcoSeries[b];
+      tcoArr = tcoFechas.map((_, i) => ser ? (ser.vol[i] || 0) : 0);
+    }
+    series[b] = ref.concat(tcoArr);
+  }
+  const compra_serie = (bancos.compra_serie || []).concat(
+    tcoFechas.map(f => { const s = (tcoData.serie || []).find(x => x.f === f); return s ? s.tco : null; })
+  );
+  return {
+    bancos: legend,
+    fechas: refFechas.concat(tcoFechas),
+    series,
+    compra_serie,
+    fecha_hoy: tcoData.fecha_hoy || bancos.fecha_hoy,
+  };
+}
+
+// Historia de volumen por banco (referencial + TCO) para deltas/promedios.
+function buildBankVolHist(bancos, tcoData) {
+  const hist = {};
+  const push = (b, f, vol) => { (hist[b] = hist[b] || []).push({ f, vol: vol || 0 }); };
+  const refFechas = bancos.fechas || [];
+  const seriesBanks = new Set(Object.keys(bancos.series || {}));
+  for (const [b, arr] of Object.entries(bancos.series || {})) {
+    if (b === 'OTROS') continue;
+    arr.forEach((v, i) => push(b, refFechas[i], v));
+  }
+  // Bancos fuera del top (agrupados en OTROS): su último dato de la tabla referencial
+  for (const r of (bancos.tabla_hoy || []))
+    if (!seriesBanks.has(r.banco)) push(r.banco, bancos.fecha_hoy, r.vol);
+  // TCO por banco
+  const tcoFechas = (tcoData && tcoData.bancos_fechas) || [];
+  for (const [b, ser] of Object.entries((tcoData && tcoData.bancos_series) || {}))
+    tcoFechas.forEach((f, i) => push(b, f, ser.vol[i]));
+  for (const b of Object.keys(hist)) hist[b].sort((a, z) => a.f < z.f ? -1 : 1);
+  return hist;
+}
+
 /* ── Gráfico Precios ────────────────────────────────────────────────────── */
 function renderPrecios(serie) {
   const venta = [], compra = [], usdt = [];
@@ -1399,6 +1474,13 @@ function renderPrecios(serie) {
         areaStyle:{ color:{ type:'linear',x:0,y:0,x2:0,y2:1,
           colorStops:[{offset:0,color:'rgba(199,30,29,.15)'},{offset:1,color:'rgba(199,30,29,0)'}] } },
         symbol:'none', smooth:0.55, z:4,
+        markLine: REGIME_TCO ? {
+          symbol:'none', silent:true, animation:false,
+          lineStyle:{ color:'#6366F1', width:1.3, type:'dotted' },
+          label:{ formatter:'Cambio de régimen · TCO', color:'#6366F1', fontSize:10,
+                  fontFamily:'Inter', position:'insideEndTop', rotate:90, padding:[0,0,6,0] },
+          data:[{ xAxis: REGIME_TCO }],
+        } : undefined,
       },
       {
         name:'Compra BCB', type:'line', data:compra,
@@ -1584,10 +1666,12 @@ function renderPrima(serie) {
         colorStops:[{offset:0,color:'rgba(139,34,38,.2)'},{offset:1,color:'rgba(139,34,38,0)'}] } },
       symbol:'none', smooth:0.4,
       markLine:{
-        data:[{ yAxis:0 }],
-        label:{ formatter:'Paridad', fontSize:10, position:'insideEndTop', color:c.axis },
-        lineStyle:{ color:c.axis, type:'dashed', width:1 },
-        symbol:'none',
+        symbol:'none', silent:true, animation:false,
+        data:[
+          { yAxis:0, label:{ formatter:'Paridad', fontSize:10, position:'insideEndTop', color:c.axis },
+            lineStyle:{ color:c.axis, type:'dashed', width:1 } },
+          ...(regimeMarkLineItem() ? [regimeMarkLineItem()] : []),
+        ],
       },
     }],
   });
@@ -1719,6 +1803,7 @@ function renderVolumen(bancos) {
     lineStyle:{ width:2, color:lineCompraColor },
     itemStyle:{ color:lineCompraColor },
     symbol:'none', smooth:.4, z:10,
+    markLine: regimeMarkLine(),
   };
 
   volumenChart.setOption({
@@ -1997,6 +2082,120 @@ function renderTabla(tabla_hoy, fecha_hoy, bancosList, ctx) {
     return `<tr>
       <td><span class="banco-name"><span class="banco-dot" style="background:${color}"></span>${r.banco}</span></td>
       <td><span class="tasa-num" style="color:var(--text)">${r.compra != null ? 'Bs. ' + Number(r.compra).toFixed(2) : '—'}</span></td>
+      <td>
+        <div class="vol-cell">
+          <span class="vol-num">$${volM}</span>
+          <div class="vol-track"><div class="vol-fill" style="width:${barPct}%;background:${color}"></div></div>
+          ${deltaHtml}${avgHtml}
+        </div>
+      </td>
+      <td><span class="tx-num">${r.tx != null ? r.tx.toLocaleString('es-BO') : '—'}</span></td>
+      <td><span class="pct-num">${pct !== '—' ? pct + '%' : '—'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── Tabla TCO por banco (nuevo régimen) ────────────────────────────────── */
+function renderTablaTco(tcoData, bancos) {
+  const hoy   = tcoData.hoy || {};
+  const fecha = tcoData.fecha_hoy;
+  const bh    = (tcoData.bancos_hoy || []).filter(r => r.monto != null || r.tco != null);
+
+  document.getElementById('tabla-fecha-sub').textContent =
+    `Operaciones del ${fmtDate(fecha)} · TCO, montos y transacciones declarados al BCB por cada entidad`;
+
+  // Historia unificada de volumen por banco (referencial + TCO): mismo mecanismo
+  // (promedio ponderado de compra), así comparamos contra la sesión anterior.
+  const hist = buildBankVolHist(bancos || {}, tcoData);
+  const prevVolOf = b => { const h = hist[b]; return h && h.length >= 2 ? h[h.length - 2].vol : null; };
+  const avgVolOf  = b => {
+    const h = hist[b]; if (!h) return 0;
+    const xs = h.slice(0, -1).map(x => x.vol).filter(v => v > 0).slice(-22);
+    return xs.length ? xs.reduce((a, z) => a + z, 0) / xs.length : 0;
+  };
+
+  // Totales de la sesión anterior (último punto con volumen antes de hoy) + promedio.
+  let prevTotal = null;
+  for (let i = g_serie.length - 1; i >= 0; i--) {
+    if (g_serie[i].f === fecha) continue;
+    if (g_serie[i].vol != null) { prevTotal = g_serie[i]; break; }
+  }
+  const volsHist = g_serie.filter(p => p.f !== fecha && p.vol != null).slice(-22).map(p => p.vol);
+  const avgTotal = volsHist.length ? volsHist.reduce((a, z) => a + z, 0) / volsHist.length : 0;
+
+  const mkDelta = (diff, pct, prefix, dec) => {
+    if (diff == null) return '';
+    const sign = diff > 0 ? '+' : '';
+    const dir = diff > 0 ? 'up' : (diff < 0 ? 'down' : '');
+    const arrow = diff > 0 ? '▲' : (diff < 0 ? '▼' : '–');
+    const mag = Math.abs(diff) >= 1e6 ? (Math.abs(diff)/1e6).toFixed(2)+'M'
+              : dec != null ? Math.abs(diff).toFixed(dec)
+              : Math.round(Math.abs(diff)).toLocaleString('es-BO');
+    return `<div class="ctx-stat-delta ${dir}">${arrow} ${sign}${prefix}${mag}${pct != null ? ` (${sign}${pct.toFixed(1)}%)` : ''}</div>`;
+  };
+
+  const panel = document.getElementById('table-context');
+  if (panel) {
+    const dVol = prevTotal && hoy.vol != null && prevTotal.vol != null ? hoy.vol - prevTotal.vol : null;
+    const dVolPct = prevTotal && prevTotal.vol ? (dVol / prevTotal.vol * 100) : null;
+    const dTx  = prevTotal && hoy.tx != null && prevTotal.tx != null ? hoy.tx - prevTotal.tx : null;
+    const dTco = prevTotal && hoy.tco != null && prevTotal.c != null ? hoy.tco - prevTotal.c : null;
+    const dirV = dVol == null ? 'neutral' : dVol > 0 ? 'up' : dVol < 0 ? 'down' : 'neutral';
+    const dirT = dTx  == null ? 'neutral' : dTx  > 0 ? 'up' : dTx  < 0 ? 'down' : 'neutral';
+    const dirC = dTco == null ? 'neutral' : dTco > 0 ? 'up' : dTco < 0 ? 'down' : 'neutral';
+    const avgDir = (hoy.vol||0) > avgTotal * 1.05 ? 'up' : (hoy.vol||0) < avgTotal * 0.95 ? 'down' : 'neutral';
+    panel.innerHTML = `
+      <div class="ctx-stat ${dirV}">
+        <div class="ctx-stat-label">Volumen total hoy</div>
+        <div class="ctx-stat-value">$${((hoy.vol||0)/1e6).toFixed(2)}M</div>
+        ${mkDelta(dVol, dVolPct, '$')}
+        <div class="ctx-stat-sub">${prevTotal ? 'vs. sesión anterior ('+fmtDate(prevTotal.f)+')' : 'compra de divisas de la banca'}</div>
+      </div>
+      <div class="ctx-stat ${dirT}">
+        <div class="ctx-stat-label">Transacciones totales</div>
+        <div class="ctx-stat-value">${(hoy.tx||0).toLocaleString('es-BO')}</div>
+        ${mkDelta(dTx, null, '')}
+        <div class="ctx-stat-sub">operaciones registradas por EIFs</div>
+      </div>
+      <div class="ctx-stat ${dirC}">
+        <div class="ctx-stat-label">TCO (prom. ponderado)</div>
+        <div class="ctx-stat-value">Bs. ${hoy.tco != null ? Number(hoy.tco).toFixed(2) : '—'}</div>
+        ${mkDelta(dTco, null, 'Bs. ', 2)}
+        <div class="ctx-stat-sub">${prevTotal ? 'vs. compra referencial anterior' : 'tipo de cambio oficial del día'}</div>
+      </div>
+      <div class="ctx-stat ${avgDir}">
+        <div class="ctx-stat-label">Prom. mensual (22 sesiones)</div>
+        <div class="ctx-stat-value">$${(avgTotal/1e6).toFixed(2)}M</div>
+        <div class="ctx-stat-sub">${(hoy.vol||0) > avgTotal*1.05 ? 'Hoy supera el promedio' : (hoy.vol||0) < avgTotal*0.95 ? 'Hoy por debajo del promedio' : 'En línea con el promedio'}</div>
+      </div>
+    `;
+  }
+
+  const totalMonto = bh.reduce((s, r) => s + (r.monto || 0), 0);
+  const maxMonto   = Math.max(...bh.map(r => r.monto || 0), 0);
+  const tbody = document.getElementById('tabla-body');
+  tbody.innerHTML = bh.map((r, i) => {
+    const pct    = totalMonto > 0 && r.monto ? ((r.monto / totalMonto) * 100).toFixed(1) : '—';
+    const barPct = maxMonto > 0 && r.monto ? ((r.monto / maxMonto) * 100).toFixed(1) : 0;
+    const color  = PAL[i % PAL.length];
+    const volM   = r.monto != null ? fmtM(r.monto) : '—';
+
+    let deltaHtml = '', avgHtml = '';
+    if (r.monto != null) {
+      const prev = prevVolOf(r.banco);
+      if (prev != null && prev > 0) {
+        const diff = r.monto - prev;
+        const dir = diff > 0 ? 'up' : (diff < 0 ? 'down' : '');
+        const arrow = diff > 0 ? '▲' : (diff < 0 ? '▼' : '–');
+        deltaHtml = `<span class="td-delta ${dir}">${arrow} ${diff > 0 ? '+' : '-'}$${fmtM(Math.abs(diff))} vs ant.</span>`;
+      }
+      const avg = avgVolOf(r.banco);
+      if (avg > 0) avgHtml = `<span class="td-avg">Prom. 30d: <b>$${fmtM(avg)}</b></span>`;
+    }
+
+    return `<tr>
+      <td><span class="banco-name"><span class="banco-dot" style="background:${color}"></span>${r.banco}</span></td>
+      <td><span class="tasa-num" style="color:var(--text)">${r.tco != null ? 'Bs. ' + Number(r.tco).toFixed(2) : '—'}</span></td>
       <td>
         <div class="vol-cell">
           <span class="vol-num">$${volM}</span>
@@ -2311,7 +2510,7 @@ window.addEventListener('resize', () => {
       renderPrecios(g_serie);
       renderPrima(g_serie);
       renderBrecha(g_serie);
-      renderVolumen(g_bancos);
+      renderVolumen(g_bancosUni);
       renderHeatmap(g_serie);
       if (g_tco.length) renderTco(g_tco);
     }
@@ -2326,10 +2525,23 @@ async function init() {
       fetch('./data/bancos.json').then(r => r.json()),
       fetch('./data/tco.json').then(r => r.json()).catch(() => null),
     ]);
-    g_serie  = hist.serie;
-    g_hoy    = hist.hoy;
     g_bancos = bancos;
     g_tco    = tco?.serie || [];
+    g_tcoData = tco || null;
+
+    // Serie unificada, continua a través del cambio de régimen (jun-2026):
+    // referencial del BCB (hasta 26-jun) + TCO (desde 29-jun). El TCO es la
+    // continuación natural de la compra ponderada (c); la venta oficial = TCO +
+    // 0,10 Bs (v). Así KPIs, sparklines, prima, brecha y heatmap quedan continuos.
+    const refSerie = hist.serie || [];
+    const refFechas = new Set(refSerie.map(p => p.f));
+    const tcoPts = g_tco
+      .filter(p => !refFechas.has(p.f))
+      .map(p => ({ f: p.f, v: p.tco_venta, c: p.tco, usdt: p.usdt, vol: p.vol, tx: p.tx, reg: 'tco' }));
+    g_serie = refSerie.concat(tcoPts);
+    g_hoy   = g_serie.length ? g_serie[g_serie.length - 1] : hist.hoy;
+    REGIME_TCO = g_tco.length ? g_tco[0].f : null;
+    g_bancosUni = buildUnifiedBancos(bancos, g_tcoData);
 
     const upd = new Date(hist.actualizado);
     upd.setHours(upd.getHours() - 4);
@@ -2339,19 +2551,26 @@ async function init() {
 
     const idx = g_serie.length - 1;
     const prev = idx > 0 ? g_serie[idx-1] : null;
-    updateKPIs(hist.hoy, false, prev);
+    updateKPIs(g_hoy, false, prev);
     renderAllSparklines(g_serie);
-    updateAlert(g_serie, hist.hoy);
-    try { renderPrecios(hist.serie); } catch(e) { console.error('Precios:', e); }
+    updateAlert(g_serie, g_hoy);
+    try { renderPrecios(g_serie); } catch(e) { console.error('Precios:', e); }
     try { if (g_tco.length) renderTco(g_tco); } catch(e) { console.error('TCO:', e); }
-    try { renderPrima(hist.serie); } catch(e) { console.error('Prima:', e); }
-    try { renderBrecha(hist.serie); } catch(e) { console.error('Brecha:', e); }
-    try { renderVolumen(bancos); } catch(e) { console.error('Volumen:', e); }
-    try { renderHeatmap(hist.serie); updateHmSubtitle(); } catch(e) { console.error('Heatmap:', e); }
+    try { renderPrima(g_serie); } catch(e) { console.error('Prima:', e); }
+    try { renderBrecha(g_serie); } catch(e) { console.error('Brecha:', e); }
+    try { renderVolumen(g_bancosUni); } catch(e) { console.error('Volumen:', e); }
+    try { renderHeatmap(g_serie); updateHmSubtitle(); } catch(e) { console.error('Heatmap:', e); }
     try {
-      const tableCtx = computeTableContext(bancos, hist.serie);
-      renderTableContext(tableCtx, bancos.fecha_hoy);
-      renderTabla(bancos.tabla_hoy, bancos.fecha_hoy, bancos.bancos, tableCtx);
+      // Régimen TCO: tabla por banco con el detalle del TCO, comparando contra la
+      // sesión anterior (que hoy es la última del referencial) por el mismo
+      // mecanismo (promedio ponderado). El referencial por banco quedó congelado.
+      if (g_tcoData && (g_tcoData.bancos_hoy || []).length) {
+        renderTablaTco(g_tcoData, bancos);
+      } else {
+        const tableCtx = computeTableContext(bancos, g_serie);
+        renderTableContext(tableCtx, bancos.fecha_hoy);
+        renderTabla(bancos.tabla_hoy, bancos.fecha_hoy, bancos.bancos, tableCtx);
+      }
     } catch(e) { console.error('Tabla:', e); }
 
   } catch(err) {

@@ -18,7 +18,7 @@ import re
 import sys
 import time
 import xml.etree.ElementTree as ET
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import requests
@@ -35,6 +35,8 @@ CSV_FILE   = DATA_DIR / "dolar.csv"
 HIST_JSON  = DATA_DIR / "historico.json"
 BANCOS_JSON = DATA_DIR / "bancos.json"
 CSV_FIELDS = ["fecha", "bcb_venta", "bcb_compra", "usdt_venta", "usdt_compra", "timestamp_utc"]
+
+BOT = timezone(timedelta(hours=-4))  # hora Bolivia, para la fecha de calendario
 
 HEADERS_BCB = {
     "User-Agent": (
@@ -339,6 +341,63 @@ def fetch_usdt(fecha: str) -> dict:
         return {"venta": None, "compra": None}
 
 
+def _mau_series(url: str) -> dict[str, float]:
+    """Descarga un CSV de mauforonda y devuelve {fecha: mediana promedio del día}."""
+    r = requests.get(url, headers=HEADERS_BCB, timeout=40)
+    r.raise_for_status()
+    por_fecha: dict[str, list] = {}
+    for line in r.text.splitlines()[1:]:
+        parts = line.split(",")
+        if len(parts) >= 4 and parts[3]:
+            try:
+                por_fecha.setdefault(parts[0][:10], []).append(float(parts[3]))
+            except ValueError:
+                pass
+    return {f: round(sum(v) / len(v), 4) for f, v in por_fecha.items()}
+
+
+def rellenar_usdt_calendario(csv_rows: list[dict]) -> list[dict]:
+    """
+    Mantiene viva la serie USDT por fecha de CALENDARIO, independiente del valor
+    referencial (congelado el 2026-06-26 por el cambio de régimen). Para cada día
+    posterior a la última fecha del CSV y hasta hoy (BOT) que no tenga fila propia,
+    agrega una fila SOLO-USDT (campos BCB vacíos) con la mediana diaria de
+    mauforonda. Backfillea huecos (p.ej. fines de semana): el P2P opera 24/7.
+    """
+    if not csv_rows:
+        return csv_rows
+    fechas_existentes = {r["fecha"] for r in csv_rows}
+    ancla = max(fechas_existentes)
+    hoy = datetime.now(BOT).strftime("%Y-%m-%d")
+
+    try:
+        buy = _mau_series(MAU_BUY_CSV)
+        sell = _mau_series(MAU_SELL_CSV)
+    except Exception as e:
+        print(f"[WARN] mauforonda no disponible para continuidad USDT: {e}", file=sys.stderr)
+        return csv_rows
+
+    nuevas = []
+    for fecha in sorted(buy):
+        if fecha <= ancla or fecha > hoy or fecha in fechas_existentes:
+            continue
+        fila = {
+            "fecha":       fecha,
+            "bcb_venta":   None,
+            "bcb_compra":  None,
+            "usdt_venta":  buy.get(fecha),
+            "usdt_compra": sell.get(fecha),
+            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        }
+        guardar_fila_csv(fila)
+        csv_rows.append(fila)
+        nuevas.append(fecha)
+
+    print(f"[OK] USDT calendario: {len(nuevas)} fila(s) — {', '.join(nuevas)}" if nuevas
+          else "[INFO] USDT calendario al día.")
+    return csv_rows
+
+
 # ── CSV ───────────────────────────────────────────────────────────────────────
 
 def leer_csv() -> list[dict]:
@@ -364,9 +423,19 @@ def exportar_historico_json(csv_rows: list[dict], v2: dict) -> None:
     """Genera data/historico.json combinando CSV + historial de compra/volumen del v2."""
     csv_by_fecha = {r["fecha"]: r for r in csv_rows}
 
+    # vol/tx anteriores: si el v2 del BCB está bloqueado (WAF) o congelado, no
+    # debemos borrar el histórico ya capturado. Los hacemos "pegajosos".
+    prev = {}
+    if HIST_JSON.exists():
+        try:
+            for it in json.loads(HIST_JSON.read_text(encoding="utf-8")).get("serie", []):
+                prev[it["f"]] = it
+        except Exception:
+            pass
+
     # Unir todas las fechas conocidas
     all_fechas = sorted(
-        set(csv_by_fecha.keys()) | set(v2["compra_total"].keys())
+        set(csv_by_fecha.keys()) | set(v2["compra_total"].keys()) | set(prev.keys())
     )
 
     serie = []
@@ -378,9 +447,16 @@ def exportar_historico_json(csv_rows: list[dict], v2: dict) -> None:
 
         venta_raw = row.get("bcb_venta")
         venta = float(venta_raw) if venta_raw not in (None, "") else None
+        if venta is None:
+            venta = prev.get(f, {}).get("v")
 
+        # vol/tx: preferir el v2 vivo; si falta (WAF/congelado), conservar lo previo
         vol = v2["vol_total"].get(f)
-        tx  = v2["tx_total"].get(f)
+        if vol is None:
+            vol = prev.get(f, {}).get("vol")
+        tx = v2["tx_total"].get(f)
+        if tx is None:
+            tx = prev.get(f, {}).get("tx")
         usdt = row.get("usdt_venta")
 
         serie.append({
@@ -524,6 +600,11 @@ def main() -> None:
         print(json.dumps(nueva_fila, indent=2, ensure_ascii=False))
     else:
         print(f"[INFO] {fecha} ya en CSV — actualizando JSON.")
+
+    # 3b. Continuidad de la serie USDT por fecha de calendario. Tras el cambio de
+    # régimen el referencial quedó congelado, así que el USDT (paralelo) ya no se
+    # capturaba. Lo mantenemos vivo independientemente del BCB.
+    csv_rows = rellenar_usdt_calendario(csv_rows)
 
     # 4. Exportar JSON
     exportar_historico_json(csv_rows, v2)

@@ -28,28 +28,27 @@ Se usa la **mediana** de las ofertas listadas en Binance P2P (columna `median` d
 │   ├── scrape_tco.py                  # Scraper diario del Tipo de Cambio Oficial (TCO)
 │   └── backfill_historico.py          # Recálculo histórico completo
 ├── data/
-│   ├── dolar.csv                      # Serie diaria referencial (fuente de verdad)
-│   ├── tco.csv                        # Serie diaria del TCO (fuente de verdad)
-│   ├── tco.json                       # JSON del TCO: TCO, venta (+0,10) y USDT
+│   ├── dolar.csv                      # Serie diaria referencial + USDT (fuente de verdad)
+│   ├── tco.csv                        # Serie diaria GLOBAL del TCO (fuente de verdad)
+│   ├── tco_bancos.csv                 # Detalle POR BANCO del TCO por día (TCO, tx, monto)
+│   ├── tco_raw/<fecha>.csv            # Copia verbatim del reporte del BCB (red de seguridad sin pérdida)
+│   ├── tco.json                       # JSON del TCO: serie global + venta (+0,10) + USDT + detalle por banco
 │   ├── historico.json                 # JSON para gráficos de evolución
-│   └── bancos.json                    # JSON para gráfico por banco + tabla
+│   └── bancos.json                    # JSON del referencial por banco (histórico, congelado)
 ├── .github/workflows/
-│   ├── update_dolar.yml               # GitHub Actions: referencial, 5x/día lun-vie
-│   └── update_tco.yml                 # GitHub Actions: TCO, diario 20:01 BOT
+│   ├── update_dolar.yml               # GitHub Actions: USDT diario (referencial congelado), 1x/día
+│   └── update_tco.yml                 # GitHub Actions: TCO, varias veces/día (tolera el WAF del BCB)
 └── requirements.txt                   # requests, beautifulsoup4, lxml
 ```
 
 ## Automatización
 
-GitHub Actions ejecuta el scraper **5 veces al día** en días hábiles (horario Bolivia):
+Tras el cambio de régimen (jun-2026) el **valor referencial** del BCB quedó congelado; el **TCO** es ahora la serie oficial viva.
 
-| Hora BOT | Descripción |
-|----------|-------------|
-| 10:00 | Apertura matutina |
-| 13:00 | Mediodía |
-| 16:00 | Tarde |
-| 19:00 | Cierre vespertino |
-| 23:30 | Cierre final del día |
+- **`update_tco.yml`** — captura el TCO **varias veces al día** (20:01, 23:01, 02:01 y 07:01 BOT). El reporte del BCB es estático (forward-dated) y su WAF bloquea (403) de forma intermitente a los runners de GitHub; como **no hay histórico descargable**, reintentar en varias franjas evita perder el detalle por banco de un día. El scraper es idempotente.
+- **`update_dolar.yml`** — corre **1x/día** (23:00 BOT) y solo mantiene viva la serie **USDT** (paralelo) por fecha de calendario. Si el BCB reactivara el referencial, también lo recogería.
+
+> ⚠️ **Sin backfill:** la plataforma del TCO solo expone el reporte más reciente. Cada día no capturado se pierde para siempre, por eso el scraper persiste el detalle completo (`tco_bancos.csv`) y una copia cruda (`tco_raw/`).
 
 ## Ejecución local
 
