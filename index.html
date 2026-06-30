@@ -1148,6 +1148,8 @@ const BCB_OFICIAL = 6.96;   // tipo de cambio oficial fijo (Bs./$us) desde novie
 let preciosChart = null, volumenChart = null, primaChart = null, heatmapChart = null, brechaChart = null, tcoChart = null, boxplotChart = null;
 let g_serie = [], g_hoy = {}, g_bancos = {}, g_tco = [], g_tcoData = null, g_bancosUni = {};
 let g_current = {}, g_currentPrev = null;   // punto "vigente hoy" para los KPIs (no-hover)
+let g_vigente = null, g_manana = null;      // puntos "rige hoy" / "regirá mañana"
+let g_lastSig = '';                          // firma de datos (para re-dibujar solo si cambian)
 let REGIME_TCO = null;   // primera fecha del régimen TCO (marca del cambio de régimen)
 
 // Fecha local (Bolivia) en formato ISO YYYY-MM-DD, para decidir qué rige hoy.
@@ -2688,87 +2690,127 @@ window.addEventListener('resize', () => {
   }, 200);
 });
 
+/* ── Carga, estado y pintado — compartidos por init() y el auto-refresh ──── */
+function fetchData() {
+  return Promise.all([
+    fetch('./data/historico.json').then(r => r.json()),
+    fetch('./data/bancos.json').then(r => r.json()),
+    fetch('./data/tco.json').then(r => r.json()).catch(() => null),
+  ]);
+}
+
+// Firma de datos: cambia cuando el cron publica algo nuevo (otra fecha/timestamp).
+// Sirve para re-dibujar los gráficos solo cuando hace falta.
+function dataSig(hist, tco) {
+  const last = g_serie.length ? g_serie[g_serie.length - 1].f : '';
+  return `${(hist && hist.actualizado) || ''}|${(tco && tco.actualizado) || ''}|${g_serie.length}|${last}`;
+}
+
+// Reconstruye el estado (serie unificada + puntos de vigencia). Recalcula "rige
+// hoy"/"regirá mañana" contra la fecha ACTUAL, de modo que el flip de las 20:00 y
+// de medianoche se refleja aunque el dato no haya cambiado.
+function buildState(hist, bancos, tco) {
+  g_bancos = bancos;
+  g_tco    = tco?.serie || [];
+  g_tcoData = tco || null;
+
+  // CLAVE: el TCO que fija la sesión de un día RIGE el día hábil siguiente, así
+  // que el PRECIO (c=TCO, v=venta) se grafica en su fecha de VIGENCIA (t.vig) y la
+  // ACTIVIDAD (volumen/tx) se queda en la fecha de la sesión (para no desfasar el
+  // heatmap). La sesión que fija el TCO viaja como sesVol/sesTx en el punto que rige.
+  const refSerie = hist.serie || [];
+  const byDate = new Map(refSerie.map(p => [p.f, { ...p }]));
+  for (const t of g_tco) {
+    const dv = t.vig || t.f;
+    const ev = byDate.get(dv) || { f: dv };            // PRECIO en la fecha que rige
+    ev.c = t.tco; ev.v = t.tco_venta; ev.sesion = t.f;
+    ev.sesVol = t.vol; ev.sesTx = t.tx; ev.reg = 'tco';
+    if (ev.usdt == null) ev.usdt = t.usdt;
+    byDate.set(dv, ev);
+    const es = byDate.get(t.f) || { f: t.f };           // ACTIVIDAD en la fecha de la sesión
+    es.vol = t.vol; es.tx = t.tx;
+    if (es.usdt == null) es.usdt = t.usdt;
+    byDate.set(t.f, es);
+  }
+  g_serie = [...byDate.values()].sort((a, b) => a.f < b.f ? -1 : (a.f > b.f ? 1 : 0));
+  REGIME_TCO = g_tco.length ? (g_tco[0].vig || g_tco[0].f) : null;
+  g_bancosUni = buildUnifiedBancos(bancos, g_tcoData);
+
+  const upd = new Date(hist.actualizado);
+  upd.setHours(upd.getHours() - 4);
+  document.getElementById('nav-updated').textContent =
+    upd.toLocaleDateString('es-BO', { day:'numeric', month:'short', year:'numeric' });
+  document.getElementById('foot-year').textContent = new Date().getFullYear();
+
+  const hoyStr = localDateStr(new Date());
+  const tcoPts = g_serie.filter(p => p.reg === 'tco' && p.c != null);
+  let vigIdx = -1;
+  for (let i = 0; i < tcoPts.length; i++) { if (tcoPts[i].f <= hoyStr) vigIdx = i; }
+  g_vigente = vigIdx >= 0 ? tcoPts[vigIdx] : (tcoPts[tcoPts.length - 1] || hist.hoy);
+  g_currentPrev = vigIdx > 0 ? tcoPts[vigIdx - 1] : null;
+  g_manana = tcoPts.find(p => p.f > hoyStr) || null;
+  const lastUsdt = [...g_serie].reverse().find(p => p.usdt != null)?.usdt ?? null;
+  g_hoy = { ...g_vigente, tco: g_vigente.c, vol: g_vigente.sesVol ?? g_vigente.vol, tx: g_vigente.sesTx ?? g_vigente.tx };
+  g_current = { ...g_vigente, usdt: g_vigente.usdt ?? lastUsdt };
+}
+
+// Pintado liviano (KPIs, sparklines, alerta): barato, se repite en cada refresh.
+function paintKpis() {
+  updateKPIs(g_current, false, g_currentPrev);
+  setKpiManana(g_manana, g_vigente);
+  renderAllSparklines(g_serie);
+  updateAlert(g_serie, g_hoy);
+}
+
+// Pintado pesado (gráficos ECharts + tabla): solo cuando los datos cambian.
+function paintCharts() {
+  try { renderPrecios(g_serie); } catch(e) { console.error('Precios:', e); }
+  try { if (g_tco.length) renderTco(g_tco); } catch(e) { console.error('TCO:', e); }
+  try { renderPrima(g_serie); } catch(e) { console.error('Prima:', e); }
+  try { renderBrecha(g_serie); } catch(e) { console.error('Brecha:', e); }
+  try { renderVolumen(g_bancosUni); } catch(e) { console.error('Volumen:', e); }
+  try { if (g_tcoData && g_tcoData.dist_hoy) renderBoxplot(g_tcoData.dist_hoy); } catch(e) { console.error('Boxplot:', e); }
+  try { renderHeatmap(g_serie); updateHmSubtitle(); } catch(e) { console.error('Heatmap:', e); }
+  try {
+    // Régimen TCO: tabla por banco con el detalle del TCO. El referencial por
+    // banco quedó congelado; la comparación es contra la sesión anterior.
+    if (g_tcoData && (g_tcoData.bancos_hoy || []).length) {
+      renderTablaTco(g_tcoData, g_bancos);
+    } else {
+      const tableCtx = computeTableContext(g_bancos, g_serie);
+      renderTableContext(tableCtx, g_bancos.fecha_hoy);
+      renderTabla(g_bancos.tabla_hoy, g_bancos.fecha_hoy, g_bancos.bancos, tableCtx);
+    }
+  } catch(e) { console.error('Tabla:', e); }
+}
+
+// Auto-refresh: mantiene una pestaña abierta al día sin recargar. Recalcula los
+// KPIs (cubre el flip de las 20:00 y de medianoche) y re-dibuja los gráficos solo
+// si el cron publicó datos nuevos. Pausa si la pestaña está oculta o si el usuario
+// está explorando el gráfico (hover activo).
+async function autoRefresh() {
+  if (document.hidden) return;
+  if (document.getElementById('kpi-grid')?.classList.contains('kpis-hovering')) return;
+  try {
+    const [hist, bancos, tco] = await fetchData();
+    buildState(hist, bancos, tco);
+    paintKpis();
+    const sig = dataSig(hist, tco);
+    if (sig !== g_lastSig) { paintCharts(); g_lastSig = sig; }
+  } catch(e) { console.error('autoRefresh:', e); }
+}
+
 /* ── Init ───────────────────────────────────────────────────────────────── */
 async function init() {
   try {
-    const [hist, bancos, tco] = await Promise.all([
-      fetch('./data/historico.json').then(r => r.json()),
-      fetch('./data/bancos.json').then(r => r.json()),
-      fetch('./data/tco.json').then(r => r.json()).catch(() => null),
-    ]);
-    g_bancos = bancos;
-    g_tco    = tco?.serie || [];
-    g_tcoData = tco || null;
-
-    // Serie unificada y continua a través del cambio de régimen (jun-2026):
-    // referencial del BCB (hasta 26-jun) → TCO. CLAVE: el TCO que fija la sesión
-    // de un día RIGE el día hábil siguiente, así que el PRECIO (c=TCO, v=venta) se
-    // grafica en su fecha de VIGENCIA (t.vig). La ACTIVIDAD (volumen/tx) se queda
-    // en la fecha de la propia sesión (cuando se operó), para no desfasar el
-    // heatmap. La sesión que fija el TCO viaja como sesVol/sesTx en el punto que
-    // rige, para que el KPI "volumen del día" muestre la sesión que lo determinó.
-    const refSerie = hist.serie || [];
-    const byDate = new Map(refSerie.map(p => [p.f, { ...p }]));
-    for (const t of g_tco) {
-      const dv = t.vig || t.f;
-      const ev = byDate.get(dv) || { f: dv };            // PRECIO en la fecha que rige
-      ev.c = t.tco; ev.v = t.tco_venta; ev.sesion = t.f;
-      ev.sesVol = t.vol; ev.sesTx = t.tx; ev.reg = 'tco';
-      if (ev.usdt == null) ev.usdt = t.usdt;
-      byDate.set(dv, ev);
-      const es = byDate.get(t.f) || { f: t.f };           // ACTIVIDAD en la fecha de la sesión
-      es.vol = t.vol; es.tx = t.tx;
-      if (es.usdt == null) es.usdt = t.usdt;
-      byDate.set(t.f, es);
-    }
-    g_serie = [...byDate.values()].sort((a, b) => a.f < b.f ? -1 : (a.f > b.f ? 1 : 0));
-    REGIME_TCO = g_tco.length ? (g_tco[0].vig || g_tco[0].f) : null;
-    g_bancosUni = buildUnifiedBancos(bancos, g_tcoData);
-
-    const upd = new Date(hist.actualizado);
-    upd.setHours(upd.getHours() - 4);
-    document.getElementById('nav-updated').textContent =
-      upd.toLocaleDateString('es-BO', { day:'numeric', month:'short', year:'numeric' });
-    document.getElementById('foot-year').textContent = new Date().getFullYear();
-
-    // KPIs de vigencia (los puntos TCO ya están fechados por el día que RIGEN):
-    // "rige hoy" = el punto cuya vigencia es hoy (o el último ya vigente en
-    // fin de semana/feriado). "regirá mañana" = el primer punto con vigencia
-    // futura (la sesión de hoy, disponible tras el cierre de las 20:00).
-    const hoyStr = localDateStr(new Date());
-    const tcoPts = g_serie.filter(p => p.reg === 'tco' && p.c != null);
-    let vigIdx = -1;
-    for (let i = 0; i < tcoPts.length; i++) { if (tcoPts[i].f <= hoyStr) vigIdx = i; }
-    const vigente = vigIdx >= 0 ? tcoPts[vigIdx] : (tcoPts[tcoPts.length - 1] || hist.hoy);
-    const vigPrev = vigIdx > 0 ? tcoPts[vigIdx - 1] : null;
-    const manana  = tcoPts.find(p => p.f > hoyStr) || null;
-    const lastUsdt = [...g_serie].reverse().find(p => p.usdt != null)?.usdt ?? null;
-    g_hoy = { ...vigente, tco: vigente.c, vol: vigente.sesVol ?? vigente.vol, tx: vigente.sesTx ?? vigente.tx };
-    g_current = { ...vigente, usdt: vigente.usdt ?? lastUsdt };
-    g_currentPrev = vigPrev;
-    updateKPIs(g_current, false, vigPrev);
-    setKpiManana(manana, vigente);
-    renderAllSparklines(g_serie);
-    updateAlert(g_serie, g_hoy);
-    try { renderPrecios(g_serie); } catch(e) { console.error('Precios:', e); }
-    try { if (g_tco.length) renderTco(g_tco); } catch(e) { console.error('TCO:', e); }
-    try { renderPrima(g_serie); } catch(e) { console.error('Prima:', e); }
-    try { renderBrecha(g_serie); } catch(e) { console.error('Brecha:', e); }
-    try { renderVolumen(g_bancosUni); } catch(e) { console.error('Volumen:', e); }
-    try { if (g_tcoData && g_tcoData.dist_hoy) renderBoxplot(g_tcoData.dist_hoy); } catch(e) { console.error('Boxplot:', e); }
-    try { renderHeatmap(g_serie); updateHmSubtitle(); } catch(e) { console.error('Heatmap:', e); }
-    try {
-      // Régimen TCO: tabla por banco con el detalle del TCO, comparando contra la
-      // sesión anterior (que hoy es la última del referencial) por el mismo
-      // mecanismo (promedio ponderado). El referencial por banco quedó congelado.
-      if (g_tcoData && (g_tcoData.bancos_hoy || []).length) {
-        renderTablaTco(g_tcoData, bancos);
-      } else {
-        const tableCtx = computeTableContext(bancos, g_serie);
-        renderTableContext(tableCtx, bancos.fecha_hoy);
-        renderTabla(bancos.tabla_hoy, bancos.fecha_hoy, bancos.bancos, tableCtx);
-      }
-    } catch(e) { console.error('Tabla:', e); }
+    const [hist, bancos, tco] = await fetchData();
+    buildState(hist, bancos, tco);
+    paintKpis();
+    paintCharts();
+    g_lastSig = dataSig(hist, tco);
+    // Auto-refresh: cada 10 min y al volver a la pestaña (ver autoRefresh()).
+    setInterval(autoRefresh, 10 * 60 * 1000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) autoRefresh(); });
 
   } catch(err) {
     console.error(err);
