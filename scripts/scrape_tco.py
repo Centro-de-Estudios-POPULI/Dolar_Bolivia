@@ -30,7 +30,7 @@ Fuente:
 import csv
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import requests
@@ -42,6 +42,26 @@ from scrape_dolar import request_bcb, parse_num, alias_banco
 # ── Config ─────────────────────────────────────────────────────────────────────
 TCO_CSV_URL = "https://www.bcb.gob.bo/tco_tcreferencial_descargar_csv.php"
 MARGEN_VENTA = 0.10  # disposición BCB: venta oficial = TCO + 10 ctvs
+
+# Vigencia: el TCO que fija la sesión de un día RIGE el día hábil siguiente. Para
+# graficar cada TCO en el día que rige, saltamos fines de semana y feriados
+# nacionales (lista mantenible; un feriado faltante solo desfasa 1 día esa vez).
+BO_FERIADOS = {
+    "2026-01-01", "2026-01-22", "2026-02-16", "2026-02-17", "2026-04-03",
+    "2026-05-01", "2026-06-04", "2026-06-21", "2026-08-06", "2026-10-12",
+    "2026-11-02", "2026-12-25",
+    "2027-01-01", "2027-01-22",
+}
+
+
+def siguiente_dia_habil(fecha_iso: str) -> str:
+    """Día hábil siguiente a `fecha_iso` (salta sábado/domingo y feriados BO)."""
+    d = date.fromisoformat(fecha_iso)
+    while True:
+        d += timedelta(days=1)
+        if d.weekday() >= 5 or d.isoformat() in BO_FERIADOS:
+            continue
+        return d.isoformat()
 
 DATA_DIR   = Path(__file__).parent.parent / "data"
 TCO_CSV    = DATA_DIR / "tco.csv"
@@ -80,10 +100,12 @@ def parse_reporte(texto: str) -> dict[str, dict]:
       { fecha: {
           'tco': float, 'vol_usd': int|None, 'tx': int|None,
           'bancos': { alias: {'tco': float|None, 'tx': int|None, 'monto': int|None} },
+          'dist':   { alias: [ (precio, n_tx), ... ] },   # distribución por nivel de precio
       }}
     Usa el orden de bancos de la cabecera (robusto si el BCB reordena columnas).
-    Las filas de distribución por nivel de precio se ignoran en el tidy
-    (quedan preservadas en el archivo raw). Solo se devuelven fechas con TCO.
+    Las filas de distribución por nivel de precio (cada TC negociado, con nº de
+    transacciones por banco) se recogen en 'dist' para el boxplot. Solo se
+    devuelven fechas con TCO.
     """
     lineas = texto.splitlines()
     orden = _orden_bancos(lineas)
@@ -98,19 +120,18 @@ def parse_reporte(texto: str) -> dict[str, dict]:
         fecha = cols[0]
         if len(fecha) != 10 or fecha[4] != "-" or not fecha[:4].isdigit():
             continue
+        g = fechas.setdefault(fecha, {"bancos": {}, "dist": {}})
         etiqueta = cols[1].upper()
-        if etiqueta not in ("TCO", "TOTAL"):
-            continue  # fila de distribución por precio → solo en raw
-        g = fechas.setdefault(fecha, {"bancos": {}})
 
-        for idx, nombre in orden:
-            if etiqueta == "TCO":
+        if etiqueta == "TCO":
+            for idx, nombre in orden:
                 val = parse_num(cols[idx]) if idx < len(cols) else None
                 if _es_total(nombre):
                     g["tco"] = val
                 else:
                     g["bancos"].setdefault(alias_banco(nombre), {})["tco"] = val
-            else:  # TOTAL
+        elif etiqueta == "TOTAL":
+            for idx, nombre in orden:
                 tx    = parse_num(cols[idx])     if idx < len(cols)     else None
                 monto = parse_num(cols[idx + 1]) if idx + 1 < len(cols) else None
                 if _es_total(nombre):
@@ -120,6 +141,19 @@ def parse_reporte(texto: str) -> dict[str, dict]:
                     b = g["bancos"].setdefault(alias_banco(nombre), {})
                     b["tx"]    = int(tx)    if tx    else None
                     b["monto"] = int(monto) if monto else None
+        else:
+            # Fila de distribución: cols[1] es un TC negociado; por banco viene el
+            # nº de transacciones a ese precio. Acumulamos (precio, n_tx) por banco.
+            precio = parse_num(cols[1])
+            if precio is None:
+                continue
+            for idx, nombre in orden:
+                if _es_total(nombre):
+                    continue
+                ntx = parse_num(cols[idx]) if idx < len(cols) else None
+                if not ntx:
+                    continue
+                g["dist"].setdefault(alias_banco(nombre), []).append((precio, int(ntx)))
 
     return {f: g for f, g in fechas.items() if g.get("tco") is not None}
 
@@ -156,74 +190,129 @@ def leer_csv(path: Path) -> list[dict]:
         return list(csv.DictReader(f))
 
 
-def agregar_global_csv(reporte: dict[str, dict], ts: str) -> list[dict]:
-    """Agrega al tco.csv solo fechas nuevas (global). Devuelve el CSV completo."""
-    existentes = leer_csv(TCO_CSV)
-    fechas = {r["fecha"] for r in existentes}
+def _canon(v) -> str:
+    """Forma canónica para comparar/escribir un valor (None → cadena vacía)."""
+    return "" if v is None else str(v)
 
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    escribir_header = not TCO_CSV.exists() or TCO_CSV.stat().st_size == 0
-    agregadas = 0
-    with open(TCO_CSV, "a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=CSV_FIELDS)
-        if escribir_header:
+
+def upsert_csv(path: Path, fields: list[str], key_fields: list[str],
+               nuevos: list[dict], ts: str) -> tuple[list[dict], int]:
+    """
+    Upsert idempotente sobre un CSV. `nuevos` = filas con valores tipados (sin
+    timestamp). Inserta claves nuevas y REEMPLAZA filas cuyos valores cambian
+    (comparando todo menos timestamp_utc) — así el cierre de las 20:00 refresca
+    la captura parcial intradía. No reescribe si nada cambió (evita commits de
+    ruido). Devuelve (filas_resultantes, n_cambios).
+    """
+    existentes = leer_csv(path)
+    by_key = {tuple(r[k] for k in key_fields): r for r in existentes}
+    val_fields = [f for f in fields if f not in key_fields and f != "timestamp_utc"]
+    cambios = 0
+    for nv in nuevos:
+        key = tuple(_canon(nv[k]) for k in key_fields)
+        row = {**{f: _canon(nv.get(f)) for f in fields if f != "timestamp_utc"},
+               "timestamp_utc": ts}
+        prev = by_key.get(key)
+        if prev is None or any(prev.get(f, "") != row[f] for f in val_fields):
+            by_key[key] = row
+            cambios += 1
+    if cambios:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        filas = sorted(by_key.values(), key=lambda r: tuple(r[k] for k in key_fields))
+        with open(path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=fields)
             writer.writeheader()
-        for fecha, g in sorted(reporte.items()):
-            if fecha in fechas:
-                continue
-            registro = {
-                "fecha":   fecha,
-                "tco":     g["tco"],
-                "vol_usd": g.get("vol_usd"),
-                "tx":      g.get("tx"),
-                "timestamp_utc": ts,
-            }
-            writer.writerow(registro)
-            existentes.append(registro)
-            fechas.add(fecha)
-            agregadas += 1
-            print(json.dumps(registro, ensure_ascii=False))
+            writer.writerows(filas)
+    return leer_csv(path), cambios
 
-    print(f"[OK] tco.csv — {agregadas} fecha(s) nueva(s)" if agregadas
-          else "[INFO] Sin fechas nuevas de TCO; se regenera el JSON.")
-    return existentes
+
+def agregar_global_csv(reporte: dict[str, dict], ts: str) -> list[dict]:
+    """Upsert del tco.csv global (refresca con el cierre). Devuelve el CSV completo."""
+    nuevos = [
+        {"fecha": f, "tco": g["tco"], "vol_usd": g.get("vol_usd"), "tx": g.get("tx")}
+        for f, g in sorted(reporte.items())
+    ]
+    filas, cambios = upsert_csv(TCO_CSV, CSV_FIELDS, ["fecha"], nuevos, ts)
+    print(f"[OK] tco.csv — {cambios} fecha(s) nueva(s)/actualizada(s)" if cambios
+          else "[INFO] tco.csv sin cambios; se regenera el JSON.")
+    return filas
 
 
 def agregar_bancos_csv(reporte: dict[str, dict], ts: str) -> list[dict]:
     """
-    Agrega al tco_bancos.csv el detalle por banco de cada fecha nueva.
-    Escribe un panel completo (una fila por banco presente en el reporte,
-    con nulos donde el banco no operó). Dedup por (fecha, banco).
+    Upsert del tco_bancos.csv (detalle por banco). Panel completo (una fila por
+    banco presente, con nulos donde no operó); refresca con el cierre por (fecha,
+    banco). Devuelve el CSV completo.
     """
-    existentes = leer_csv(TCO_BANCOS)
-    vistos = {(r["fecha"], r["banco"]) for r in existentes}
+    nuevos = [
+        {"fecha": f, "banco": banco, "tco": b.get("tco"),
+         "tx": b.get("tx"), "monto_usd": b.get("monto")}
+        for f, g in sorted(reporte.items())
+        for banco, b in sorted(g["bancos"].items())
+    ]
+    filas, cambios = upsert_csv(TCO_BANCOS, BANCOS_FIELDS, ["fecha", "banco"], nuevos, ts)
+    print(f"[OK] tco_bancos.csv — {cambios} fila(s) banco-día nueva(s)/actualizada(s)")
+    return filas
 
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    escribir_header = not TCO_BANCOS.exists() or TCO_BANCOS.stat().st_size == 0
-    agregadas = 0
-    with open(TCO_BANCOS, "a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=BANCOS_FIELDS)
-        if escribir_header:
-            writer.writeheader()
-        for fecha, g in sorted(reporte.items()):
-            for banco, b in sorted(g["bancos"].items()):
-                if (fecha, banco) in vistos:
-                    continue
-                registro = {
-                    "fecha":     fecha,
-                    "banco":     banco,
-                    "tco":       b.get("tco"),
-                    "tx":        b.get("tx"),
-                    "monto_usd": b.get("monto"),
-                    "timestamp_utc": ts,
-                }
-                writer.writerow(registro)
-                existentes.append(registro)
-                vistos.add((fecha, banco))
-                agregadas += 1
 
-    print(f"[OK] tco_bancos.csv — {agregadas} fila(s) banco-día nueva(s)")
-    return existentes
+# ── Distribución por banco (boxplot ponderado por nº de transacciones) ───────────
+
+def _wquantile(pairs: list[tuple[float, int]], q: float) -> float:
+    """Percentil ponderado (nearest-rank) sobre [(precio, peso)] ordenado asc."""
+    total = sum(w for _, w in pairs)
+    if total <= 0:
+        return pairs[0][0]
+    umbral = q * total
+    acum = 0
+    for precio, w in pairs:
+        acum += w
+        if acum >= umbral:
+            return precio
+    return pairs[-1][0]
+
+
+def boxplot_stats(niveles: list[tuple[float, int]]) -> dict:
+    """
+    Estadísticas de caja y bigotes ponderadas por nº de transacciones a partir de
+    los niveles (precio, n_tx) de un banco. Bigotes a 1,5·IQR; outliers = niveles
+    de precio fuera de ese rango.
+    """
+    pairs = sorted(niveles, key=lambda x: x[0])
+    q1, q2, q3 = _wquantile(pairs, .25), _wquantile(pairs, .50), _wquantile(pairs, .75)
+    iqr = q3 - q1
+    lo_lim, hi_lim = q1 - 1.5 * iqr, q3 + 1.5 * iqr
+    dentro = [p for p, _ in pairs if lo_lim <= p <= hi_lim]
+    lo = min(dentro) if dentro else q1
+    hi = max(dentro) if dentro else q3
+    outliers = sorted({p for p, _ in pairs if p < lo_lim or p > hi_lim})
+    pesos = sum(w for _, w in pairs)
+    mean = sum(p * w for p, w in pairs) / pesos if pesos else q2  # ponderada por nº tx
+    r = lambda x: round(x, 4)
+    return {"q1": r(q1), "q2": r(q2), "q3": r(q3), "lo": r(lo), "hi": r(hi),
+            "mean": r(mean), "outliers": [r(o) for o in outliers]}
+
+
+def construir_dist_hoy(reporte: dict[str, dict]) -> dict | None:
+    """
+    Distribución de la sesión más reciente para el boxplot: por banco activo, su
+    caja/bigotes/outliers + TCO y nº de transacciones. Orden ascendente por TCO.
+    """
+    if not reporte:
+        return None
+    fecha = max(reporte.keys())
+    g = reporte[fecha]
+    bancos_box = []
+    for banco, niveles in g.get("dist", {}).items():
+        niveles = [(p, n) for (p, n) in niveles if p is not None and n]
+        if not niveles:
+            continue
+        b = g["bancos"].get(banco, {})
+        bancos_box.append({"banco": banco, "tco": b.get("tco"), "tx": b.get("tx"),
+                           **boxplot_stats(niveles)})
+    # Orden ascendente por la media mostrada (triángulo / número azul).
+    bancos_box.sort(key=lambda x: x["mean"])
+    return {"fecha": fecha, "vig": siguiente_dia_habil(fecha),
+            "tco_oficial": g.get("tco"), "bancos": bancos_box}
 
 
 # ── USDT desde dolar.csv (para comparación) ─────────────────────────────────────
@@ -243,8 +332,16 @@ def usdt_por_fecha() -> dict[str, float]:
 
 # ── JSON para el dashboard ──────────────────────────────────────────────────────
 
-def exportar_json(global_rows: list[dict], bancos_rows: list[dict]) -> None:
+def exportar_json(global_rows: list[dict], bancos_rows: list[dict],
+                  dist_hoy: dict | None = None) -> None:
     usdt = usdt_por_fecha()
+
+    # Si esta corrida no trajo reporte (WAF), conservar el último boxplot conocido.
+    if dist_hoy is None and TCO_JSON.exists():
+        try:
+            dist_hoy = json.loads(TCO_JSON.read_text(encoding="utf-8")).get("dist_hoy")
+        except Exception:
+            dist_hoy = None
 
     serie = []
     for r in sorted(global_rows, key=lambda x: x["fecha"]):
@@ -254,6 +351,7 @@ def exportar_json(global_rows: list[dict], bancos_rows: list[dict]) -> None:
             continue
         serie.append({
             "f": r["fecha"],
+            "vig": siguiente_dia_habil(r["fecha"]),   # día hábil en que rige este TCO
             "tco": tco,
             "tco_venta": round(tco + MARGEN_VENTA, 2),
             "usdt": usdt.get(r["fecha"]),
@@ -317,9 +415,12 @@ def exportar_json(global_rows: list[dict], bancos_rows: list[dict]) -> None:
         "bancos_hoy": bancos_hoy,
         "bancos_fechas": fechas_b,
         "bancos_series": bancos_series,
+        "dist_hoy": dist_hoy,
     }
     TCO_JSON.write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    print(f"[OK] tco.json — {len(serie)} registro(s), {len(bancos_hoy)} banco(s) hoy")
+    nb = len(dist_hoy["bancos"]) if dist_hoy else 0
+    print(f"[OK] tco.json — {len(serie)} registro(s), {len(bancos_hoy)} banco(s) hoy, "
+          f"boxplot {nb} banco(s)")
 
 
 # ── Main ────────────────────────────────────────────────────────────────────────
@@ -343,11 +444,13 @@ def main() -> None:
         guardar_raw(sorted(reporte.keys()), crudo)
         global_rows = agregar_global_csv(reporte, ts)
         bancos_rows = agregar_bancos_csv(reporte, ts)
+        dist_hoy = construir_dist_hoy(reporte)
     else:
         global_rows = leer_csv(TCO_CSV)
         bancos_rows = leer_csv(TCO_BANCOS)
+        dist_hoy = None
 
-    exportar_json(global_rows, bancos_rows)
+    exportar_json(global_rows, bancos_rows, dist_hoy)
 
 
 if __name__ == "__main__":
