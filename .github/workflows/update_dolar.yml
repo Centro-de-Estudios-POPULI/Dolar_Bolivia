@@ -4,9 +4,11 @@ on:
   schedule:
     # Tras el cambio de régimen (jun-2026) el valor referencial del BCB quedó
     # congelado; este workflow ahora solo mantiene viva la serie USDT (paralelo)
-    # por fecha de calendario. 1x/día a las 23:00 BOT (captura el día completo).
+    # por fecha de calendario, que alimenta la prima del dashboard. 2x/día: por la
+    # mañana (USDT fresco para la jornada / KPIs de la mañana) y por la noche.
     # Si el BCB reactivara el referencial, el scraper también lo recogería.
-    - cron: "0 3 * * *"   # 23:00 BOT
+    - cron: "30 11 * * *"  # 07:30 BOT (USDT fresco para la mañana)
+    - cron: "30 0 * * *"   # 20:30 BOT (cierre del día)
   workflow_dispatch:
 
 permissions:
