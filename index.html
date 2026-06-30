@@ -1027,14 +1027,14 @@
       <span class="section-num">07</span>
       <div class="section-titles">
         <h2>Distribución de los Tipos de Cambio por Banco</h2>
-        <p id="box-fecha-sub">Cada banco compra divisas a múltiples precios dentro de la sesión. Las cajas muestran esa dispersión, ponderada por número de transacciones.</p>
+        <p id="box-fecha-sub">Cada banco compra divisas a múltiples precios dentro de la sesión. Las cajas muestran esa dispersión, ponderada por monto operado (igual que el TCO del BCB).</p>
       </div>
     </div>
     <div class="chart-card">
       <div class="chart-card-top">
         <div class="chart-card-meta">
           <span class="chart-card-title">Cajas y bigotes · TC negociados por banco</span>
-          <span class="chart-card-sub">Ponderado por nº de transacciones · línea roja punteada = TCO oficial de la sesión</span>
+          <span class="chart-card-sub">Ponderado por monto operado (igual que el TCO del BCB) · línea roja punteada = TCO oficial de la sesión</span>
         </div>
       </div>
       <div class="box-scroll">
@@ -1042,7 +1042,7 @@
       </div>
       <div class="chart-hint" style="margin-top:8px">
         <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-        Caja = rango intercuartílico (50% central) · línea interna = mediana · ▲ media ponderada · ● atípicos · bigotes a 1,5×IQR. Bajo cada banco: precio promedio (azul) y (nº de transacciones). Ordenados de menor a mayor precio.
+        Ponderado por monto operado (USD), igual que el TCO del BCB. Caja = rango intercuartílico (50% central) · línea interna = mediana · ▲ media = TCO oficial del banco · ● atípicos · bigotes a 1,5×IQR. Bajo cada banco: TCO del banco (azul) y (nº de transacciones). Ordenados de menor a mayor TCO.
       </div>
     </div>
   </section>
@@ -1582,11 +1582,14 @@ function renderPrecios(serie) {
 
 /* ── Gráfico TCO vs USDT ───────────────────────────────────────────────── */
 function renderTco(serie) {
+  // Consume la serie unificada (g_serie): los puntos del régimen TCO ya están
+  // fechados por VIGENCIA (el día que rige), así que el TCO aparece en su día.
   const tco = [], venta = [], usdt = [];
   for (const p of serie) {
-    if (p.tco       != null) tco.push(  [p.f, p.tco]);
-    if (p.tco_venta != null) venta.push([p.f, p.tco_venta]);
-    if (p.usdt      != null) usdt.push( [p.f, p.usdt]);
+    if (p.reg !== 'tco') continue;
+    if (p.c != null) tco.push(  [p.f, p.c]);
+    if (p.v != null) venta.push([p.f, p.v]);
+    if (p.usdt != null) usdt.push([p.f, p.usdt]);
   }
   if (!tco.length) return;
   const few = tco.length <= 12;   // con pocos puntos, mostrar símbolos para que se vean
@@ -1943,8 +1946,9 @@ function renderVolumen(bancos) {
 }
 
 /* ── Distribución de TC negociados por banco (cajas y bigotes) ─────────────
-   Ponderado por nº de transacciones. Caja = IQR, línea interna + ○ = mediana,
-   ▲ = media ponderada, ● = atípicos, línea roja = TCO oficial de la sesión. */
+   Ponderado por MONTO operado (igual que el TCO del BCB). Caja = IQR, línea
+   interna + ○ = mediana, ▲ = media (= TCO oficial del banco), ● = atípicos,
+   línea roja = TCO oficial global de la sesión. */
 function renderBoxplot(dist) {
   const el = document.getElementById('chart-boxplot');
   if (!el) return;
@@ -1963,7 +1967,7 @@ function renderBoxplot(dist) {
   });
   const subEl = document.getElementById('box-fecha-sub');
   if (subEl && dist.fecha) subEl.textContent =
-    `Sesión del ${fmtDate(dist.fecha)}${dist.vig ? ` (rige el ${fmtDate(dist.vig)})` : ''} — cada banco compra divisas a múltiples precios; las cajas muestran esa dispersión, ponderada por nº de transacciones.`;
+    `Sesión del ${fmtDate(dist.fecha)}${dist.vig ? ` (rige el ${fmtDate(dist.vig)})` : ''} — cada banco compra divisas a múltiples precios; las cajas muestran esa dispersión, ponderada por monto operado (igual que el TCO del BCB).`;
 
   if (boxplotChart) boxplotChart.dispose();
   el.innerHTML = '';
@@ -1976,12 +1980,14 @@ function renderBoxplot(dist) {
   const medColor  = '#2A6F9E';
   const fmtBs = v => v == null ? '—' : Number(v).toFixed(2).replace('.', ',');
 
-  // Eje Y enfocado en las cajas/bigotes: los atípicos extremos (p.ej. 8,0) se
-  // recortan para no aplastar el detalle (siguen contados en el tooltip).
+  // Eje Y enfocado en cajas/bigotes/medias: los atípicos extremos (p.ej. 8,0) se
+  // recortan para no aplastar el detalle (siguen contados en el tooltip). Se
+  // incluyen las medias (triángulos) para no recortarlas si quedan fuera de la caja.
   const los = banks.map(b => b.lo).filter(v => v != null);
   const his = banks.map(b => b.hi).filter(v => v != null);
-  let ymin = Math.min(...los, dist.tco_oficial);
-  let ymax = Math.max(...his, dist.tco_oficial);
+  const mns = banks.map(b => b.mean).filter(v => v != null);
+  let ymin = Math.min(...los, ...mns, dist.tco_oficial);
+  let ymax = Math.max(...his, ...mns, dist.tco_oficial);
   const pad = Math.max((ymax - ymin) * 0.08, 0.04);
   ymin = +(ymin - pad).toFixed(2); ymax = +(ymax + pad).toFixed(2);
 
@@ -1997,7 +2003,7 @@ function renderBoxplot(dist) {
           <span style="color:${col || c.axis}">${lbl}</span>
           <b style="font-family:'IBM Plex Mono',monospace">${val}</b></div>`;
         let o = `<div style="font-weight:700;margin-bottom:6px;font-size:12px;color:#7AA8C0">${name}</div>`;
-        o += row('Media ponderada', 'Bs. ' + fmtBs(b.mean), meanColor);
+        o += row('Media (pond. monto)', 'Bs. ' + fmtBs(b.mean), meanColor);
         o += row('Mediana', 'Bs. ' + fmtBs(b.q2), medColor);
         o += row('Q1 – Q3', `${fmtBs(b.q1)} – ${fmtBs(b.q3)}`);
         o += row('Bigotes (mín – máx)', `${fmtBs(b.lo)} – ${fmtBs(b.hi)}`);
@@ -2656,7 +2662,7 @@ function applyTheme(theme) {
     renderBrecha(g_serie);
     renderVolumen(g_bancosUni);
     renderHeatmap(g_serie);
-    if (g_tco.length) renderTco(g_tco);
+    if (g_tco.length) renderTco(g_serie);
     if (g_tcoData && g_tcoData.dist_hoy) renderBoxplot(g_tcoData.dist_hoy);
   }
 }
@@ -2684,7 +2690,7 @@ window.addEventListener('resize', () => {
       renderBrecha(g_serie);
       renderVolumen(g_bancosUni);
       renderHeatmap(g_serie);
-      if (g_tco.length) renderTco(g_tco);
+      if (g_tco.length) renderTco(g_serie);
       if (g_tcoData && g_tcoData.dist_hoy) renderBoxplot(g_tcoData.dist_hoy);
     }
   }, 200);
@@ -2765,7 +2771,7 @@ function paintKpis() {
 // Pintado pesado (gráficos ECharts + tabla): solo cuando los datos cambian.
 function paintCharts() {
   try { renderPrecios(g_serie); } catch(e) { console.error('Precios:', e); }
-  try { if (g_tco.length) renderTco(g_tco); } catch(e) { console.error('TCO:', e); }
+  try { if (g_tco.length) renderTco(g_serie); } catch(e) { console.error('TCO:', e); }
   try { renderPrima(g_serie); } catch(e) { console.error('Prima:', e); }
   try { renderBrecha(g_serie); } catch(e) { console.error('Brecha:', e); }
   try { renderVolumen(g_bancosUni); } catch(e) { console.error('Volumen:', e); }

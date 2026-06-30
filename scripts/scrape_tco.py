@@ -100,7 +100,7 @@ def parse_reporte(texto: str) -> dict[str, dict]:
       { fecha: {
           'tco': float, 'vol_usd': int|None, 'tx': int|None,
           'bancos': { alias: {'tco': float|None, 'tx': int|None, 'monto': int|None} },
-          'dist':   { alias: [ (precio, n_tx), ... ] },   # distribución por nivel de precio
+          'dist':   { alias: [ (precio, n_tx, monto), ... ] },  # distribución por precio
       }}
     Usa el orden de bancos de la cabecera (robusto si el BCB reordena columnas).
     Las filas de distribución por nivel de precio (cada TC negociado, con nº de
@@ -153,7 +153,9 @@ def parse_reporte(texto: str) -> dict[str, dict]:
                 ntx = parse_num(cols[idx]) if idx < len(cols) else None
                 if not ntx:
                     continue
-                g["dist"].setdefault(alias_banco(nombre), []).append((precio, int(ntx)))
+                mto = parse_num(cols[idx + 1]) if idx + 1 < len(cols) else None
+                g["dist"].setdefault(alias_banco(nombre), []).append(
+                    (precio, int(ntx), int(mto) if mto else 0))
 
     return {f: g for f, g in fechas.items() if g.get("tco") is not None}
 
@@ -271,13 +273,13 @@ def _wquantile(pairs: list[tuple[float, int]], q: float) -> float:
     return pairs[-1][0]
 
 
-def boxplot_stats(niveles: list[tuple[float, int]]) -> dict:
+def boxplot_stats(pairs: list[tuple[float, int]]) -> dict:
     """
-    Estadísticas de caja y bigotes ponderadas por nº de transacciones a partir de
-    los niveles (precio, n_tx) de un banco. Bigotes a 1,5·IQR; outliers = niveles
-    de precio fuera de ese rango.
+    Estadísticas de caja y bigotes ponderadas por MONTO (USD) — igual que el BCB
+    calcula el TCO — a partir de pares (precio, monto). Así la media coincide con
+    el TCO oficial del banco. Bigotes a 1,5·IQR; outliers = precios fuera del rango.
     """
-    pairs = sorted(niveles, key=lambda x: x[0])
+    pairs = sorted(pairs, key=lambda x: x[0])
     q1, q2, q3 = _wquantile(pairs, .25), _wquantile(pairs, .50), _wquantile(pairs, .75)
     iqr = q3 - q1
     lo_lim, hi_lim = q1 - 1.5 * iqr, q3 + 1.5 * iqr
@@ -286,7 +288,7 @@ def boxplot_stats(niveles: list[tuple[float, int]]) -> dict:
     hi = max(dentro) if dentro else q3
     outliers = sorted({p for p, _ in pairs if p < lo_lim or p > hi_lim})
     pesos = sum(w for _, w in pairs)
-    mean = sum(p * w for p, w in pairs) / pesos if pesos else q2  # ponderada por nº tx
+    mean = sum(p * w for p, w in pairs) / pesos if pesos else q2  # ponderada por monto
     r = lambda x: round(x, 4)
     return {"q1": r(q1), "q2": r(q2), "q3": r(q3), "lo": r(lo), "hi": r(hi),
             "mean": r(mean), "outliers": [r(o) for o in outliers]}
@@ -303,12 +305,14 @@ def construir_dist_hoy(reporte: dict[str, dict]) -> dict | None:
     g = reporte[fecha]
     bancos_box = []
     for banco, niveles in g.get("dist", {}).items():
-        niveles = [(p, n) for (p, n) in niveles if p is not None and n]
-        if not niveles:
+        # Ponderar por MONTO (USD), igual que el BCB: así la media (triángulo)
+        # coincide con el TCO oficial del banco y el TCO global queda coherente.
+        pares = [(p, m) for (p, n, m) in niveles if p is not None and m]
+        if not pares:
             continue
         b = g["bancos"].get(banco, {})
         bancos_box.append({"banco": banco, "tco": b.get("tco"), "tx": b.get("tx"),
-                           **boxplot_stats(niveles)})
+                           **boxplot_stats(pares)})
     # Orden ascendente por la media mostrada (triángulo / número azul).
     bancos_box.sort(key=lambda x: x["mean"])
     return {"fecha": fecha, "vig": siguiente_dia_habil(fecha),
