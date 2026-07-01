@@ -43,5 +43,13 @@ jobs:
             echo "Sin datos nuevos."
           else
             git commit -m "datos: dólar $(date -u +%Y-%m-%d)"
-            git push
+            # El workflow del TCO puede pushear a main a la vez; si el push es
+            # rechazado, hacemos rebase sobre origin/main y reintentamos.
+            for i in 1 2 3 4 5; do
+              if git push; then ok=1; break; fi
+              echo "push rechazado (intento $i); rebase y reintento..."
+              git pull --rebase origin main || git rebase --abort
+              sleep 3
+            done
+            [ "${ok:-0}" = 1 ] || { echo "push falló tras reintentos"; exit 1; }
           fi

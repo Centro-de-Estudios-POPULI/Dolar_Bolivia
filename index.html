@@ -2422,10 +2422,16 @@ function generateReport() {
   const sesTxt = hoy.sesion ? ` (fijado en la sesión del ${fmtDate(hoy.sesion)})` : '';
   let tcText = `El Tipo de Cambio Oficial (TCO) vigente es ${m(hoy.c)}${sesTxt}`;
   let tcPlain = `TIPO DE CAMBIO\nEl Tipo de Cambio Oficial (TCO) vigente es Bs. ${fmt2(hoy.c)}${sesTxt}`;
-  if (prev && hoy.c != null && prev.c != null) {
-    const dc = hoy.c - prev.c;
-    tcText += `, ${dir(dc)} ${arrow(dc)} respecto a la sesión anterior`;
-    tcPlain += `, ${dir(dc)} ${dc > 0 ? '+' : ''}${dc.toFixed(2)} respecto a la sesión anterior`;
+  const prevTco = g_currentPrev;   // el TCO vigente anterior (comparación "sesión anterior")
+  if (prevTco && hoy.c != null && prevTco.c != null) {
+    const dc = hoy.c - prevTco.c;
+    if (dc === 0) {
+      tcText += `, sin cambios respecto a la sesión anterior`;
+      tcPlain += `, sin cambios respecto a la sesión anterior`;
+    } else {
+      tcText += `, ${dir(dc)} ${arrow(dc)} respecto a la sesión anterior`;
+      tcPlain += `, ${dir(dc)} ${dc > 0 ? '+' : ''}${dc.toFixed(2)} respecto a la sesión anterior`;
+    }
   }
   tcText += `. La venta oficial (TCO + 0,10 Bs) se ubicó en ${m(hoy.v)}`;
   tcPlain += `. La venta oficial (TCO + 0,10 Bs) se ubicó en Bs. ${fmt2(hoy.v)}`;
@@ -2541,10 +2547,15 @@ function generateReport() {
       }
     }
   }
-  // Top banco
-  if (bancos.tabla_hoy && bancos.tabla_hoy.length) {
-    const top = bancos.tabla_hoy[0];
-    const totalVol = bancos.tabla_hoy.reduce((s,r) => s + (r.vol||0), 0);
+  // Top banco de la sesión. Régimen TCO: usar el detalle por banco del TCO
+  // (bancos_hoy, ya ordenado por monto); si no, la tabla referencial.
+  const bhoy = (g_tcoData && (g_tcoData.bancos_hoy || []).filter(b => b.monto)) || [];
+  const topSrc = bhoy.length
+    ? bhoy.map(b => ({ banco: b.banco, vol: b.monto }))
+    : (bancos.tabla_hoy || []);
+  if (topSrc.length) {
+    const top = topSrc[0];
+    const totalVol = topSrc.reduce((s,r) => s + (r.vol||0), 0);
     if (top.vol && totalVol > 0) {
       const topPct = (top.vol / totalVol * 100).toFixed(0);
       volText += ` <span class="rpt-metric">${top.banco}</span> lideró las operaciones con $${fmtM(top.vol)} (${topPct}% del total).`;
@@ -2742,10 +2753,13 @@ function buildState(hist, bancos, tco) {
   REGIME_TCO = g_tco.length ? (g_tco[0].vig || g_tco[0].f) : null;
   g_bancosUni = buildUnifiedBancos(bancos, g_tcoData);
 
-  const upd = new Date(hist.actualizado);
-  upd.setHours(upd.getHours() - 4);
+  // "Actualizado": timestamp más reciente de los datos (dólar o TCO), en hora de
+  // Bolivia. Antes restaba 4 h a mano, lo que duplicaba el ajuste si el navegador
+  // ya estaba en BOT (mostraba el día anterior, p.ej. 30-jun en vez de 1-jul).
+  const tsUpd = [hist.actualizado, tco && tco.actualizado].filter(Boolean).map(s => +new Date(s));
+  const upd = tsUpd.length ? new Date(Math.max(...tsUpd)) : new Date();
   document.getElementById('nav-updated').textContent =
-    upd.toLocaleDateString('es-BO', { day:'numeric', month:'short', year:'numeric' });
+    upd.toLocaleDateString('es-BO', { timeZone:'America/La_Paz', day:'numeric', month:'short', year:'numeric' });
   document.getElementById('foot-year').textContent = new Date().getFullYear();
 
   const hoyStr = localDateStr(new Date());
