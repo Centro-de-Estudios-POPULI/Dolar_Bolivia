@@ -8,8 +8,10 @@ on:
     # HOY y se va finalizando. Por eso disparamos en dos franjas clave, con varios
     # intentos cercanos para sortear el WAF 403 y los retrasos de publicación del
     # BCB. El scraper es idempotente + upsert: las corridas extra no duplican,
-    # refrescan al valor de cierre y solo commitean si los datos cambian. NO hay
-    # backfill: si todas las corridas de un día fallan, esa fecha se pierde.
+    # refrescan al valor de cierre y solo commitean si los datos cambian. El
+    # endpoint "serie de tiempo" del BCB devuelve TODA la serie por rango, así que
+    # cada corrida baja el histórico completo y un día que se pierda se AUTO-RECUPERA
+    # en la siguiente corrida que sí pase el WAF (ya no hay pérdida por día suelto).
     #
     # ── Tarde/noche · captura el TCO de MAÑANA apenas se publica (~20:00 BOT) ──
     - cron: "5 0 * * *"    # 20:05 BOT

@@ -4,14 +4,14 @@ Scraper diario del Tipo de Cambio Oficial (TCO) del dólar en Bolivia.
 Contexto: tras el cambio de política monetaria (junio 2026), el BCB dejó de
 publicar el "valor referencial" y pasó a publicar el TCO en una plataforma
 propia. El TCO es el promedio ponderado de las operaciones de COMPRA de divisas
-de la banca. Su plataforma SOLO expone el reporte más reciente (para el próximo
-día hábil); NO hay histórico descargable, así que la serie la construimos
-nosotros capturando a diario.
+de la banca. Desde jul-2026 el reporte "serie de tiempo" del BCB acepta rango
+`?desde=&hasta=` y devuelve TODA la serie desde el cambio de régimen: en cada
+corrida bajamos el histórico completo (upsert idempotente) y cualquier día que
+se haya perdido se AUTO-RECUPERA. Aun así persistimos nuestra propia copia
+acumulada (los CSV) por si el BCB algún día recorta la ventana.
 
-⚠️ RIESGO DE PÉRDIDA DE DATOS: el CSV del BCB trae el DETALLE POR BANCO (TCO,
-nº de transacciones y monto por entidad) y la distribución por nivel de precio.
-Como no hay backfill, cada día no capturado se pierde para siempre. Por eso este
-scraper persiste TODO:
+El CSV del BCB trae el DETALLE POR BANCO (TCO, nº de transacciones y monto por
+entidad) y la distribución por nivel de precio. Persistimos TODO:
 
   data/tco.csv            — serie diaria GLOBAL del TCO (fuente de verdad)
   data/tco_bancos.csv     — detalle POR BANCO por día (TCO, tx, monto)   [tidy]
@@ -24,7 +24,9 @@ scraper persiste TODO:
 Disposición BCB: el precio de VENTA oficial = TCO + 0,10 Bs (margen de 10 ctvs).
 
 Fuente:
-  https://www.bcb.gob.bo/tco_tcreferencial_descargar_csv.php   (CSV oficial; ; decimal coma, BOM)
+  https://www.bcb.gob.bo/tco_tcreferencial_descargar_csv.php?desde=<ini>&hasta=<fin>
+  (CSV oficial de la "serie de tiempo"; separador ';', decimal coma, BOM; cabecera
+   con 'Fecha de corte' + 'Fecha de vigencia' y bloques N°/Monto por banco.)
 """
 
 import csv
@@ -41,7 +43,18 @@ from scrape_dolar import request_bcb, parse_num, alias_banco
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 TCO_CSV_URL = "https://www.bcb.gob.bo/tco_tcreferencial_descargar_csv.php"
+# Primera sesión del TCO tras el cambio de régimen (fecha de corte). Pedimos desde
+# aquí para reconstruir/mantener toda la serie en cada corrida.
+REGIME_START = "2026-06-26"
+BOT = timezone(timedelta(hours=-4))  # hora Bolivia (para acotar 'hasta')
 MARGEN_VENTA = 0.10  # disposición BCB: venta oficial = TCO + 10 ctvs
+
+
+def tco_url() -> str:
+    """URL del CSV de la serie completa: desde el cambio de régimen hasta hoy+1
+    (el endpoint clampa 'hasta' a la última sesión publicada)."""
+    hasta = (datetime.now(BOT).date() + timedelta(days=1)).isoformat()
+    return f"{TCO_CSV_URL}?desde={REGIME_START}&hasta={hasta}"
 
 # Vigencia: el TCO que fija la sesión de un día RIGE el día hábil siguiente. Para
 # graficar cada TCO en el día que rige, saltamos fines de semana y feriados
@@ -76,18 +89,32 @@ BANCOS_FIELDS = ["fecha", "banco", "tco", "tx", "monto_usd", "timestamp_utc"]
 
 # ── Descarga + parseo del CSV oficial ──────────────────────────────────────────
 
-def _orden_bancos(lineas: list[str]) -> list[tuple[int, str]]:
+def _es_cabecera(cols: list[str]) -> list[tuple[int, str]]:
+    """Si `cols` es la fila de cabecera de bancos, devuelve [(idx, nombre)] de cada
+    entidad + 'TOTAL BANCOS'; si no, []. Se reconoce por tener ≥2 celdas 'BANCO …'
+    o 'TOTAL …'."""
+    ents = [(i, c) for i, c in enumerate(cols)
+            if c and (c.upper().startswith("BANCO") or c.upper().startswith("TOTAL"))]
+    return ents if len(ents) >= 2 else []
+
+
+def _find_header(lineas: list[str]) -> tuple[list[tuple[int, str]], int | None]:
     """
-    Lee la fila de cabecera ('Fecha;"TC...";"BANCO BISA";;"BANCO ...";;...;
-    "TOTAL BANCOS";') y devuelve [(indice_columna, nombre_banco)] en orden,
-    incluyendo 'TOTAL BANCOS' al final. Cada entidad ocupa 2 sub-columnas
-    (N°, Monto), así que los nombres viven en índices pares desde el 2.
+    Localiza la cabecera de bancos y devuelve (orden, tc_col):
+      orden  = [(indice_columna, nombre)] de cada entidad + 'TOTAL BANCOS'.
+      tc_col = índice de la columna de etiqueta/precio ('TC (En Bs/USD)') — la que
+               en las filas de dato trae 'TCO', 'TOTAL' o el precio negociado.
+    Se ancla en las columnas 'BANCO …' (NO en posiciones fijas), así que sobrevive
+    a que el BCB agregue columnas al inicio — como en jul-2026, cuando insertó
+    'Fecha de vigencia' y los bancos pasaron del índice 2 al 3. Cada entidad ocupa
+    2 sub-columnas (N°, Monto).
     """
     for linea in lineas:
         cols = [c.strip().strip('"') for c in linea.split(";")]
-        if cols and cols[0] == "Fecha":
-            return [(i, cols[i]) for i in range(2, len(cols), 2) if i < len(cols) and cols[i]]
-    return []
+        ents = _es_cabecera(cols)
+        if ents:
+            return ents, ents[0][0] - 1
+    return [], None
 
 
 def _es_total(nombre: str) -> bool:
@@ -108,20 +135,20 @@ def parse_reporte(texto: str) -> dict[str, dict]:
     devuelven fechas con TCO.
     """
     lineas = texto.splitlines()
-    orden = _orden_bancos(lineas)
-    if not orden:
+    orden, tc_col = _find_header(lineas)
+    if not orden or tc_col is None:
         raise ValueError("No se encontró la cabecera de bancos en el CSV del BCB")
 
     fechas: dict[str, dict] = {}
     for linea in lineas:
         cols = [c.strip().strip('"') for c in linea.split(";")]
-        if len(cols) < 3:
+        if len(cols) <= tc_col:
             continue
         fecha = cols[0]
         if len(fecha) != 10 or fecha[4] != "-" or not fecha[:4].isdigit():
             continue
         g = fechas.setdefault(fecha, {"bancos": {}, "dist": {}})
-        etiqueta = cols[1].upper()
+        etiqueta = cols[tc_col].upper()
 
         if etiqueta == "TCO":
             for idx, nombre in orden:
@@ -142,9 +169,9 @@ def parse_reporte(texto: str) -> dict[str, dict]:
                     b["tx"]    = int(tx)    if tx    else None
                     b["monto"] = int(monto) if monto else None
         else:
-            # Fila de distribución: cols[1] es un TC negociado; por banco viene el
-            # nº de transacciones a ese precio. Acumulamos (precio, n_tx) por banco.
-            precio = parse_num(cols[1])
+            # Fila de distribución: la columna de etiqueta trae un TC negociado; por
+            # banco viene el nº de transacciones y el monto a ese precio.
+            precio = parse_num(cols[tc_col])
             if precio is None:
                 continue
             for idx, nombre in orden:
@@ -160,26 +187,38 @@ def parse_reporte(texto: str) -> dict[str, dict]:
     return {f: g for f, g in fechas.items() if g.get("tco") is not None}
 
 
-def fetch_reporte() -> tuple[dict[str, dict], bytes]:
-    """Descarga el CSV del BCB. Devuelve (estructura_parseada, bytes_crudos)."""
-    r = request_bcb(TCO_CSV_URL, timeout=30)
-    texto = r.content.decode("utf-8-sig")
-    return parse_reporte(texto), r.content
+def fetch_csv() -> bytes:
+    """Descarga el CSV de la serie completa del BCB (bytes crudos)."""
+    return request_bcb(tco_url(), timeout=30).content
 
 
 # ── Archivo raw (red de seguridad sin pérdida) ──────────────────────────────────
 
-def guardar_raw(fechas: list[str], crudo: bytes) -> None:
-    """Guarda el reporte verbatim del BCB, una copia por fecha presente."""
-    if not fechas:
+def guardar_raw_serie(crudo: bytes) -> None:
+    """
+    Archiva el reporte verbatim, UNA copia por fecha de corte. El CSV de la serie
+    trae todas las sesiones juntas; lo partimos en `tco_raw/<fecha>.csv` (bloque de
+    cabecera + filas de esa sesión) para tener una copia DURABLE de cada día aunque
+    el BCB algún día recorte la ventana. Idempotente (no reescribe si no cambió).
+    """
+    lineas = crudo.decode("utf-8-sig", errors="replace").splitlines()
+    cab_idx = next((i for i, l in enumerate(lineas)
+                    if _es_cabecera([c.strip().strip('"') for c in l.split(";")])), None)
+    if cab_idx is None:
         return
+    cabecera = lineas[:cab_idx + 1]
+    por_fecha: dict[str, list[str]] = {}
+    for l in lineas[cab_idx + 1:]:
+        f = (l.split(";", 1)[0]).strip().strip('"')
+        if len(f) == 10 and f[4] == "-" and f[:4].isdigit():
+            por_fecha.setdefault(f, []).append(l)
     TCO_RAW.mkdir(parents=True, exist_ok=True)
-    for fecha in fechas:
+    for fecha, filas in por_fecha.items():
         destino = TCO_RAW / f"{fecha}.csv"
-        # Idempotente: si ya existe con el mismo contenido, no reescribir.
-        if destino.exists() and destino.read_bytes() == crudo:
+        contenido = ("\n".join(cabecera + filas) + "\n").encode("utf-8")
+        if destino.exists() and destino.read_bytes() == contenido:
             continue
-        destino.write_bytes(crudo)
+        destino.write_bytes(contenido)
         print(f"[OK] raw archivado: {destino.name}")
 
 
@@ -429,23 +468,45 @@ def exportar_json(global_rows: list[dict], bancos_rows: list[dict],
 
 # ── Main ────────────────────────────────────────────────────────────────────────
 
+def _regenerar_desde_disco() -> None:
+    """Regenera el JSON con los CSV ya guardados (sin datos frescos)."""
+    exportar_json(leer_csv(TCO_CSV), leer_csv(TCO_BANCOS), None)
+
+
 def main() -> None:
-    print("Obteniendo TCO...")
-    # El WAF del BCB devuelve 403 intermitente a los runners de GitHub. Si tras
-    # los reintentos sigue bloqueado, conservamos lo ya guardado (los CSV son la
-    # verdad), regeneramos el JSON y salimos en verde (no tumbamos el workflow).
+    print("Obteniendo TCO (serie completa)...")
+    # Dos modos de fallo, tratados MUY distinto:
+    #  • WAF/red (request_bcb agota reintentos): transitorio y benigno. Conservamos
+    #    lo guardado, regeneramos el JSON y salimos en VERDE (no tumbamos el run).
+    #  • HTTP 200 pero el CSV no parsea o no trae sesiones (el BCB cambió el
+    #    formato): NO es benigno. Regeneramos el JSON con lo que hay y FALLAMOS el
+    #    run (rojo → notificación) para enterarnos y arreglar el parser. Antes esto
+    #    degradaba en silencio y el TCO quedó congelado ~2 semanas sin que nadie lo
+    #    notara (jul-2026: el BCB insertó 'Fecha de vigencia' y rompió el parser).
+    reporte: dict[str, dict] = {}
+    crudo = b""
     try:
-        reporte, crudo = fetch_reporte()
+        crudo = fetch_csv()
     except requests.RequestException as e:
-        print(f"[WARN] TCO no disponible (se conserva último dato): {e}", file=sys.stderr)
-        reporte = {}
-    except Exception as e:  # parseo inesperado: degradar, no romper
-        print(f"[WARN] No se pudo parsear el TCO (se conserva último dato): {e}", file=sys.stderr)
-        reporte = {}
+        print(f"[WARN] TCO no disponible (WAF/red; se conserva último dato): {e}",
+              file=sys.stderr)
+    else:
+        try:
+            reporte = parse_reporte(crudo.decode("utf-8-sig"))
+        except Exception as e:
+            print(f"::error::TCO: el CSV del BCB respondió 200 pero no parsea "
+                  f"(¿cambió el formato otra vez?): {e}")
+            _regenerar_desde_disco()
+            sys.exit(1)
+        if not reporte:
+            print("::error::TCO: el CSV parseó pero no trajo ninguna sesión con TCO "
+                  "(posible cambio en las etiquetas de fila del BCB).")
+            _regenerar_desde_disco()
+            sys.exit(1)
 
     if reporte:
         ts = datetime.now(timezone.utc).isoformat()
-        guardar_raw(sorted(reporte.keys()), crudo)
+        guardar_raw_serie(crudo)
         global_rows = agregar_global_csv(reporte, ts)
         bancos_rows = agregar_bancos_csv(reporte, ts)
         dist_hoy = construir_dist_hoy(reporte)
