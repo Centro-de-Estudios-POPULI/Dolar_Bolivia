@@ -2749,6 +2749,25 @@ function buildState(hist, bancos, tco) {
     if (es.usdt == null) es.usdt = t.usdt;
     byDate.set(t.f, es);
   }
+  // Carry-forward de vigencia: el TCO vigente rige hasta que se publica el siguiente,
+  // INCLUIDOS sábado y domingo. Rellenamos los días sin sesión (findes/feriados),
+  // desde la primera vigencia hasta hoy, con el último TCO vigente — así el fin de
+  // semana muestra la sesión del viernes en vez de quedar vacío. Los puntos rellenados
+  // se marcan `carried` (los KPIs "rige hoy"/"sesión anterior" usan solo puntos reales).
+  if (g_tco.length) {
+    const hoy0 = localDateStr(new Date());
+    const nextD = iso => { const dd = new Date(iso + 'T00:00:00'); dd.setDate(dd.getDate() + 1); return localDateStr(dd); };
+    let ult = null;
+    for (let d = g_tco[0].vig || g_tco[0].f; d <= hoy0; d = nextD(d)) {
+      const e = byDate.get(d);
+      if (e && e.reg === 'tco' && e.c != null) { ult = e; continue; }   // sesión real
+      if (!ult) continue;
+      const ev = e || { f: d };
+      ev.c = ult.c; ev.v = ult.v; ev.reg = 'tco'; ev.carried = true;
+      ev.sesion = ult.sesion; ev.sesVol = ult.sesVol; ev.sesTx = ult.sesTx;
+      byDate.set(d, ev);
+    }
+  }
   g_serie = [...byDate.values()].sort((a, b) => a.f < b.f ? -1 : (a.f > b.f ? 1 : 0));
   REGIME_TCO = g_tco.length ? (g_tco[0].vig || g_tco[0].f) : null;
   g_bancosUni = buildUnifiedBancos(bancos, g_tcoData);
@@ -2763,7 +2782,7 @@ function buildState(hist, bancos, tco) {
   document.getElementById('foot-year').textContent = new Date().getFullYear();
 
   const hoyStr = localDateStr(new Date());
-  const tcoPts = g_serie.filter(p => p.reg === 'tco' && p.c != null);
+  const tcoPts = g_serie.filter(p => p.reg === 'tco' && p.c != null && !p.carried);
   let vigIdx = -1;
   for (let i = 0; i < tcoPts.length; i++) { if (tcoPts[i].f <= hoyStr) vigIdx = i; }
   g_vigente = vigIdx >= 0 ? tcoPts[vigIdx] : (tcoPts[tcoPts.length - 1] || hist.hoy);
@@ -2771,7 +2790,9 @@ function buildState(hist, bancos, tco) {
   g_manana = tcoPts.find(p => p.f > hoyStr) || null;
   const lastUsdt = [...g_serie].reverse().find(p => p.usdt != null)?.usdt ?? null;
   g_hoy = { ...g_vigente, tco: g_vigente.c, vol: g_vigente.sesVol ?? g_vigente.vol, tx: g_vigente.sesTx ?? g_vigente.tx };
-  g_current = { ...g_vigente, usdt: g_vigente.usdt ?? lastUsdt };
+  // "Rige hoy": valores del TCO vigente, pero fechado HOY — en fin de semana la
+  // sesión del viernes sigue rigiendo aunque su vigencia haya empezado el sábado.
+  g_current = { ...g_vigente, f: hoyStr, usdt: g_vigente.usdt ?? lastUsdt };
 }
 
 // Pintado liviano (KPIs, sparklines, alerta): barato, se repite en cada refresh.

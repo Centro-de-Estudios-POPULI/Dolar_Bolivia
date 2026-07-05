@@ -31,11 +31,13 @@ Fuente:
 
 import csv
 import json
+import re
 import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import requests
+from bs4 import BeautifulSoup
 
 # Reusar helpers del scraper principal: HTTP resiliente al WAF, parser numérico
 # en formato BCB y el normalizador de nombres de banco (mismos alias).
@@ -56,25 +58,16 @@ def tco_url() -> str:
     hasta = (datetime.now(BOT).date() + timedelta(days=1)).isoformat()
     return f"{TCO_CSV_URL}?desde={REGIME_START}&hasta={hasta}"
 
-# Vigencia: el TCO que fija la sesión de un día RIGE el día hábil siguiente. Para
-# graficar cada TCO en el día que rige, saltamos fines de semana y feriados
-# nacionales (lista mantenible; un feriado faltante solo desfasa 1 día esa vez).
-BO_FERIADOS = {
-    "2026-01-01", "2026-01-22", "2026-02-16", "2026-02-17", "2026-04-03",
-    "2026-05-01", "2026-06-04", "2026-06-21", "2026-08-06", "2026-10-12",
-    "2026-11-02", "2026-12-25",
-    "2027-01-01", "2027-01-22",
-}
-
-
-def siguiente_dia_habil(fecha_iso: str) -> str:
-    """Día hábil siguiente a `fecha_iso` (salta sábado/domingo y feriados BO)."""
-    d = date.fromisoformat(fecha_iso)
-    while True:
-        d += timedelta(days=1)
-        if d.weekday() >= 5 or d.isoformat() in BO_FERIADOS:
-            continue
-        return d.isoformat()
+# Vigencia (CÓMO asignamos qué TCO rige cada día): el TCO que fija la sesión de un
+# día (fecha de corte) se vuelve la referencia operativa el DÍA CALENDARIO SIGUIENTE
+# y rige hasta que se publique el próximo — incluidos SÁBADO y DOMINGO. Así la sesión
+# del VIERNES rige todo el fin de semana (sáb + dom) y hasta el lunes, tal como lo
+# muestra el propio BCB (p.ej. corte viernes 3-jul → "Vigencia: sábado 4-jul"). Por
+# eso vig = corte + 1 día CALENDARIO (NO el próximo día hábil). El relleno de los días
+# sin sesión (findes/feriados) con el último TCO vigente lo hace el front (carry-fwd).
+def dia_siguiente(fecha_iso: str) -> str:
+    """Día calendario siguiente a `fecha_iso` (desde cuándo rige ese TCO)."""
+    return (date.fromisoformat(fecha_iso) + timedelta(days=1)).isoformat()
 
 DATA_DIR   = Path(__file__).parent.parent / "data"
 TCO_CSV    = DATA_DIR / "tco.csv"
@@ -190,6 +183,60 @@ def parse_reporte(texto: str) -> dict[str, dict]:
 def fetch_csv() -> bytes:
     """Descarga el CSV de la serie completa del BCB (bytes crudos)."""
     return request_bcb(tco_url(), timeout=30).content
+
+
+# ── Página interactiva (fuente fresca; el CSV se atrasa los fines de semana) ─────
+
+DETALLE_URL = "https://www.bcb.gob.bo/tco_reporte_detalle_historico.php"
+
+
+def _decode_bcb(raw: bytes) -> str:
+    """El CSV del BCB viene en utf-8(-sig); la página interactiva en cp1252. Elegimos
+    la decodificación que NO deja caracteres de reemplazo (acentos de los bancos)."""
+    u = raw.decode("utf-8-sig", errors="replace")
+    return u if "�" not in u else raw.decode("cp1252", errors="replace")
+
+
+def fetch_detalle_page(hdr_line: str):
+    """
+    Raspa la PÁGINA interactiva del TCO para capturar la sesión más reciente que el
+    CSV descargable aún no publica (el CSV se atrasa los findes; la página no).
+    Devuelve (reporte_parcial, pseudo_csv_bytes) — ({}, b'') si algo falla.
+
+    La tabla de la página NO trae columnas de fecha (van en el encabezado) y su fila
+    'TCO' trae 1 celda por banco (las de distribución/TOTAL traen 2: N°/Monto). Por
+    eso reconstruimos líneas tipo-CSV `corte;vig;<TC>;<N°;Monto por banco…>` usando
+    `hdr_line` = la cabecera REAL del CSV (mismos nombres/orden de banco → mismos
+    alias) y reusamos parse_reporte.
+    """
+    try:
+        raw = request_bcb(DETALLE_URL, timeout=30).content
+        html = _decode_bcb(raw)
+        fechas = re.findall(r"\d{4}-\d{2}-\d{2}", html)
+        if not fechas:
+            return {}, b""
+        corte = max(fechas)
+        vig = dia_siguiente(corte)
+        tabla = BeautifulSoup(html, "html.parser").find("table")
+        if tabla is None:
+            return {}, b""
+        lineas = [hdr_line]
+        for r in tabla.find_all("tr")[2:]:            # [0],[1] = cabeceras de la tabla
+            celdas = [c.get_text(strip=True) for c in r.find_all(["td", "th"])]
+            if not celdas:
+                continue
+            if celdas[0].upper() == "TCO":            # 1 celda/banco → re-insertar subcol vacía
+                exp = [celdas[0]]
+                for v in celdas[1:]:
+                    exp += [v, ""]
+                celdas = exp
+            lineas.append(";".join([corte, vig] + celdas))
+        pseudo = ("\n".join(lineas) + "\n")
+        return parse_reporte(pseudo), pseudo.encode("utf-8")
+    except Exception as e:  # la página es un EXTRA; si falla, seguimos con el CSV
+        print(f"[WARN] no se pudo leer la página del TCO (se usa solo el CSV): {e}",
+              file=sys.stderr)
+        return {}, b""
 
 
 # ── Archivo raw (red de seguridad sin pérdida) ──────────────────────────────────
@@ -354,7 +401,7 @@ def construir_dist_hoy(reporte: dict[str, dict]) -> dict | None:
                            **boxplot_stats(pares)})
     # Orden ascendente por la media mostrada (triángulo / número azul).
     bancos_box.sort(key=lambda x: x["mean"])
-    return {"fecha": fecha, "vig": siguiente_dia_habil(fecha),
+    return {"fecha": fecha, "vig": dia_siguiente(fecha),
             "tco_oficial": g.get("tco"), "bancos": bancos_box}
 
 
@@ -394,7 +441,7 @@ def exportar_json(global_rows: list[dict], bancos_rows: list[dict],
             continue
         serie.append({
             "f": r["fecha"],
-            "vig": siguiente_dia_habil(r["fecha"]),   # día hábil en que rige este TCO
+            "vig": dia_siguiente(r["fecha"]),   # día calendario desde el que rige este TCO
             "tco": tco,
             "tco_venta": round(tco + MARGEN_VENTA, 2),
             "usdt": usdt.get(r["fecha"]),
@@ -503,6 +550,20 @@ def main() -> None:
                   "(posible cambio en las etiquetas de fila del BCB).")
             _regenerar_desde_disco()
             sys.exit(1)
+
+        # La página interactiva va más FRESCA que el CSV descargable (que se atrasa
+        # los fines de semana): tomamos de ahí la(s) sesión(es) que el CSV aún no
+        # trae (p.ej. la del viernes por la noche y durante todo el finde).
+        hdr_line = next((l for l in crudo.decode("utf-8-sig").splitlines()
+                         if _es_cabecera([c.strip().strip('"') for c in l.split(";")])), None)
+        if hdr_line:
+            rep_page, pseudo_page = fetch_detalle_page(hdr_line)
+            nuevas = sorted(f for f in rep_page if f not in reporte)
+            for f in nuevas:
+                reporte[f] = rep_page[f]     # el CSV manda; la página solo AGREGA lo que falta
+            if nuevas:
+                print(f"[OK] página: +{len(nuevas)} sesión(es) no presentes en el CSV: {nuevas}")
+                guardar_raw_serie(pseudo_page)
 
     if reporte:
         ts = datetime.now(timezone.utc).isoformat()
