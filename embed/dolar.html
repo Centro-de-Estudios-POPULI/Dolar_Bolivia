@@ -536,44 +536,100 @@
 
   <script>
   (function() {
-    const BCB_OFICIAL = 6.96;
-    const DATA_URL = 'https://centro-de-estudios-populi.github.io/Dolar_Bolivia/data/historico.json';
-    const DASHBOARD_URL = 'https://centro-de-estudios-populi.github.io/Dolar_Bolivia/';
+    const BCB_OFICIAL = 6.96;   // tipo de cambio oficial FIJO (Bs/$), nov-2011 → 26-jun-2026
+    const BASE = 'https://centro-de-estudios-populi.github.io/Dolar_Bolivia';
+    const HIST_URL = BASE + '/data/historico.json';
+    const TCO_URL  = BASE + '/data/tco.json';
+    const DASHBOARD_URL = BASE + '/';
 
     const params = new URLSearchParams(window.location.search);
     if (params.get('theme') === 'dark') document.documentElement.dataset.theme = 'dark';
-
     window.addEventListener('message', e => {
       if (e.data && e.data.theme) document.documentElement.dataset.theme = e.data.theme;
     });
 
-    function getCSS(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
     function isDark() { return document.documentElement.dataset.theme === 'dark'; }
-    function fbs(v) { return v.toFixed(2) + ' Bs'; }
-    function fpct(v) { return (v >= 0 ? '+' : '') + v.toFixed(1) + '%'; }
+    function fbs(v)  { return (v == null || isNaN(v)) ? '—' : v.toFixed(2) + ' Bs'; }
+    function fpct(v) { return (v == null || isNaN(v)) ? '—' : (v >= 0 ? '+' : '') + v.toFixed(1) + '%'; }
     function fdate(f) {
       const d = new Date(f + 'T00:00:00');
       return d.toLocaleDateString('es-BO', { day: 'numeric', month: 'short', year: 'numeric' });
     }
+    function localDateStr(d) {
+      const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), da = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${da}`;
+    }
+
+    // Fusiona la serie referencial (historico.json) con el régimen TCO (tco.json), igual
+    // que el dashboard: el TCO de una sesión rige su fecha de VIGENCIA (c = TCO/compra
+    // oficial, v = venta oficial = TCO + 0,10) y se rellenan los findes con carry-forward.
+    // Antes del 27-jun-2026 la serie muestra el dólar paralelo referencial.
+    function buildSerie(hist, tco) {
+      const refSerie = hist.serie || [];
+      const gtco = (tco && tco.serie) || [];
+      const byDate = new Map(refSerie.map(p => [p.f, { ...p }]));
+      for (const t of gtco) {
+        const dv = t.vig || t.f;
+        const ev = byDate.get(dv) || { f: dv };
+        ev.c = t.tco; ev.v = t.tco_venta; ev.sesion = t.f;
+        ev.sesVol = t.vol; ev.sesTx = t.tx; ev.reg = 'tco';
+        if (ev.usdt == null) ev.usdt = t.usdt;
+        byDate.set(dv, ev);
+        const es = byDate.get(t.f) || { f: t.f };
+        es.vol = t.vol; es.tx = t.tx;
+        if (es.usdt == null) es.usdt = t.usdt;
+        byDate.set(t.f, es);
+      }
+      if (gtco.length) {
+        const hoy0 = localDateStr(new Date());
+        const nextD = iso => { const dd = new Date(iso + 'T00:00:00'); dd.setDate(dd.getDate() + 1); return localDateStr(dd); };
+        let ult = null;
+        for (let d = gtco[0].vig || gtco[0].f; d <= hoy0; d = nextD(d)) {
+          const e = byDate.get(d);
+          if (e && e.reg === 'tco' && e.c != null) { ult = e; continue; }
+          if (!ult) continue;
+          const ev = e || { f: d };
+          ev.c = ult.c; ev.v = ult.v; ev.reg = 'tco'; ev.carried = true;
+          ev.sesion = ult.sesion; ev.sesVol = ult.sesVol; ev.sesTx = ult.sesTx;
+          byDate.set(d, ev);
+        }
+      }
+      const serie = [...byDate.values()].sort((a, b) => a.f < b.f ? -1 : (a.f > b.f ? 1 : 0));
+      const regimeTco = gtco.length ? (gtco[0].vig || gtco[0].f) : null;
+      const hoyStr = localDateStr(new Date());
+      const tcoPts = serie.filter(p => p.reg === 'tco' && p.c != null && !p.carried);
+      let vigIdx = -1;
+      for (let i = 0; i < tcoPts.length; i++) { if (tcoPts[i].f <= hoyStr) vigIdx = i; }
+      const vigente = vigIdx >= 0 ? tcoPts[vigIdx] : (tcoPts[tcoPts.length - 1] || hist.hoy || serie[serie.length - 1]);
+      const currentPrev = vigIdx > 0 ? tcoPts[vigIdx - 1] : null;
+      const lastUsdt = [...serie].reverse().find(p => p.usdt != null)?.usdt ?? null;
+      const current = { ...vigente, f: hoyStr, usdt: vigente.usdt ?? lastUsdt };
+      return { serie, regimeTco, current, currentPrev };
+    }
 
     async function init() {
-      let data;
+      let hist, tco;
       try {
-        const r = await fetch(DATA_URL);
-        data = await r.json();
-      } catch(e) {
+        const [rh, rt] = await Promise.all([ fetch(HIST_URL), fetch(TCO_URL) ]);
+        hist = await rh.json();
+        tco  = await rt.json().catch(() => null);
+      } catch (e) {
         document.getElementById('loader').innerHTML =
           '<span class="loading-text" style="color:var(--ct-venta)">Error al cargar datos. Intente recargar.</span>';
         return;
       }
 
-      const serie = data.serie;
-      const hoy = data.hoy;
+      const { serie, regimeTco, current, currentPrev } = buildSerie(hist, tco);
       const N = serie.length;
-      const prev = serie[N - 2] || serie[N - 1];
+      if (!N || current.c == null) {
+        document.getElementById('loader').innerHTML =
+          '<span class="loading-text" style="color:var(--ct-venta)">Sin datos de tipo de cambio disponibles.</span>';
+        return;
+      }
 
-      const brecha = ((hoy.v - BCB_OFICIAL) / BCB_OFICIAL * 100);
-      const brechaPrev = ((prev.v - BCB_OFICIAL) / BCB_OFICIAL * 100);
+      const REGIME_TCO = regimeTco;
+      const dev     = current.c != null ? (current.c / BCB_OFICIAL - 1) * 100 : null;      // devaluación vs 6,96
+      const devPrev = currentPrev && currentPrev.c != null ? (currentPrev.c / BCB_OFICIAL - 1) * 100 : null;
 
       const app = document.getElementById('app');
       app.innerHTML = `
@@ -581,9 +637,9 @@
         <div class="section-header">
           <h2 class="section-title">
             <span class="accent-bar"></span>
-            Tipo de Cambio y Cotización USDT
+            Tipo de Cambio Oficial y USDT
           </h2>
-          <p class="section-subtitle">Dólar paralelo, USDT Binance P2P y referencial BCB · Serie diaria</p>
+          <p class="section-subtitle">Tipo de Cambio Oficial (TCO) del BCB, venta oficial (+0,10 Bs) y USDT Binance P2P · Serie diaria</p>
         </div>
 
         <!-- KPIs -->
@@ -635,28 +691,31 @@
       `;
 
       // ── KPIs ──────────────────────────────────────────────────
+      const pr0 = currentPrev || {};
       const kpis = [
-        { s:'v', label:'Paralelo Venta', value: hoy.v, prev: prev.v, color:'var(--ct-venta)' },
-        { s:'c', label:'Paralelo Compra', value: hoy.c, prev: prev.c, color:'var(--ct-compra)' },
-        { s:'u', label:'USDT Binance', value: hoy.usdt, prev: prev.usdt, color:'var(--ct-usdt)' },
-        { s:'b', label:'Brecha vs BCB', value: brecha, prev: brechaPrev, color:'var(--ct-oficial)', isPct: true },
+        { s:'c', label:'TCO · rige hoy',      value: current.c,    prev: pr0.c,    color:'var(--ct-compra)' },
+        { s:'v', label:'Venta oficial',       value: current.v,    prev: pr0.v,    color:'var(--ct-venta)' },
+        { s:'u', label:'USDT Binance',        value: current.usdt, prev: pr0.usdt, color:'var(--ct-usdt)' },
+        { s:'b', label:'Devaluación vs 6,96', value: dev,          prev: devPrev,  color:'var(--ct-oficial)', isPct:true },
       ];
       document.getElementById('kpis').innerHTML = kpis.map(k => {
-        const d = k.value - k.prev;
-        const cls = Math.abs(d) < 0.01 ? 'flat' : (k.s === 'b' ? (d > 0 ? 'up' : 'down') : (d > 0 ? 'up' : 'down'));
+        const hasPrev = k.prev != null && !isNaN(k.prev) && k.value != null;
+        const d = hasPrev ? (k.value - k.prev) : 0;
+        const cls = !hasPrev || Math.abs(d) < 0.005 ? 'flat' : (d > 0 ? 'up' : 'down');
         const arrow = cls === 'up' ? '&#9650;' : cls === 'down' ? '&#9660;' : '&#8212;';
+        const deltaTxt = !hasPrev ? 'sin sesión previa' : (k.isPct ? Math.abs(d).toFixed(1) + ' pp' : Math.abs(d).toFixed(2) + ' Bs');
         return `<div class="kpi-card" data-s="${k.s}">
           <div class="kpi-label">${k.label}</div>
           <div class="kpi-value" style="color:${k.color}">${k.isPct ? fpct(k.value) : fbs(k.value)}</div>
-          <div class="kpi-delta ${cls}">${arrow} ${k.isPct ? Math.abs(d).toFixed(1) + ' pp' : Math.abs(d).toFixed(2) + ' Bs'}</div>
+          <div class="kpi-delta ${cls}">${arrow} ${deltaTxt}</div>
         </div>`;
       }).join('');
 
       // ── Series config ─────────────────────────────────────────
       const SERIES = [
-        { key:'v', label:'Venta', color:'#C71E1D', dashed: false },
-        { key:'c', label:'Compra', color:'#0D9488', dashed: false },
-        { key:'usdt', label:'USDT', color:'#D97706', dashed: true },
+        { key:'c',    label:'TCO',   color:'#0D9488', dashed:false },
+        { key:'v',    label:'Venta', color:'#C71E1D', dashed:false },
+        { key:'usdt', label:'USDT',  color:'#D97706', dashed:true  },
       ];
       let active = new Set(SERIES.map(s => s.key));
 
@@ -668,18 +727,12 @@
         btn.dataset.key = s.key;
         btn.innerHTML = `<span class="line-prev${s.dashed ? ' dashed' : ''}" style="border-color:#fff"></span>${s.label}`;
         btn.addEventListener('click', () => {
-          if (active.has(s.key)) {
-            if (active.size === 1) return;
-            active.delete(s.key);
-          } else {
-            active.add(s.key);
-          }
-          syncPills();
-          buildChart();
+          if (active.has(s.key)) { if (active.size === 1) return; active.delete(s.key); }
+          else { active.add(s.key); }
+          syncPills(); buildChart();
         });
         togglesEl.appendChild(btn);
       });
-
       function syncPills() {
         document.querySelectorAll('.toggle-pill').forEach(btn => {
           const s = SERIES.find(x => x.key === btn.dataset.key);
@@ -694,11 +747,7 @@
       syncPills();
 
       // ── Range buttons ─────────────────────────────────────────
-      const ranges = [
-        { label:'1M', days: 22 },
-        { label:'3M', days: 66 },
-        { label:'Todo', days: 0 },
-      ];
+      const ranges = [ { label:'1M', days:22 }, { label:'3M', days:66 }, { label:'Todo', days:0 } ];
       let currentRange = 0;
       const rangesEl = document.getElementById('ranges');
       ranges.forEach((r, i) => {
@@ -721,37 +770,45 @@
         curIdx = idx;
         const p = serie[idx];
         const pr = idx > 0 ? serie[idx - 1] : p;
-        const brechaPt = ((p.v - BCB_OFICIAL) / BCB_OFICIAL * 100);
-        const spread = p.v - p.c;
+        const isTco = p.reg === 'tco';
+        const devPt = p.c != null ? (p.c / BCB_OFICIAL - 1) * 100 : null;
+        const prima = (p.usdt != null && p.v != null) ? p.usdt - p.v : null;   // USDT sobre venta oficial
+        const dC = (p.c != null && pr.c != null) ? p.c - pr.c : null;
 
-        document.getElementById('panel-date').textContent = fdate(p.f);
+        document.getElementById('panel-date').textContent = fdate(p.f) + (p.carried ? ' · vigente' : '');
 
         let analysis;
-        if (brechaPt > 40) {
-          analysis = `La brecha cambiaria alcanza <span class="delta-tag dt-indigo">${fpct(brechaPt)}</span>, un nivel que refleja <strong>severa presión sobre la moneda nacional</strong>. La diferencia entre el tipo de cambio oficial y el mercado libre es tan amplia que el tipo de cambio fijo del BCB ha perdido efectividad como referencia real de precios en la economía. La dolarización de facto se acelera.`;
-        } else if (brechaPt > 25) {
-          analysis = `Con una brecha de <span class="delta-tag dt-indigo">${fpct(brechaPt)}</span>, el mercado paralelo refleja <strong>un desequilibrio significativo</strong> entre la oferta y demanda de dólares. La escasez de divisas en el sistema formal empuja a empresas y personas a buscar dólares en el mercado informal, alimentando un ciclo de depreciación de facto.`;
-        } else if (brechaPt > 10) {
-          analysis = `La brecha de <span class="delta-tag dt-indigo">${fpct(brechaPt)}</span> indica <strong>presión cambiaria moderada</strong>. Si bien el BCB mantiene el tipo oficial, el mercado revela que el boliviano se cotiza por debajo de su valor nominal frente al dólar, lo que impacta costos de importación y expectativas.`;
+        if (devPt == null) {
+          analysis = `Punto del <strong>mercado paralelo referencial</strong>, antes del estreno del Tipo de Cambio Oficial flexible (27-jun-2026).`;
+        } else if (devPt > 38) {
+          analysis = `Frente al tipo de cambio oficial fijo de <strong>Bs 6,96</strong> (ancla nominal 2011–2026), el TCO implica una devaluación de <span class="delta-tag dt-indigo">${fpct(devPt)}</span>. El abandono del tipo fijo reconoce el agotamiento de las reservas y la presión cambiaria acumulada; el nuevo régimen busca que el precio del dólar refleje la oferta y demanda reales.`;
+        } else if (devPt > 20) {
+          analysis = `El TCO se ubica <span class="delta-tag dt-indigo">${fpct(devPt)}</span> por encima del viejo tipo fijo de <strong>Bs 6,96</strong>. La devaluación implícita traslada a precios la escasez de divisas que el mercado paralelo ya anticipaba.`;
         } else {
-          analysis = `La brecha de <span class="delta-tag dt-indigo">${fpct(brechaPt)}</span> se mantiene <strong>relativamente contenida</strong>, sugiriendo que la presión sobre el tipo de cambio es baja y el tipo oficial del BCB aún es representativo del mercado.`;
+          analysis = `El TCO está <span class="delta-tag dt-indigo">${fpct(devPt)}</span> respecto al tipo fijo de <strong>Bs 6,96</strong>.`;
         }
 
         document.getElementById('panel-body').innerHTML = `
           <div class="panel-block">
-            <div class="panel-label" style="color:#C71E1D; background:rgba(199,30,29,.08); border-left-color:#C71E1D">Paralelo Venta</div>
-            <div class="panel-val" style="color:#C71E1D">${fbs(p.v)}</div>
-            <p class="panel-desc">Precio al que se <strong>vende</strong> un dólar en el mercado paralelo el <strong>${fdate(p.f)}</strong>. Variación de <span class="delta-tag dt-red">${(p.v - pr.v >= 0 ? '+' : '') + (p.v - pr.v).toFixed(2)} Bs</span> respecto a la sesión anterior.</p>
+            <div class="panel-label" style="color:#0D9488; background:rgba(13,148,136,.08); border-left-color:#0D9488">${isTco ? 'Tipo de Cambio Oficial' : 'Compra (paralelo)'}</div>
+            <div class="panel-val" style="color:#0D9488">${fbs(p.c)}</div>
+            <p class="panel-desc">${isTco
+              ? `Promedio ponderado de las <strong>compras de dólares de la banca</strong> el <strong>${fdate(p.sesion || p.f)}</strong>; rige como referencia el <strong>${fdate(p.f)}</strong>.${dC != null ? ` Variación de <span class="delta-tag dt-teal">${(dC >= 0 ? '+' : '') + dC.toFixed(2)} Bs</span> vs. la sesión anterior.` : ''}`
+              : `Precio de <strong>compra</strong> del dólar en el mercado paralelo referencial.`}</p>
           </div>
           <div class="panel-block">
-            <div class="panel-label" style="color:#0D9488; background:rgba(13,148,136,.08); border-left-color:#0D9488">Paralelo Compra</div>
-            <div class="panel-val" style="color:#0D9488">${fbs(p.c)}</div>
-            <p class="panel-desc">Precio al que se <strong>compra</strong> un dólar. El spread compra-venta es <span class="delta-tag dt-teal">${spread.toFixed(2)} Bs</span> — ${spread > 0.3 ? 'refleja baja liquidez en el mercado' : 'un spread normal de mercado'}.</p>
+            <div class="panel-label" style="color:#C71E1D; background:rgba(199,30,29,.08); border-left-color:#C71E1D">${isTco ? 'Venta oficial' : 'Venta (paralelo)'}</div>
+            <div class="panel-val" style="color:#C71E1D">${fbs(p.v)}</div>
+            <p class="panel-desc">${isTco
+              ? `Precio de <strong>venta al público</strong> dispuesto por el BCB: TCO + <strong>0,10 Bs</strong> de margen.`
+              : `Precio de <strong>venta</strong> del dólar en el mercado paralelo referencial.`}</p>
           </div>
           <div class="panel-block">
             <div class="panel-label" style="color:#D97706; background:rgba(217,119,6,.08); border-left-color:#D97706">USDT Binance P2P</div>
-            <div class="panel-val" style="color:#D97706">${p.usdt ? fbs(p.usdt) : '—'}</div>
-            <p class="panel-desc">${p.usdt ? `Mediana del USDT/BOB en Binance P2P. ${Math.abs(p.v - p.usdt) < 0.2 ? 'Convergencia con el paralelo físico — ambos mercados se alinean.' : p.usdt < p.v ? 'Cotiza <strong>por debajo</strong> del paralelo físico, indicando mayor liquidez digital.' : 'Cotiza <strong>por encima</strong> del paralelo, reflejando prima digital por conveniencia y rapidez.'}` : 'Sin datos de USDT para esta fecha.'}</p>
+            <div class="panel-val" style="color:#D97706">${fbs(p.usdt)}</div>
+            <p class="panel-desc">${p.usdt == null ? 'Sin dato de USDT para esta fecha.' : (prima == null
+              ? `Mediana del USDT/BOB en Binance P2P.`
+              : `Mediana del USDT/BOB en Binance P2P — cotiza <span class="delta-tag dt-amber">${(prima >= 0 ? '+' : '') + prima.toFixed(2)} Bs</span> ${Math.abs(prima) < 0.15 ? 'prácticamente en línea con' : (prima >= 0 ? 'por encima de' : 'por debajo de')} la venta oficial.`)}</p>
           </div>
           <div class="ctx-box"><p>${analysis}</p></div>
         `;
@@ -762,7 +819,6 @@
       function buildChart() {
         const container = document.getElementById('chart');
         if (!chart) chart = echarts.init(container);
-
         const dk = isDark();
         const slicedSerie = currentRange > 0 ? serie.slice(-currentRange) : serie;
         const dates = slicedSerie.map(d => d.f);
@@ -770,83 +826,41 @@
         const seriesData = [];
         const colors = [];
 
-        if (active.has('v')) {
-          colors.push('#C71E1D');
-          const vals = slicedSerie.map(d => d.v);
-          const lastV = vals[vals.length - 1];
-          seriesData.push({
-            name: 'Venta',
-            type: 'line',
-            data: vals,
-            symbol: 'none',
-            lineStyle: { width: 2.5 },
-            areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1, [
-              { offset: 0, color: 'rgba(199,30,29,.12)' },
-              { offset: 1, color: 'rgba(199,30,29,.01)' }
-            ])},
-            markPoint: {
-              data: [{ coord: [dates.length - 1, lastV] }],
-              symbol: 'circle', symbolSize: 8,
-              itemStyle: { color: '#C71E1D', borderColor: dk ? '#141414' : '#fff', borderWidth: 2 },
-              label: { show: false }
-            },
-            z: 3
-          });
-        }
-        if (active.has('c')) {
-          colors.push('#0D9488');
-          const vals = slicedSerie.map(d => d.c);
-          const lastV = vals[vals.length - 1];
-          seriesData.push({
-            name: 'Compra',
-            type: 'line',
-            data: vals,
-            symbol: 'none',
-            lineStyle: { width: 2 },
-            areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1, [
-              { offset: 0, color: 'rgba(13,148,136,.08)' },
-              { offset: 1, color: 'rgba(13,148,136,.01)' }
-            ])},
-            markPoint: {
-              data: [{ coord: [dates.length - 1, lastV] }],
-              symbol: 'circle', symbolSize: 7,
-              itemStyle: { color: '#0D9488', borderColor: dk ? '#141414' : '#fff', borderWidth: 2 },
-              label: { show: false }
-            },
-            z: 2
-          });
-        }
-        if (active.has('usdt')) {
-          colors.push('#D97706');
-          const vals = slicedSerie.map(d => d.usdt);
-          const lastValid = vals.filter(v => v != null).pop();
-          const lastIdx = vals.lastIndexOf(lastValid);
-          seriesData.push({
-            name: 'USDT',
-            type: 'line',
-            data: vals,
-            symbol: 'none',
-            lineStyle: { width: 2, type: [6, 4] },
-            connectNulls: true,
+        function lineSeries(key, name, color, width, dashed, gradTop) {
+          const vals = slicedSerie.map(d => d[key] == null ? null : d[key]);
+          const lastValid = [...vals].reverse().find(v => v != null);
+          const lastIdx = lastValid != null ? vals.lastIndexOf(lastValid) : -1;
+          colors.push(color);
+          return {
+            name, type: 'line', data: vals, symbol: 'none', connectNulls: false,
+            lineStyle: dashed ? { width, type: [6, 4] } : { width },
+            areaStyle: gradTop ? { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: gradTop }, { offset: 1, color: 'rgba(0,0,0,0)' }
+            ]) } : undefined,
             markPoint: lastIdx >= 0 ? {
               data: [{ coord: [lastIdx, lastValid] }],
               symbol: 'circle', symbolSize: 7,
-              itemStyle: { color: '#D97706', borderColor: dk ? '#141414' : '#fff', borderWidth: 2 },
+              itemStyle: { color, borderColor: dk ? '#141414' : '#fff', borderWidth: 2 },
               label: { show: false }
             } : undefined,
-            z: 2
-          });
+            z: 3
+          };
         }
 
-        // BCB reference line
+        if (active.has('c'))    seriesData.push(lineSeries('c', 'TCO', '#0D9488', 2.6, false, 'rgba(13,148,136,.12)'));
+        if (active.has('v'))    seriesData.push(lineSeries('v', 'Venta oficial', '#C71E1D', 2, false, 'rgba(199,30,29,.10)'));
+        if (active.has('usdt')) seriesData.push(lineSeries('usdt', 'USDT', '#D97706', 2, true, null));
+
+        // Línea de referencia del tipo fijo 6,96 + marca del cambio de régimen
         seriesData.push({
-          name: 'BCB Oficial',
-          type: 'line',
-          data: dates.map(() => BCB_OFICIAL),
-          symbol: 'none',
-          lineStyle: { width: 1.5, color: '#6366F1', type: [5, 4] },
-          itemStyle: { color: '#6366F1' },
-          z: 1
+          name: 'Oficial (6,96)', type: 'line', data: dates.map(() => BCB_OFICIAL), symbol: 'none',
+          lineStyle: { width: 1.5, color: '#6366F1', type: [5, 4] }, itemStyle: { color: '#6366F1' }, z: 1,
+          markLine: REGIME_TCO ? {
+            silent: true, symbol: 'none',
+            lineStyle: { color: dk ? '#818CF8' : '#6366F1', type: 'dashed', width: 1.2 },
+            label: { show: true, formatter: 'Cambio de régimen · TCO', position: 'insideEndTop', fontSize: 9, color: dk ? '#818CF8' : '#6366F1' },
+            data: [{ xAxis: REGIME_TCO }]
+          } : undefined
         });
 
         const option = {
@@ -863,14 +877,12 @@
             formatter: function(params) {
               if (!params.length) return '';
               const idx = params[0].dataIndex;
-              const startIdx = currentRange > 0 ? N - currentRange : 0;
+              const startIdx = N - slicedSerie.length;
               updatePanel(startIdx + idx);
-
               let html = `<div style="font-weight:700; margin-bottom:6px; color:#E9D8A6; font-size:12px">${fdate(dates[idx])}</div>`;
               params.forEach(p => {
                 if (p.value == null) return;
-                const isOficial = p.seriesName === 'BCB Oficial';
-                const c = isOficial ? '#6366F1' : p.color;
+                const c = p.seriesName === 'Oficial (6,96)' ? '#6366F1' : p.color;
                 html += `<div style="display:flex; align-items:center; gap:8px; margin:3px 0">
                   <span style="width:8px;height:8px;border-radius:50%;background:${c};display:inline-block"></span>
                   <span style="flex:1;font-size:11px;color:rgba(255,255,255,.7)">${p.seriesName}</span>
@@ -881,90 +893,68 @@
             }
           },
           xAxis: {
-            type: 'category',
-            data: dates,
+            type: 'category', data: dates,
             axisLine: { lineStyle: { color: dk ? '#2A3A50' : '#E2DDD3' } },
             axisTick: { show: false },
             axisLabel: {
-              fontFamily: 'Inter',
-              fontSize: 10,
-              fontWeight: 500,
-              color: dk ? '#64748B' : '#94A3B8',
+              fontFamily: 'Inter', fontSize: 10, fontWeight: 500, color: dk ? '#64748B' : '#94A3B8',
               formatter: function(v, idx) {
                 const d = new Date(v + 'T00:00:00');
                 const total = dates.length;
-                if (idx === 0 || idx === total - 1) {
-                  return d.toLocaleDateString('es-BO', { day:'numeric', month:'short' });
-                }
+                if (idx === 0 || idx === total - 1) return d.toLocaleDateString('es-BO', { day:'numeric', month:'short' });
                 if (idx > 0) {
                   const prev = new Date(dates[idx - 1] + 'T00:00:00');
-                  if (d.getMonth() !== prev.getMonth()) {
-                    return d.toLocaleDateString('es-BO', { day:'numeric', month:'short' });
-                  }
+                  if (d.getMonth() !== prev.getMonth()) return d.toLocaleDateString('es-BO', { day:'numeric', month:'short' });
                 }
                 const step = Math.max(1, Math.round(total / 8));
-                if (idx % step === 0) {
-                  return d.toLocaleDateString('es-BO', { day:'numeric', month:'short' });
-                }
+                if (idx % step === 0) return d.toLocaleDateString('es-BO', { day:'numeric', month:'short' });
                 return '';
               },
-              showMinLabel: true,
-              showMaxLabel: true,
+              showMinLabel: true, showMaxLabel: true,
             }
           },
           yAxis: {
             type: 'value',
             min: function(v) { return Math.floor((Math.min(v.min, BCB_OFICIAL) - 0.3) * 2) / 2; },
             splitLine: { lineStyle: { color: dk ? '#1E1E1E' : '#F1F5F9', type: 'dashed' } },
-            axisLine: { show: false },
-            axisTick: { show: false },
-            axisLabel: {
-              fontFamily: 'JetBrains Mono',
-              fontSize: 11,
-              color: dk ? '#64748B' : '#94A3B8',
-              formatter: '{value} Bs'
-            }
+            axisLine: { show: false }, axisTick: { show: false },
+            axisLabel: { fontFamily: 'JetBrains Mono', fontSize: 11, color: dk ? '#64748B' : '#94A3B8', formatter: '{value} Bs' }
           },
           series: seriesData
         };
-
         chart.setOption(option, true);
       }
 
       buildChart();
       updatePanel(N - 1);
-
       window.addEventListener('resize', () => chart && chart.resize());
-
-      new MutationObserver(() => {
-        buildChart();
-        updatePanel(curIdx);
-      }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+      new MutationObserver(() => { buildChart(); updatePanel(curIdx); })
+        .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
       // ── Educational Boxes ─────────────────────────────────────
+      const primaHoy = (current.usdt != null && current.v != null) ? current.usdt - current.v : null;
       const eduData = [
         {
-          title: '¿Qué es el tipo de cambio oficial?',
-          content: `<p>El <strong>Banco Central de Bolivia (BCB)</strong> fija el tipo de cambio oficial en <span class="highlight hl-indigo">${BCB_OFICIAL} Bs/$</span> desde noviembre de 2011. Este tipo de cambio es un <strong>ancla nominal</strong>: su objetivo es mantener estable el valor del boliviano frente al dólar para controlar la inflación y dar certidumbre a la economía.</p>
-          <p>Sin embargo, para que el tipo fijo funcione, el BCB necesita tener <strong>suficientes reservas internacionales</strong> (dólares, oro, DEG) para vender dólares a quien los demande al precio oficial. Cuando las reservas caen, el BCB no puede atender toda la demanda, y surge el <strong>mercado paralelo</strong>.</p>`
+          title: '¿Qué es el Tipo de Cambio Oficial (TCO)?',
+          content: `<p>Desde el <strong>27 de junio de 2026</strong>, el <strong>Banco Central de Bolivia (BCB)</strong> reemplazó el tipo de cambio fijo por el <strong>Tipo de Cambio Oficial (TCO)</strong>: un <strong>promedio ponderado de las operaciones de compra de dólares de la banca</strong>. Se publica al cierre de cada jornada (~20:00) y rige como referencia el día siguiente.</p>
+          <p>La <strong>venta oficial al público</strong> equivale al TCO más un margen de <span class="highlight hl-red">0,10 Bs</span>. Hoy el TCO rige en <span class="highlight hl-teal">${fbs(current.c)}</span> y la venta oficial en <span class="highlight hl-red">${fbs(current.v)}</span>.</p>`
         },
         {
-          title: '¿Qué es el mercado paralelo?',
-          content: `<p>El <strong>mercado paralelo</strong> (o mercado libre) es donde se intercambian dólares a precios determinados por <strong>oferta y demanda real</strong>, fuera del sistema bancario formal. Surge cuando el BCB no puede proveer suficientes dólares al tipo oficial.</p>
-          <p>La <strong>brecha cambiaria</strong> actual es de <span class="highlight hl-indigo">${fpct(brecha)}</span> — es decir, conseguir un dólar en el mercado libre cuesta <strong>${fpct(brecha)} más</strong> que el precio oficial. Una brecha elevada indica que el tipo de cambio oficial ya no refleja el valor real del boliviano.</p>`
+          title: 'El fin del tipo fijo de Bs 6,96',
+          content: `<p>Entre <strong>noviembre de 2011 y junio de 2026</strong>, el boliviano estuvo anclado a un tipo de cambio fijo de <span class="highlight hl-indigo">Bs 6,96</span> por dólar. Ese ancla nominal buscaba estabilidad de precios, pero exigía reservas suficientes para vender dólares a ese precio.</p>
+          <p>Agotadas las reservas, el BCB abandonó el tipo fijo. El TCO arrancó en <strong>Bs 9,73</strong> y hoy implica una <strong>devaluación de <span class="highlight hl-indigo">${fpct(dev)}</span></strong> frente al viejo 6,96.</p>`
         },
         {
           title: '¿Qué es el USDT y por qué importa?',
-          content: `<p>El <strong>USDT (Tether)</strong> es una criptomoneda estable ("stablecoin") cuyo valor está vinculado 1:1 al dólar estadounidense. En Bolivia, se negocia en la plataforma <strong>Binance P2P</strong> (persona a persona) y funciona como un <strong>"dólar digital"</strong>.</p>
-          <p>Su precio en bolivianos refleja la demanda real de dólares en el mercado digital. Hoy cotiza a <span class="highlight hl-amber">${fbs(hoy.usdt)}</span>, ${Math.abs(hoy.v - hoy.usdt) < 0.2 ? 'prácticamente al mismo nivel que el paralelo físico, lo que sugiere convergencia entre ambos mercados.' : hoy.usdt < hoy.v ? 'por debajo del paralelo físico — el mercado digital tiene más liquidez.' : 'por encima del paralelo físico — hay prima por la conveniencia y velocidad digital.'}</p>`
+          content: `<p>El <strong>USDT (Tether)</strong> es una criptomoneda estable vinculada 1:1 al dólar. En Bolivia se negocia en <strong>Binance P2P</strong> y funciona como un <strong>"dólar digital"</strong> cuyo precio refleja la demanda real de divisas.</p>
+          <p>Hoy cotiza en <span class="highlight hl-amber">${fbs(current.usdt)}</span>, ${primaHoy == null ? 'sin comparación disponible con la venta oficial.' : (Math.abs(primaHoy) < 0.15 ? 'prácticamente en línea con la venta oficial — ambos mercados convergen.' : primaHoy >= 0 ? `<strong>${primaHoy.toFixed(2)} Bs por encima</strong> de la venta oficial, señal de que aún hay presión de demanda.` : `<strong>${Math.abs(primaHoy).toFixed(2)} Bs por debajo</strong> de la venta oficial.`)}</p>`
         },
         {
-          title: '¿Qué significa el spread compra-venta?',
-          content: `<p>El <strong>spread</strong> es la diferencia entre el precio de venta y el de compra: <span class="highlight hl-teal">${(hoy.v - hoy.c).toFixed(2)} Bs</span> hoy. Representa el <strong>margen del intermediario</strong> y es un indicador de la <strong>liquidez del mercado</strong>.</p>
-          <p>${(hoy.v - hoy.c) > 0.3 ? 'Un spread amplio (como el actual) indica <strong>baja liquidez</strong>: hay poca oferta de dólares y los intermediarios cobran más por el riesgo de no poder reponerlos fácilmente.' : 'Un spread reducido indica <strong>buena liquidez</strong>: hay suficiente oferta y demanda, y los costos de transacción son bajos.'} En mercados cambiarios maduros, el spread suele ser menor a 0.05.</p>`
+          title: '¿Por qué se disparó el precio del dólar?',
+          content: `<p>La escasez de divisas tiene raíz <strong>fiscal y monetaria</strong>: la caída sostenida de las <strong>reservas internacionales</strong> dejó al BCB sin capacidad de sostener el tipo fijo, mientras el financiamiento del déficit público presionaba la demanda de dólares.</p>
+          <p>El TCO flexible traslada esa presión al precio de forma explícita, en lugar de contenerla con un mercado paralelo cada vez más amplio. Es un cambio de régimen, no un ajuste puntual.</p>`
         }
       ];
-
       document.getElementById('edu-boxes').innerHTML = eduData.map(e => `
         <div class="edu-box" onclick="this.classList.toggle('open')">
           <div class="edu-box-toggle">
