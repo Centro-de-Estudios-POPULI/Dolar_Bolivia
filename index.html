@@ -2407,11 +2407,9 @@ function generateReport() {
   if (!serie.length || !hoy.f) return null;
 
   const idx = serie.length - 1;
-  const prev = idx > 0 ? serie[idx - 1] : null;
   const hace7 = idx >= 7 ? serie[idx - 7] : null;
   const hace30 = idx >= 30 ? serie[idx - 30] : null;
 
-  const spread = hoy.v != null && hoy.c != null ? hoy.v - hoy.c : null;
   const prima = hoy.usdt != null && hoy.v != null ? hoy.usdt - hoy.v : null;
   const primaPct = prima != null && hoy.v ? (prima / hoy.v * 100) : null;
 
@@ -2422,17 +2420,66 @@ function generateReport() {
     ? `<span class="rpt-up">▲ +${Math.abs(diff).toFixed(2)}</span>`
     : (diff < 0 ? `<span class="rpt-down">▼ −${Math.abs(diff).toFixed(2)}</span>` : `<span class="rpt-muted">sin cambio</span>`);
 
+  // Dos sesiones posibles: la que RIGE HOY (g_vigente) y la ÚLTIMA publicada
+  // (g_tcoData.hoy), que tras el cierre de las 20:00 de un día hábil es una sesión
+  // NUEVA que regirá mañana. Solo entonces son distintas (dual); antes del cierre y
+  // el fin de semana coinciden y el reporte lleva un único bloque coherente.
+  const vig = g_vigente || hoy;
+  const ult = (g_tcoData && g_tcoData.hoy) || null;
+  const dual = g_mananaMode === 'pub' && ult && vig && ult.f !== (vig.sesion || vig.f);
+  const notaFinde = vISO =>
+    (vISO && new Date(vISO + 'T00:00:00').getDay() === 6) ? ' Rige el sábado, domingo y hasta el lunes.' : '';
+
+  // Volumen + top banco de UNA sesión (mismo texto para el bloque vigente y el de la
+  // próxima sesión), comparado contra el promedio móvil de 22 sesiones de la serie.
+  const bloqueVolumen = (vol, tx, bancosArr) => {
+    let vt = '', vp = '';
+    if (!vol) return { vt, vp };
+    vt = `Se operaron ${mu(vol)} en el sistema bancario`;
+    vp = `Se operaron $${(vol/1e6).toFixed(2)}M en el sistema bancario`;
+    if (tx) {
+      vt += ` en <span class="rpt-metric">${tx.toLocaleString('es-BO')}</span> transacciones`;
+      vp += ` en ${tx.toLocaleString('es-BO')} transacciones`;
+    }
+    vt += '.'; vp += '.';
+    const last22 = serie.slice(-22).filter(p => p.vol > 0);
+    if (last22.length >= 5) {
+      const avgVol = last22.reduce((s, p) => s + p.vol, 0) / last22.length;
+      const vsAvg = ((vol - avgVol) / avgVol * 100);
+      if (Math.abs(vsAvg) >= 5) {
+        const d2 = vsAvg > 0 ? 'por encima' : 'por debajo';
+        vt += ` Esto es un <span class="rpt-metric ${vsAvg > 0 ? 'rpt-up' : 'rpt-down'}">${Math.abs(vsAvg).toFixed(0)}%</span> ${d2} del promedio mensual (${mu(avgVol)}).`;
+        vp += ` Esto es un ${Math.abs(vsAvg).toFixed(0)}% ${d2} del promedio mensual ($${(avgVol/1e6).toFixed(2)}M).`;
+      } else {
+        vt += ` En línea con el promedio mensual de ${mu(avgVol)}.`;
+        vp += ` En línea con el promedio mensual de $${(avgVol/1e6).toFixed(2)}M.`;
+      }
+    }
+    const bh = (bancosArr || []).filter(b => (b.monto ?? b.vol));
+    if (bh.length) {
+      const top = bh[0];
+      const key = top.monto != null ? 'monto' : 'vol';
+      const tot = bh.reduce((s, b) => s + (b[key] || 0), 0);
+      if (top[key] && tot > 0) {
+        const pc = (top[key] / tot * 100).toFixed(0);
+        vt += ` <span class="rpt-metric">${top.banco}</span> lideró las operaciones con $${fmtM(top[key])} (${pc}% del total).`;
+        vp += ` ${top.banco} lideró las operaciones con $${fmtM(top[key])} (${pc}% del total).`;
+      }
+    }
+    return { vt, vp };
+  };
+
   let html = '';
   let plain = '';
 
-  // ── Tipo de cambio
-  html += `<h3>Tipo de cambio</h3>`;
-  const sesTxt = hoy.sesion ? ` (fijado en la sesión del ${fmtDate(hoy.sesion)})` : '';
-  let tcText = `El Tipo de Cambio Oficial (TCO) vigente es ${m(hoy.c)}${sesTxt}`;
-  let tcPlain = `TIPO DE CAMBIO\nEl Tipo de Cambio Oficial (TCO) vigente es Bs. ${fmt2(hoy.c)}${sesTxt}`;
+  // ── BLOQUE 1 · Tipo de cambio (lo que rige hoy) ──
+  html += `<h3>Tipo de cambio${dual ? ' · rige hoy' : ''}</h3>`;
+  const sesTxt = vig.sesion ? ` (fijado en la sesión del ${fmtDate(vig.sesion)})` : '';
+  let tcText = `El Tipo de Cambio Oficial (TCO) vigente es ${m(vig.c)}${sesTxt}`;
+  let tcPlain = `TIPO DE CAMBIO${dual ? ' (RIGE HOY)' : ''}\nEl Tipo de Cambio Oficial (TCO) vigente es Bs. ${fmt2(vig.c)}${sesTxt}`;
   const prevTco = g_currentPrev;   // el TCO vigente anterior (comparación "sesión anterior")
-  if (prevTco && hoy.c != null && prevTco.c != null) {
-    const dc = hoy.c - prevTco.c;
+  if (prevTco && vig.c != null && prevTco.c != null) {
+    const dc = vig.c - prevTco.c;
     if (dc === 0) {
       tcText += `, sin cambios respecto a la sesión anterior`;
       tcPlain += `, sin cambios respecto a la sesión anterior`;
@@ -2441,17 +2488,35 @@ function generateReport() {
       tcPlain += `, ${dir(dc)} ${dc > 0 ? '+' : ''}${dc.toFixed(2)} respecto a la sesión anterior`;
     }
   }
-  tcText += `. La venta oficial (TCO + 0,10 Bs) se ubicó en ${m(hoy.v)}`;
-  tcPlain += `. La venta oficial (TCO + 0,10 Bs) se ubicó en Bs. ${fmt2(hoy.v)}`;
+  tcText += `. La venta oficial (TCO + 0,10 Bs) se ubicó en ${m(vig.v)}`;
+  tcPlain += `. La venta oficial (TCO + 0,10 Bs) se ubicó en Bs. ${fmt2(vig.v)}`;
   tcText += '.';
   tcPlain += '.';
-  if (hoy.c != null) {
-    const brechaPct = (hoy.c - BCB_OFICIAL) / BCB_OFICIAL * 100;
+  if (vig.c != null) {
+    const brechaPct = (vig.c - BCB_OFICIAL) / BCB_OFICIAL * 100;
     tcText += ` Frente al tipo de cambio oficial fijo (Bs.&nbsp;6,96), el TCO registra una brecha cambiaria de <span class="rpt-metric">+${brechaPct.toFixed(1)}%</span>.`;
     tcPlain += ` Frente al tipo de cambio oficial fijo (Bs. 6,96), el TCO registra una brecha cambiaria de +${brechaPct.toFixed(1)}%.`;
   }
   html += `<p>${tcText}</p>`;
   plain += tcPlain + '\n\n';
+
+  // ── BLOQUE 2 · Última sesión (regirá mañana / el fin de semana) — solo tras el cierre ──
+  if (dual) {
+    html += `<h3>Última sesión · regirá el ${fmtDate(ult.vig)}</h3>`;
+    let nt = `El TCO de la sesión del ${fmtDate(ult.f)} es ${m(ult.tco)}`;
+    let np = `ÚLTIMA SESIÓN (REGIRÁ EL ${fmtDate(ult.vig).toUpperCase()})\nEl TCO de la sesión del ${fmtDate(ult.f)} es Bs. ${fmt2(ult.tco)}`;
+    const dcn = (vig.c != null && ult.tco != null) ? ult.tco - vig.c : null;
+    if (dcn != null && dcn !== 0) {
+      nt += `, ${dir(dcn)} ${arrow(dcn)} respecto a lo que rige hoy`;
+      np += `, ${dir(dcn)} ${dcn > 0 ? '+' : ''}${dcn.toFixed(2)} respecto a lo que rige hoy`;
+    }
+    nt += `. La venta oficial se ubicará en ${m(ult.tco_venta)}.` + notaFinde(ult.vig);
+    np += `. La venta oficial se ubicará en Bs. ${fmt2(ult.tco_venta)}.` + notaFinde(ult.vig);
+    const { vt, vp } = bloqueVolumen(ult.vol, ult.tx, g_tcoData.bancos_hoy);
+    if (vt) { nt += ' ' + vt; np += ' ' + vp; }
+    html += `<p>${nt}</p>`;
+    plain += np + '\n\n';
+  }
 
   // ── Mercado informal
   html += `<h3>Mercado informal (USDT)</h3>`;
@@ -2527,68 +2592,38 @@ function generateReport() {
     plain += tendPlain + '\n\n';
   }
 
-  // ── Volumen
-  html += `<h3>Volumen bancario</h3>`;
-  let volText = '';
-  let volPlain = 'VOLUMEN BANCARIO\n';
-  if (hoy.vol) {
-    volText = `Se operaron ${mu(hoy.vol)} en el sistema bancario`;
-    volPlain += `Se operaron $${(hoy.vol/1e6).toFixed(2)}M en el sistema bancario`;
-    if (hoy.tx) {
-      volText += ` en <span class="rpt-metric">${hoy.tx.toLocaleString('es-BO')}</span> transacciones`;
-      volPlain += ` en ${hoy.tx.toLocaleString('es-BO')} transacciones`;
-    }
-    volText += '.';
-    volPlain += '.';
-
-    const last22 = serie.slice(-22).filter(p => p.vol > 0);
-    if (last22.length >= 5) {
-      const avgVol = last22.reduce((s,p) => s + p.vol, 0) / last22.length;
-      const vsAvg = ((hoy.vol - avgVol) / avgVol * 100);
-      if (Math.abs(vsAvg) >= 5) {
-        const dir2 = vsAvg > 0 ? 'por encima' : 'por debajo';
-        volText += ` Esto es un <span class="rpt-metric ${vsAvg > 0 ? 'rpt-up' : 'rpt-down'}">${Math.abs(vsAvg).toFixed(0)}%</span> ${dir2} del promedio mensual (${mu(avgVol)}).`;
-        volPlain += ` Esto es un ${Math.abs(vsAvg).toFixed(0)}% ${dir2} del promedio mensual ($${(avgVol/1e6).toFixed(2)}M).`;
-      } else {
-        volText += ` En línea con el promedio mensual de ${mu(avgVol)}.`;
-        volPlain += ` En línea con el promedio mensual de $${(avgVol/1e6).toFixed(2)}M.`;
-      }
+  // ── Volumen bancario ──
+  // Si hay dos bloques, el volumen/top banco ya se narró dentro de "Última sesión"
+  // (misma sesión que el top banco → sin la mezcla de sesiones que había antes).
+  // Cuando NO es dual, la sesión vigente ES la última, así que aquí queda coherente.
+  if (!dual) {
+    const { vt, vp } = bloqueVolumen(hoy.vol, hoy.tx,
+      (g_tcoData && g_tcoData.bancos_hoy) || bancos.tabla_hoy);
+    if (vt) {
+      html += `<h3>Volumen bancario</h3>`;
+      html += `<p>${vt}</p>`;
+      plain += 'VOLUMEN BANCARIO\n' + vp + '\n\n';
     }
   }
-  // Top banco de la sesión. Régimen TCO: usar el detalle por banco del TCO
-  // (bancos_hoy, ya ordenado por monto); si no, la tabla referencial.
-  const bhoy = (g_tcoData && (g_tcoData.bancos_hoy || []).filter(b => b.monto)) || [];
-  const topSrc = bhoy.length
-    ? bhoy.map(b => ({ banco: b.banco, vol: b.monto }))
-    : (bancos.tabla_hoy || []);
-  if (topSrc.length) {
-    const top = topSrc[0];
-    const totalVol = topSrc.reduce((s,r) => s + (r.vol||0), 0);
-    if (top.vol && totalVol > 0) {
-      const topPct = (top.vol / totalVol * 100).toFixed(0);
-      volText += ` <span class="rpt-metric">${top.banco}</span> lideró las operaciones con $${fmtM(top.vol)} (${topPct}% del total).`;
-      volPlain += ` ${top.banco} lideró las operaciones con $${fmtM(top.vol)} (${topPct}% del total).`;
-    }
-  }
-  html += `<p>${volText}</p>`;
-  plain += volPlain + '\n\n';
 
   // ── Evaluación
   html += `<h3>Evaluación</h3>`;
   let evalText = '';
   let evalPlain = 'EVALUACIÓN\n';
 
+  // Nivel de referencia: el más reciente publicado (la última sesión si ya cerró).
+  const nivelEval = dual && ult && ult.tco_venta != null ? ult.tco_venta : hoy.v;
   const last5v = serie.slice(-5).filter(p => p.v != null).map(p => p.v);
   const trending = last5v.length >= 3 && last5v[last5v.length-1] > last5v[0];
   const allUp = last5v.length >= 3 && last5v.every((v,i) => i === 0 || v >= last5v[i-1]);
 
-  if (hoy.v >= 11) {
+  if (nivelEval >= 11) {
     evalText = 'El tipo de cambio se encuentra en niveles históricamente altos, con presión sostenida sobre el boliviano.';
     evalPlain += 'El tipo de cambio se encuentra en niveles históricamente altos, con presión sostenida sobre el boliviano.';
-  } else if (hoy.v >= 10) {
+  } else if (nivelEval >= 10) {
     evalText = 'El tipo de cambio se mantiene por encima de la barrera de Bs. 10, indicando un nivel elevado de depreciación del boliviano.';
     evalPlain += 'El tipo de cambio se mantiene por encima de la barrera de Bs. 10, indicando un nivel elevado de depreciación del boliviano.';
-  } else if (hoy.v >= 9) {
+  } else if (nivelEval >= 9) {
     evalText = 'El tipo de cambio se mantiene en un rango alto, mostrando presiones cambiarias persistentes.';
     evalPlain += 'El tipo de cambio se mantiene en un rango alto, mostrando presiones cambiarias persistentes.';
   } else {
