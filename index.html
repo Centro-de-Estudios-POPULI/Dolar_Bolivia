@@ -1149,6 +1149,7 @@ let preciosChart = null, volumenChart = null, primaChart = null, heatmapChart = 
 let g_serie = [], g_hoy = {}, g_bancos = {}, g_tco = [], g_tcoData = null, g_bancosUni = {};
 let g_current = {}, g_currentPrev = null;   // punto "vigente hoy" para los KPIs (no-hover)
 let g_vigente = null, g_manana = null;      // puntos "rige hoy" / "regirá mañana"
+let g_mananaMode = 'pend', g_mananaStr = null;  // estado del KPI mañana: 'pub'|'finde'|'pend' + fecha de mañana
 let g_lastSig = '';                          // firma de datos (para re-dibujar solo si cambian)
 let REGIME_TCO = null;   // primera fecha del régimen TCO (marca del cambio de régimen)
 
@@ -1316,19 +1317,25 @@ function updateKPIs(p, hover, prevP) {
 
 /* Tarjeta "Regirá mañana": el TCO de la sesión de HOY (cierre 20:00) rige el
    próximo día hábil. Se fija una sola vez; no cambia al explorar el histórico. */
-function setKpiManana(manana, vigente) {
+function setKpiManana(manana, vigente, mode, mananaStr) {
   const val = document.getElementById('kpi-manana');
   const sub = document.getElementById('sub-manana');
   const del = document.getElementById('delta-manana');
-  if (manana && manana.c != null) {
+  del.innerHTML = '';
+  if (mode === 'pub' && manana && manana.c != null) {
+    // Día hábil tras el cierre (o viernes por la noche): sesión de hoy ya publicada.
     val.textContent = fmt2(manana.c);
-    sub.textContent = `sesión de hoy · rige el ${fmtDate(manana.f)}`;
+    sub.textContent = `sesión de hoy · rige el ${fmtDate(mananaStr)}`;
     const vp = (vigente && (vigente.reg || '') === 'tco') ? vigente : null;
     updateDelta('delta-manana', manana.c, vp?.c);
+  } else if (mode === 'finde' && manana && manana.c != null) {
+    // Fin de semana: no hay nueva sesión; el TCO del viernes sigue rigiendo mañana.
+    val.textContent = fmt2(manana.c);
+    sub.innerHTML = `sin nueva sesión · sigue rigiendo el ${fmtDate(mananaStr)}`;
   } else {
+    // Día hábil antes del cierre: pendiente.
     val.textContent = '—';
     sub.innerHTML = 'pendiente · se fija al cierre de hoy (<b>20:00</b>)';
-    del.innerHTML = '';
   }
 }
 
@@ -2281,8 +2288,9 @@ function renderTablaTco(tcoData, bancos) {
   const fecha = tcoData.fecha_hoy;
   const bh    = (tcoData.bancos_hoy || []).filter(r => r.monto != null || r.tco != null);
 
+  const vig = (tcoData.hoy && tcoData.hoy.vig) || null;
   document.getElementById('tabla-fecha-sub').textContent =
-    `Operaciones del ${fmtDate(fecha)} · TCO, montos y transacciones declarados al BCB por cada entidad`;
+    `Operaciones del ${fmtDate(fecha)}${vig ? ` · rige el ${fmtDate(vig)}` : ''} · TCO, montos y transacciones declarados al BCB por cada entidad`;
 
   // Historia unificada de volumen por banco (referencial + TCO): mismo mecanismo
   // (promedio ponderado de compra), así comparamos contra la sesión anterior.
@@ -2787,7 +2795,27 @@ function buildState(hist, bancos, tco) {
   for (let i = 0; i < tcoPts.length; i++) { if (tcoPts[i].f <= hoyStr) vigIdx = i; }
   g_vigente = vigIdx >= 0 ? tcoPts[vigIdx] : (tcoPts[tcoPts.length - 1] || hist.hoy);
   g_currentPrev = vigIdx > 0 ? tcoPts[vigIdx - 1] : null;
-  g_manana = tcoPts.find(p => p.f > hoyStr) || null;
+
+  // "Regirá mañana": qué TCO gobernará el día calendario siguiente. Un TCO rige
+  // desde su vigencia (sesión + 1 día) hasta que se publica el próximo, INCLUIDOS
+  // sábado y domingo. Tres estados:
+  //   • 'pub'   — ya existe la sesión de HOY (cierre 20:00) cuya vigencia = mañana:
+  //               mostramos el TCO nuevo (días hábiles tras las 20:00; también el viernes).
+  //   • 'finde' — hoy NO es día hábil (sáb/dom): no hay cierre esta noche, así que
+  //               mañana sigue rigiendo el mismo TCO (carry-forward, ya conocido) →
+  //               así el fin de semana la tarjeta no queda vacía.
+  //   • 'pend'  — día hábil antes del cierre: la sesión de hoy aún no se publica;
+  //               el TCO de mañana está pendiente (se fija a las 20:00).
+  const nextISO = iso => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + 1); return localDateStr(d); };
+  g_mananaStr = nextISO(hoyStr);
+  const pubManana = tcoPts.find(p => p.f === g_mananaStr) || null;   // sesión de hoy ya publicada
+  let govManana = null;                                             // TCO que gobierna mañana (carry-fwd)
+  for (const p of tcoPts) { if (p.f <= g_mananaStr) govManana = p; }
+  const dowHoy = new Date(hoyStr + 'T00:00:00').getDay();           // 0=dom … 6=sáb
+  const habilHoy = dowHoy >= 1 && dowHoy <= 5;
+  if (pubManana)      { g_manana = pubManana; g_mananaMode = 'pub'; }
+  else if (!habilHoy) { g_manana = govManana; g_mananaMode = 'finde'; }
+  else                { g_manana = null;      g_mananaMode = 'pend'; }
   const lastUsdt = [...g_serie].reverse().find(p => p.usdt != null)?.usdt ?? null;
   g_hoy = { ...g_vigente, tco: g_vigente.c, vol: g_vigente.sesVol ?? g_vigente.vol, tx: g_vigente.sesTx ?? g_vigente.tx };
   // "Rige hoy": valores del TCO vigente, pero fechado HOY — en fin de semana la
@@ -2798,7 +2826,7 @@ function buildState(hist, bancos, tco) {
 // Pintado liviano (KPIs, sparklines, alerta): barato, se repite en cada refresh.
 function paintKpis() {
   updateKPIs(g_current, false, g_currentPrev);
-  setKpiManana(g_manana, g_vigente);
+  setKpiManana(g_manana, g_vigente, g_mananaMode, g_mananaStr);
   renderAllSparklines(g_serie);
   updateAlert(g_serie, g_hoy);
 }
