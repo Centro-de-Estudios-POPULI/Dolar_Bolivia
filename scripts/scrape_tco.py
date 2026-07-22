@@ -177,6 +177,21 @@ def parse_reporte(texto: str) -> dict[str, dict]:
                 g["dist"].setdefault(alias_banco(nombre), []).append(
                     (precio, int(ntx), int(mto) if mto else 0))
 
+    # El BCB a veces publica el desglose por banco de la fila TOTAL pero deja
+    # vacia la columna TOTAL BANCOS (visto 2026-07-20 y 07-21): el total del dia
+    # existe, solo hay que sumar los bancos. Sin esto el volumen y las tx del
+    # dia quedan en blanco en los KPIs aunque el dato esta.
+    for g in fechas.values():
+        bancos = g.get("bancos", {})
+        if g.get("vol_usd") is None:
+            montos = [b["monto"] for b in bancos.values() if b.get("monto")]
+            if montos:
+                g["vol_usd"] = sum(montos)
+        if g.get("tx") is None:
+            txs = [b["tx"] for b in bancos.values() if b.get("tx")]
+            if txs:
+                g["tx"] = sum(txs)
+
     return {f: g for f, g in fechas.items() if g.get("tco") is not None}
 
 
@@ -422,9 +437,28 @@ def usdt_por_fecha() -> dict[str, float]:
 
 # ── JSON para el dashboard ──────────────────────────────────────────────────────
 
+def _totales_por_banco(bancos_rows: list[dict]) -> dict[str, dict]:
+    """Suma volumen y transacciones de todos los bancos, por fecha.
+
+    Red de seguridad para cuando el reporte del BCB trae el detalle por banco
+    pero deja vacia la columna TOTAL BANCOS (visto 2026-07-20 y 07-21): el
+    volumen y las tx del dia existen, solo hay que sumarlos.
+    """
+    agg: dict[str, dict] = {}
+    for r in bancos_rows:
+        a = agg.setdefault(r["fecha"], {"vol": 0, "tx": 0, "n": 0})
+        m, t = r.get("monto_usd"), r.get("tx")
+        if m not in (None, ""):
+            a["vol"] += int(float(m)); a["n"] += 1
+        if t not in (None, ""):
+            a["tx"] += int(float(t))
+    return agg
+
+
 def exportar_json(global_rows: list[dict], bancos_rows: list[dict],
                   dist_hoy: dict | None = None) -> None:
     usdt = usdt_por_fecha()
+    sum_banco = _totales_por_banco(bancos_rows)
 
     # Si esta corrida no trajo reporte (WAF), conservar el último boxplot conocido.
     if dist_hoy is None and TCO_JSON.exists():
@@ -439,14 +473,22 @@ def exportar_json(global_rows: list[dict], bancos_rows: list[dict],
             tco = float(r["tco"])
         except (TypeError, ValueError):
             continue
+        vol = int(r["vol_usd"]) if r.get("vol_usd") not in (None, "") else None
+        tx  = int(r["tx"])      if r.get("tx")      not in (None, "") else None
+        # el total global falta pero el detalle por banco existe: se reconstruye
+        sb = sum_banco.get(r["fecha"])
+        if vol is None and sb and sb["n"]:
+            vol = sb["vol"]
+        if tx is None and sb and sb["tx"]:
+            tx = sb["tx"]
         serie.append({
             "f": r["fecha"],
             "vig": dia_siguiente(r["fecha"]),   # día calendario desde el que rige este TCO
             "tco": tco,
             "tco_venta": round(tco + MARGEN_VENTA, 2),
             "usdt": usdt.get(r["fecha"]),
-            "vol": int(r["vol_usd"]) if r.get("vol_usd") not in (None, "") else None,
-            "tx":  int(r["tx"])      if r.get("tx")      not in (None, "") else None,
+            "vol": vol,
+            "tx":  tx,
         })
 
     # Detalle por banco del último día con datos
@@ -470,12 +512,9 @@ def exportar_json(global_rows: list[dict], bancos_rows: list[dict],
     hoy = {}
     if serie:
         ult = serie[-1]
-        ref = next((r for r in global_rows if r["fecha"] == ult["f"]), {})
-        hoy = {
-            **ult,
-            "vol_usd": int(ref["vol_usd"]) if ref.get("vol_usd") not in (None, "") else None,
-            "tx":      int(ref["tx"])      if ref.get("tx")      not in (None, "") else None,
-        }
+        # ult ya trae vol/tx reconstruidos desde los bancos cuando el total
+        # global falta, asi que el KPI de la ultima sesion nunca queda vacio
+        hoy = {**ult, "vol_usd": ult.get("vol"), "tx": ult.get("tx")}
 
     # Serie POR BANCO sobre las fechas del TCO (para continuar el gráfico de
     # volumen por entidad y calcular promedios/cambios en la tabla).

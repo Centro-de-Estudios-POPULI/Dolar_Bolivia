@@ -595,6 +595,23 @@
     .report-body .rpt-up { color: #C71E1D; }
     .report-body .rpt-down { color: #0A9396; }
     .report-body .rpt-muted { color: var(--muted); font-size: 12.5px; }
+    .report-body .rpt-tbl {
+      width: 100%; border-collapse: collapse; margin: 6px 0 4px;
+      font-size: 13px;
+    }
+    .report-body .rpt-tbl th {
+      text-align: left; font-size: 11px; text-transform: uppercase;
+      letter-spacing: .4px; color: var(--muted); font-weight: 600;
+      padding: 4px 8px; border-bottom: 1px solid var(--border, #e2e2e2);
+    }
+    .report-body .rpt-tbl td {
+      padding: 4px 8px; border-bottom: 1px solid var(--border, #eee);
+    }
+    .report-body .rpt-tbl td.num {
+      font-family: 'IBM Plex Mono', monospace; text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .report-body .rpt-tbl-resto td { color: var(--muted); font-size: 12px; border: none; }
     .report-footer {
       padding: 12px 22px;
       border-top: 1px solid var(--border);
@@ -2469,6 +2486,40 @@ function generateReport() {
     return { vt, vp };
   };
 
+  // Desglose de la sesión banco por banco: monto, transacciones y participación.
+  // Antes el reporte solo nombraba al líder; esto muestra quiénes movieron el
+  // mercado, que es lo que se pide para leer la sesión.
+  const desgloseBancos = (bancosArr) => {
+    const bh = (bancosArr || []).filter(b => (b.monto ?? b.vol) || b.tx);
+    if (!bh.length) return { html: '', plain: '' };
+    const key = bh[0].monto != null ? 'monto' : 'vol';
+    const tot = bh.reduce((s, b) => s + (b[key] || 0), 0) || 1;
+    const top = bh.slice(0, 6);
+    const filas = top.map(b => {
+      const pc = ((b[key] || 0) / tot * 100).toFixed(0);
+      const tx = b.tx != null ? b.tx.toLocaleString('es-BO') : '—';
+      return { banco: b.banco, monto: b[key] || 0, tx, pc,
+               tco: b.tco != null ? fmt2(b.tco) : null };
+    });
+    let html = `<h3>Movimientos por banco</h3>
+      <table class="rpt-tbl"><thead><tr><th>Banco</th><th>TC</th>
+        <th>Transacc.</th><th>Volumen</th><th>%</th></tr></thead><tbody>`;
+    let plain = 'MOVIMIENTOS POR BANCO\n';
+    for (const f of filas) {
+      html += `<tr><td>${f.banco}</td><td>${f.tco ? 'Bs. '+f.tco : '—'}</td>
+        <td class="num">${f.tx}</td><td class="num">$${fmtM(f.monto)}</td>
+        <td class="num">${f.pc}%</td></tr>`;
+      plain += `  ${f.banco.padEnd(14)} ${(f.tco?'Bs.'+f.tco:'—').padStart(8)}  ${String(f.tx).padStart(6)} tx  $${fmtM(f.monto).padStart(7)}  ${f.pc}%\n`;
+    }
+    if (bh.length > top.length) {
+      const resto = bh.length - top.length;
+      html += `<tr class="rpt-tbl-resto"><td>+${resto} bancos más</td><td colspan="4"></td></tr>`;
+      plain += `  +${resto} bancos más\n`;
+    }
+    html += '</tbody></table>';
+    return { html, plain };
+  };
+
   let html = '';
   let plain = '';
 
@@ -2516,6 +2567,8 @@ function generateReport() {
     if (vt) { nt += ' ' + vt; np += ' ' + vp; }
     html += `<p>${nt}</p>`;
     plain += np + '\n\n';
+    const dg = desgloseBancos(g_tcoData.bancos_hoy);
+    if (dg.html) { html += dg.html; plain += dg.plain + '\n'; }
   }
 
   // ── Mercado informal
@@ -2603,6 +2656,8 @@ function generateReport() {
       html += `<h3>Volumen bancario</h3>`;
       html += `<p>${vt}</p>`;
       plain += 'VOLUMEN BANCARIO\n' + vp + '\n\n';
+      const dg = desgloseBancos((g_tcoData && g_tcoData.bancos_hoy) || bancos.tabla_hoy);
+      if (dg.html) { html += dg.html; plain += dg.plain + '\n'; }
     }
   }
 
