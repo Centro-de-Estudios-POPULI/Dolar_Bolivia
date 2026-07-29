@@ -15,15 +15,23 @@
   <style>
     /* ── Variables — Tema Claro ──────────────────────────────────────── */
     :root {
+      /* Paleta OFICIAL POPULI (documento de paleta). Dos rojos con ROLES
+         distintos: --brand para superficies grandes (barra, cabecera) y --red
+         para dato. Se corrigieron tres desvíos: #EE9B00 -> #EE9B00 (naranja
+         oficial), #8B2226 -> #9B2226 (granate; era un typo de un dígito) y el
+         índigo #001219, que no existe en la paleta, pasa a navy. */
+      --brand:  #9B2226;
+      --brand-d:#6B0300;
       --red:    #C71E1D;
       --red2:   #A81817;
-      --garnet: #8B2226;
+      --garnet: #9B2226;
       --petro:  #005F73;
       --teal:   #0A9396;
       --mint:   #94D2BD;
-      --orange: #D4920A;
+      --arena:  #E9D8A6;
+      --orange: #EE9B00;
       --navy:   #001219;
-      --indigo: #6366F1;
+      --indigo: #001219;   /* alias temporal: la paleta no tiene azul medio */
 
       --bg:         #EEF1F5;
       --card:       #FFFFFF;
@@ -77,7 +85,7 @@
     }
 
     [data-theme="dark"] .navbar {
-      background: #7A1211;
+      background: var(--brand-d);
       box-shadow: 0 4px 20px rgba(0,0,0,.7);
     }
     /* La barra en oscuro ya no es casi negra sino rojo de marca oscurecido, así
@@ -94,7 +102,7 @@
       border-color: rgba(199,30,29,.35);
     }
     [data-theme="dark"] .hero {
-      background: #7A1211;   /* rojo de marca oscurecido: mantiene la identidad */
+      background: var(--brand-d);
     }
     [data-theme="dark"] .hero h1        { color: rgba(255,255,255,.94); }
     [data-theme="dark"] .hero h1 em     { color: rgba(255,255,255,.5); }
@@ -122,7 +130,7 @@
     /* Rojo POPULI plano, sin degradado: es el color de marca del documento
        oficial de paleta (#C71E1D) y debe leerse igual en todo el ecosistema. */
     .navbar {
-      background: var(--red);
+      background: var(--brand);
       position: sticky; top: 0; z-index: 100;
       border-top: none;
       box-shadow: none;
@@ -161,7 +169,7 @@
     .nav-meta b { color: rgba(255,255,255,.85); font-weight: 600; }
     .live-dot {
       display: inline-block; width: 6px; height: 6px;
-      border-radius: 50%; background: #4ADE80; margin-right: 5px;
+      border-radius: 50%; background: var(--mint); margin-right: 5px;
       vertical-align: middle;
       animation: livepulse 2.4s ease-in-out infinite;
     }
@@ -170,7 +178,7 @@
       50%      { opacity:.45; transform:scale(.7); }
     }
     .theme-btn {
-      width: 34px; height: 34px; border-radius: 8px; border: none;
+      width: 34px; height: 34px; border-radius: 0; border: none;
       background: rgba(0,0,0,.2);
       border: 1px solid rgba(255,255,255,.16);
       cursor: pointer;
@@ -181,14 +189,24 @@
     .theme-btn svg { width: 15px; height: 15px; fill: rgba(255,255,255,.85); }
 
     /* ── Hero ───────────────────────────────────────────────────────── */
-    /* Antes: degradado rojo→negro. Se reemplaza por el rojo de marca plano, que
-       une visualmente la barra y la cabecera en un solo bloque de color. */
+    /* Cabecera: mismo tratamiento que el hero del home del sitio nuevo — base
+       de marca + capa diagonal hacia el rojo oscuro y un toque de negro, más la
+       retícula de 60px al 6%. Así el monitor y el sitio se leen como una pieza. */
     .hero {
-      background: var(--red);
+      background: var(--brand);
       padding: 38px 24px 42px;
       text-align: center;
       position: relative; overflow: hidden;
     }
+    .hero::before {
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      background:
+        linear-gradient(135deg, rgba(107,3,0,.60) 0%, transparent 55%, rgba(0,0,0,.20) 100%),
+        linear-gradient(rgba(255,255,255,.10) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.10) 1px, transparent 1px);
+      background-size: auto, 60px 60px, 60px 60px;
+    }
+    .hero > * { position: relative; z-index: 1; }
     .hero-inner { max-width: 900px; margin: auto; position: relative; z-index: 1; }
     .hero-watermark {
       position: absolute;
@@ -253,7 +271,7 @@
     .section-num {
       font-size: 9.5px; font-weight: 800; letter-spacing: 1.2px;
       color: var(--red); border: 1.5px solid rgba(199,30,29,.25);
-      padding: 2px 7px; border-radius: 20px; margin-top: 3px; flex-shrink: 0;
+      padding: 2px 7px; border-radius: 0; margin-top: 3px; flex-shrink: 0;
     }
     .section-titles h2 {
       font-family: var(--font-display);
@@ -268,8 +286,9 @@
       gap: 12px;
     }
     @media (max-width: 1080px) { .kpi-grid { grid-template-columns: repeat(3,1fr); } }
-    @media (max-width:  680px) { .kpi-grid { grid-template-columns: repeat(2,1fr); } }
-    @media (max-width:  400px) { .kpi-grid { grid-template-columns: 1fr; } }
+    /* De 680px para abajo SIEMPRE dos por fila: en una sola columna las seis
+       tarjetas empujaban el resto de la página fuera de la primera pantalla. */
+    @media (max-width:  680px) { .kpi-grid { grid-template-columns: repeat(2,1fr); gap: 9px; } }
 
     /* Tarjeta KPI — rediseño jul-2026.
        Antes apilaba cinco elementos (rótulo, valor, delta, sparkline, nota) en un
@@ -339,7 +358,7 @@
       font-size: 9px; font-weight: 700; letter-spacing: .6px;
       color: var(--teal); text-transform: uppercase;
       opacity: 0; transition: opacity .18s;
-      background: rgba(10,147,150,.1); border-radius: 4px;
+      background: rgba(10,147,150,.1); border-radius: 0;
       padding: 2px 5px;
     }
     .kpis-hovering .kpi-hover-badge { opacity: 1; }
@@ -404,7 +423,13 @@
     .chart-med  { height: 280px; }
     /* Boxplot: en móvil el detalle de 14 bancos no entra; permitir scroll horizontal */
     .box-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    @media (max-width: 680px) { .box-scroll #chart-boxplot { min-width: 620px; } }
+    .box-swipe { display: none; }
+    @media (max-width: 680px) {
+      .box-swipe {
+        display: block; margin-top: 7px;
+        font-size: 10.5px; color: var(--muted); font-style: italic;
+      }
+    }
     @media (max-width: 700px) {
       .chart { height: 240px; }
       .chart-tall { height: 280px; }
@@ -414,7 +439,7 @@
     /* ── Range Buttons ───────────────────────────────────────────────── */
     .range-btns { display: flex; gap: 4px; flex-shrink: 0; }
     .rbtn {
-      padding: 4px 11px; border-radius: 20px;
+      padding: 4px 11px; border-radius: 0;
       border: 1.5px solid var(--border); background: transparent;
       color: var(--muted); font-family: 'Inter', sans-serif;
       font-size: 11px; font-weight: 600;
@@ -454,8 +479,8 @@
       font-family: 'IBM Plex Mono', monospace;
       font-size: 13px; font-weight: 500; color: var(--text);
     }
-    .vol-track { height: 4px; background: var(--border); border-radius: 2px; min-width: 80px; }
-    .vol-fill  { height: 4px; border-radius: 2px; }
+    .vol-track { height: 4px; background: var(--border); min-width: 80px; }
+    .vol-fill  { height: 4px; }
 
     .tasa-num {
       font-family: 'IBM Plex Mono', monospace;
@@ -478,7 +503,7 @@
       margin-bottom: 14px;
     }
     .ctx-stat {
-      background: var(--card); border-radius: 10px;
+      background: var(--card); border-radius: 0;
       box-shadow: var(--shadow-xs); padding: 14px 16px;
       border-left: 3px solid var(--border);
       transition: background var(--transition);
@@ -529,7 +554,7 @@
     .report-btn {
       display: inline-flex; align-items: center; gap: 8px;
       margin-top: 18px;
-      padding: 10px 22px; border-radius: 28px;
+      padding: 10px 22px; border-radius: 0;
       border: 1.5px solid rgba(255,255,255,.2);
       background: rgba(0,0,0,.25);
       color: rgba(255,255,255,.9);
@@ -565,7 +590,7 @@
     .report-overlay.open { display: flex; opacity: 1; }
     .report-modal {
       background: var(--card);
-      border-radius: 16px;
+      border-radius: 0;
       box-shadow: 0 20px 60px rgba(0,0,0,.4);
       max-width: 640px; width: 100%;
       max-height: 85vh;
@@ -588,7 +613,7 @@
     }
     .report-actions { display: flex; gap: 8px; }
     .report-action-btn {
-      padding: 7px 14px; border-radius: 8px;
+      padding: 7px 14px; border-radius: 0;
       border: 1.5px solid var(--border);
       background: transparent; color: var(--text2);
       font-family: 'Inter', sans-serif;
@@ -606,7 +631,7 @@
     }
     .report-action-btn svg { width: 14px; height: 14px; fill: currentColor; }
     .report-close {
-      width: 32px; height: 32px; border-radius: 8px;
+      width: 32px; height: 32px; border-radius: 0;
       border: none; background: transparent;
       color: var(--muted); cursor: pointer;
       display: flex; align-items: center; justify-content: center;
@@ -659,7 +684,7 @@
     }
 
     @media (max-width: 520px) {
-      .report-modal { max-height: 92vh; border-radius: 14px; }
+      .report-modal { max-height: 92vh; border-radius: 0; }
       .report-header { padding: 14px 16px 12px; }
       .report-body { padding: 16px; font-size: 13px; }
       .report-btn { font-size: 12px; padding: 9px 18px; }
@@ -692,11 +717,11 @@
     .hm-legend-label:last-child { text-align: right; }
     .hm-legend-bar {
       position: relative; flex: 0 1 220px; height: 10px;
-      border-radius: 5px; overflow: visible;
+      overflow: visible;
     }
     .hm-legend-marker {
       position: absolute; top: -3px;
-      width: 3px; height: 16px; border-radius: 2px;
+      width: 3px; height: 16px;
       background: var(--text); opacity: 0;
       transition: left .15s ease, opacity .15s ease;
       pointer-events: none;
@@ -758,7 +783,7 @@
       thead th { padding: 9px 12px; font-size: 9px; }
       tbody td { padding: 10px 12px; font-size: 12px; }
       .report-overlay { padding: 10px; }
-      .report-modal { max-height: 92vh; border-radius: 14px; }
+      .report-modal { max-height: 92vh; border-radius: 0; }
       .report-header { padding: 14px 16px 12px; }
       .report-body { padding: 16px; font-size: 13px; line-height: 1.65; }
       .report-footer { font-size: 9.5px; padding: 10px 16px; }
@@ -767,7 +792,6 @@
     }
     @media (max-width: 380px) {
       .table-context { grid-template-columns: 1fr; }
-      .kpi-grid { grid-template-columns: 1fr; }
       .nav-left svg { height: 22px; }
       .report-body { padding: 12px; font-size: 12.5px; }
       .report-action-btn span { display: none; }
@@ -1115,6 +1139,9 @@
       <div class="box-scroll">
         <div id="chart-boxplot" class="chart chart-tall"><div class="loading">Cargando…</div></div>
       </div>
+      <!-- En móvil el lienzo es más ancho que la pantalla para que cada banco
+           tenga su banda; sin este aviso el corte parece un error de carga. -->
+      <div class="box-swipe" id="box-swipe">Desliza el gráfico para ver todas las entidades →</div>
       <div class="chart-hint" style="margin-top:8px">
         <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
         Ponderado por monto operado (USD), igual que el TCO del BCB. Caja = rango intercuartílico (50% central) · línea interna = mediana · ▲ media = TCO oficial del banco · ● atípicos · bigotes a 1,5×IQR. Bajo cada banco: TCO del banco (azul) y (nº de transacciones). Ordenados de menor a mayor TCO.
@@ -1272,7 +1299,7 @@ const tipBase = () => {
     backgroundColor: c.tipBg, borderColor: c.tipBd, borderWidth: 1,
     confine: true,
     textStyle: { color: '#D0E4F0', fontSize: 12.5, fontFamily: 'Inter' },
-    extraCssText: 'box-shadow:0 8px 28px rgba(0,0,0,.45);border-radius:10px;padding:12px 16px',
+    extraCssText: 'box-shadow:0 8px 28px rgba(0,0,0,.45);border-radius:0;padding:12px 16px',
   };
 };
 
@@ -1423,9 +1450,9 @@ const wireRange = (id, getter) => {
 function regimeMarkLineItem() {
   return REGIME_TCO ? {
     xAxis: REGIME_TCO,
-    label:{ formatter:'Cambio de régimen · TCO', color:'#6366F1', fontSize:10,
+    label:{ formatter:'Cambio de régimen · TCO', color:'#001219', fontSize:10,
             fontFamily:'Inter', position:'insideEndTop', rotate:90, padding:[0,0,6,0] },
-    lineStyle:{ color:'#6366F1', width:1.3, type:'dotted' },
+    lineStyle:{ color:'#001219', width:1.3, type:'dotted' },
   } : null;
 }
 function regimeMarkLine() {
@@ -1577,8 +1604,8 @@ function renderPrecios(serie) {
         symbol:'none', smooth:0.55, z:4,
         markLine: REGIME_TCO ? {
           symbol:'none', silent:true, animation:false,
-          lineStyle:{ color:'#6366F1', width:1.3, type:'dotted' },
-          label:{ formatter:'Cambio de régimen · TCO', color:'#6366F1', fontSize:10,
+          lineStyle:{ color:'#001219', width:1.3, type:'dotted' },
+          label:{ formatter:'Cambio de régimen · TCO', color:'#001219', fontSize:10,
                   fontFamily:'Inter', position:'insideEndTop', rotate:90, padding:[0,0,6,0] },
           data:[{ xAxis: REGIME_TCO }],
         } : undefined,
@@ -1592,12 +1619,12 @@ function renderPrecios(serie) {
       },
       {
         name:'USDT P2P', type:'line', data:usdt,
-        itemStyle:{ color:'#D4920A' }, lineStyle:{ width:1.8, color:'#D4920A', type:'dashed' },
+        itemStyle:{ color:'#EE9B00' }, lineStyle:{ width:1.8, color:'#EE9B00', type:'dashed' },
         symbol:'circle', symbolSize:4, smooth:0.4, z:5,
       },
       {
         name:'Oficial (6,96)', type:'line', data: serie.map(p => [p.f, BCB_OFICIAL]),
-        itemStyle:{ color:'#6366F1' }, lineStyle:{ width:1.5, color:'#6366F1', type:'dashed' },
+        itemStyle:{ color:'#001219' }, lineStyle:{ width:1.5, color:'#001219', type:'dashed' },
         symbol:'none', z:2,
       },
     ],
@@ -1659,7 +1686,7 @@ function renderTco(serie) {
           const d = pu.value[1] - pvta.value[1];
           o += `<div style="margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,.08);
             display:flex;justify-content:space-between;gap:18px">
-            <span style="color:#D4920A;font-size:12px">● USDT s/ venta oficial</span>
+            <span style="color:#EE9B00;font-size:12px">● USDT s/ venta oficial</span>
             <b style="font-family:'IBM Plex Mono',monospace;font-size:12px">${d >= 0 ? '+' : ''}Bs. ${d.toFixed(2)}</b>
           </div>`;
         }
@@ -1701,7 +1728,7 @@ function renderTco(serie) {
       },
       {
         name:'USDT P2P', type:'line', data:usdt,
-        itemStyle:{ color:'#D4920A' }, lineStyle:{ width:1.8, color:'#D4920A', type:'dashed' },
+        itemStyle:{ color:'#EE9B00' }, lineStyle:{ width:1.8, color:'#EE9B00', type:'dashed' },
         symbol:'circle', symbolSize:4, showSymbol:true, smooth:0.4, z:5,
       },
     ],
@@ -1763,8 +1790,8 @@ function renderPrima(serie) {
     dataZoom:[{ type:'inside', filterMode:'filter' }],
     series:[{
       name:'Prima USDT', type:'line', data:data,
-      itemStyle:{ color:'#8B2226' },
-      lineStyle:{ width:2, color:'#8B2226' },
+      itemStyle:{ color:'#9B2226' },
+      lineStyle:{ width:2, color:'#9B2226' },
       areaStyle:{ color:{ type:'linear', x:0, y:0, x2:0, y2:1,
         colorStops:[{offset:0,color:'rgba(139,34,38,.2)'},{offset:1,color:'rgba(139,34,38,0)'}] } },
       symbol:'none', smooth:0.4,
@@ -1809,7 +1836,7 @@ function renderBrecha(serie) {
         const v = idx >= 0 ? g_serie[idx].c : null;
         let o = `<div style="font-weight:700;margin-bottom:5px;font-size:11.5px;color:#7AA8C0">${fmtDate(f)}</div>`;
         o += `<div style="display:flex;justify-content:space-between;gap:18px">
-            <span style="color:#6366F1">● Brecha cambiaria</span>
+            <span style="color:#001219">● Brecha cambiaria</span>
             <b style="font-family:'IBM Plex Mono',monospace">${pct >= 0 ? '+' : ''}${Number(pct).toFixed(1)}%</b>
           </div>`;
         if (v != null) {
@@ -1819,7 +1846,7 @@ function renderBrecha(serie) {
             <b style="font-family:'IBM Plex Mono',monospace;font-size:12px">Bs. ${v.toFixed(2)}</b>
           </div>`;
           o += `<div style="display:flex;justify-content:space-between;gap:18px;margin-top:2px">
-            <span style="color:#6366F1;font-size:12px">Oficial fijo</span>
+            <span style="color:#001219;font-size:12px">Oficial fijo</span>
             <b style="font-family:'IBM Plex Mono',monospace;font-size:12px">Bs. 6,96</b>
           </div>`;
           o += `<div style="display:flex;justify-content:space-between;gap:18px;margin-top:2px">
@@ -1849,8 +1876,8 @@ function renderBrecha(serie) {
     dataZoom:[{ type:'inside', filterMode:'filter' }],
     series:[{
       name:'Brecha', type:'line', data:data,
-      itemStyle:{ color:'#6366F1' },
-      lineStyle:{ width:2, color:'#6366F1' },
+      itemStyle:{ color:'#001219' },
+      lineStyle:{ width:2, color:'#001219' },
       areaStyle:{ color:{ type:'linear', x:0, y:0, x2:0, y2:1,
         colorStops:[{offset:0,color:'rgba(99,102,241,.22)'},{offset:1,color:'rgba(99,102,241,0)'}] } },
       symbol:'none', smooth:0.4,
@@ -2007,6 +2034,11 @@ function renderBoxplot(dist) {
 
   if (boxplotChart) boxplotChart.dispose();
   el.innerHTML = '';
+  // En pantallas angostas cada banco necesita su propia banda para que el nombre,
+  // la media y el nº de transacciones no se pisen. Se ensancha el lienzo (≈76px
+  // por entidad) y el contenedor .box-scroll permite desplazarlo en horizontal.
+  const angosto = window.innerWidth <= 680;
+  el.style.minWidth = angosto ? Math.max(640, banks.length * 76) + 'px' : '';
   boxplotChart = echarts.init(el, null, { renderer:'canvas' });
   const c = ct();
   const dark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -2060,9 +2092,9 @@ function renderBoxplot(dist) {
           return b ? `{n|${name}}\n{v|${fmtBs(b.mean)}}\n{t|(${b.tx || 0})}` : name;
         },
         rich:{
-          n:{ color:c.axis, fontFamily:'Inter', fontWeight:600, fontSize: mob() ? 8 : 10 },
-          v:{ color:medColor, fontFamily:'IBM Plex Mono', fontSize: mob() ? 8 : 10 },
-          t:{ color:c.axis, fontFamily:'Inter', fontSize: mob() ? 7 : 8.5 },
+          n:{ color:c.axis, fontFamily:'Inter', fontWeight:600, fontSize:10 },
+          v:{ color:medColor, fontFamily:'IBM Plex Mono', fontSize:10 },
+          t:{ color:c.axis, fontFamily:'Inter', fontSize:8.5 },
         },
       },
     },
@@ -2109,8 +2141,8 @@ function renderHeatmap(serie) {
 
   const isMob = mob();
   const roundMax = Math.ceil(maxVol / 1e6) * 1e6;
-  const colorsLight = ['#F7E8E8','#F0C4C4','#E08888','#C74444','#C71E1D','#8B2226'];
-  const colorsDark  = ['#1a0404','#3d0a0a','#6a1515','#8B2226','#C71E1D','#E86460'];
+  const colorsLight = ['#F7E8E8','#F0C4C4','#E08888','#C74444','#C71E1D','#9B2226'];
+  const colorsDark  = ['#1a0404','#3d0a0a','#6a1515','#9B2226','#C71E1D','#E86460'];
   const palette = dark ? colorsDark : colorsLight;
 
   heatmapChart.setOption({
