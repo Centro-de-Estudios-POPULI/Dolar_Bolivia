@@ -13,16 +13,29 @@ on:
     # cada corrida baja el histórico completo y un día que se pierda se AUTO-RECUPERA
     # en la siguiente corrida que sí pase el WAF (ya no hay pérdida por día suelto).
     #
+    #
+    # ⚠ POR QUÉ DISPARAMOS ANTES Y ESPERAMOS DENTRO DEL JOB (jul-2026).
+    # Las 20:05 BOT son las 00:05 UTC: la ventana MÁS congestionada de GitHub
+    # Actions, porque medio mundo agenda `0 0 * * *`. GitHub no garantiza
+    # puntualidad en `schedule` y descarta corridas bajo carga. Medido: el bloque
+    # de la tarde (00:05–01:30 UTC) no aterrizaba nunca y el TCO terminaba
+    # capturándose recién ~23:30 BOT por la red de seguridad. Es decir, entre las
+    # 20:00 y las 23:30 el panel mostraba "pendiente" con el dato ya publicado.
+    # Solución sin servicios externos: disparar a una hora poco cargada y con
+    # minuto NO redondo, y dormir dentro del job hasta las 20:05 BOT exactas.
+    # El repo es público -> minutos de Actions gratis, la espera no cuesta nada.
+    #
     # ── Tarde/noche · captura el TCO de MAÑANA apenas se publica (~20:00 BOT) ──
-    - cron: "5 0 * * *"    # 20:05 BOT
-    - cron: "20 0 * * *"   # 20:20 BOT
-    - cron: "45 0 * * *"   # 20:45 BOT
-    - cron: "30 1 * * *"   # 21:30 BOT
-    - cron: "0 3 * * *"    # 23:00 BOT (red de seguridad nocturna)
+    - cron: "17 23 * * *"  # 19:17 BOT · espera dentro del job hasta las 20:05 BOT
+    - cron: "38 0 * * *"   # 20:38 BOT (reintento)
+    - cron: "23 1 * * *"   # 21:23 BOT (reintento)
+    - cron: "7 3 * * *"    # 23:07 BOT (red de seguridad nocturna)
     # ── Mañana · confirma/finaliza el TCO VIGENTE de hoy (antes de las 12:00) ──
-    - cron: "0 12 * * *"   # 08:00 BOT
-    - cron: "0 15 * * *"   # 11:00 BOT
-    - cron: "45 15 * * *"  # 11:45 BOT
+    # Minutos no redondos por el mismo motivo: las horas en punto se retrasaban
+    # entre 1 y 2 horas y media.
+    - cron: "19 12 * * *"  # 08:19 BOT
+    - cron: "7 15 * * *"   # 11:07 BOT
+    - cron: "52 15 * * *"  # 11:52 BOT
   workflow_dispatch:
 
 permissions:
@@ -33,6 +46,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Espera hasta las 20:05 BOT (00:05 UTC) sólo si el disparo fue programado y
+      # todavía no pasó esa hora. Si GitHub nos arrancó tarde —o si alguien lanzó
+      # el workflow a mano— no espera nada y corre de inmediato.
+      - name: Esperar al cierre de la sesión (20:05 BOT)
+        if: github.event_name == 'schedule'
+        run: |
+          objetivo=$(date -u -d 'tomorrow 00:05' +%s)
+          ahora=$(date -u +%s)
+          espera=$(( objetivo - ahora ))
+          # >2 h significa que el objetivo ya pasó hoy y 'tomorrow' apunta un día
+          # de más: en ese caso corremos ya, sin dormir.
+          if [ "$espera" -gt 0 ] && [ "$espera" -le 7200 ]; then
+            echo "Ahora $(date -u +%H:%M) UTC · durmiendo ${espera}s hasta las 00:05 UTC (20:05 BOT)"
+            sleep "$espera"
+          else
+            echo "Sin espera (faltan ${espera}s): se ejecuta de inmediato."
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
 
