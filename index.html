@@ -5,7 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tipo de Cambio Oficial Bolivia · Populi</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=IBM+Plex+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet" />
+  <!-- Familia tipográfica POPULI (estándar del ecosistema):
+         Inter          — interfaz, etiquetas y texto corrido
+         Newsreader     — títulos editoriales (identidad nueva, reemplaza a Playfair)
+         IBM Plex Mono  — cifras tabulares
+       Playfair Display se conserva SOLO para el logotipo "Populi" del SVG. -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
   <style>
     /* ── Variables — Tema Claro ──────────────────────────────────────── */
@@ -32,7 +37,14 @@
 
       --shadow:     0 1px 3px rgba(0,18,25,.05), 0 4px 18px rgba(0,18,25,.06);
       --shadow-xs:  0 1px 2px rgba(0,18,25,.06);
-      --radius:     13px;
+      /* Esquinas rectas en todo el ecosistema (identidad nueva). Se conserva la
+         variable para no tener que tocar cada regla una por una. */
+      --radius:     0px;
+
+      /* Familia tipográfica estándar POPULI */
+      --font-ui:      'Inter', system-ui, -apple-system, sans-serif;
+      --font-display: 'Newsreader', Georgia, 'Times New Roman', serif;
+      --font-mono:    'IBM Plex Mono', ui-monospace, monospace;
       --transition: .18s ease;
 
       --ct-axis:    #92A4B4;
@@ -65,14 +77,13 @@
     }
 
     [data-theme="dark"] .navbar {
-      background: linear-gradient(160deg, #1A0606 0%, #0A0202 100%);
-      border-top-color: rgba(199,30,29,.2);
-      box-shadow: 0 1px 0 rgba(199,30,29,.12), 0 4px 20px rgba(0,0,0,.7);
+      background: #7A1211;
+      box-shadow: 0 4px 20px rgba(0,0,0,.7);
     }
-    [data-theme="dark"] .logo-p { fill: rgba(199,30,29,.9); }
-    [data-theme="dark"] .logo-opuli { fill: rgba(245,239,224,.85); }
-    [data-theme="dark"] .nav-divider { background: rgba(255,255,255,.08); }
-    [data-theme="dark"] .brand-sub  { color: rgba(255,255,255,.25); }
+    /* La barra en oscuro ya no es casi negra sino rojo de marca oscurecido, así
+       que el logotipo y el subtítulo heredan el tratamiento en blanco del tema
+       claro: en rojo sobre rojo el logo quedaba ilegible. */
+    [data-theme="dark"] .brand-sub  { color: rgba(255,255,255,.6); }
     [data-theme="dark"] .nav-center { color: rgba(255,255,255,.7); }
     [data-theme="dark"] .theme-btn  {
       background: rgba(199,30,29,.1);
@@ -83,11 +94,11 @@
       border-color: rgba(199,30,29,.35);
     }
     [data-theme="dark"] .hero {
-      background: linear-gradient(180deg, #0A0202 0%, #040101 50%, #000000 100%);
+      background: #7A1211;   /* rojo de marca oscurecido: mantiene la identidad */
     }
-    [data-theme="dark"] .hero h1        { color: rgba(255,255,255,.85); }
-    [data-theme="dark"] .hero h1 em     { color: rgba(255,255,255,.3); }
-    [data-theme="dark"] .hero-desc      { color: rgba(255,255,255,.28); }
+    [data-theme="dark"] .hero h1        { color: rgba(255,255,255,.94); }
+    [data-theme="dark"] .hero h1 em     { color: rgba(255,255,255,.5); }
+    [data-theme="dark"] .hero-desc      { color: rgba(255,255,255,.68); }
     [data-theme="dark"] .hero-watermark { color: rgba(255,255,255,.022); }
     [data-theme="dark"] .info-strip { background: #0A0A0A; border-bottom-color: #1A1A1A; }
     [data-theme="dark"] thead tr { background: #080808; }
@@ -108,10 +119,12 @@
     a:hover { text-decoration: underline; }
 
     /* ── Navbar ─────────────────────────────────────────────────────── */
+    /* Rojo POPULI plano, sin degradado: es el color de marca del documento
+       oficial de paleta (#C71E1D) y debe leerse igual en todo el ecosistema. */
     .navbar {
-      background: linear-gradient(180deg, #CE2020 0%, #A81414 100%);
+      background: var(--red);
       position: sticky; top: 0; z-index: 100;
-      border-top: 2px solid rgba(255,255,255,.15);
+      border-top: none;
       box-shadow: none;
     }
     .navbar-inner {
@@ -126,10 +139,10 @@
     .logo-opuli { fill: rgba(255,255,255,.78); }
     .nav-divider {
       width: 1px; height: 18px;
-      background: rgba(255,255,255,.16);
+      background: rgba(255,255,255,.3);
     }
     .brand-sub {
-      font-size: 11px; font-weight: 400; color: rgba(255,255,255,.45);
+      font-size: 11px; font-weight: 400; color: rgba(255,255,255,.72);
       letter-spacing: .2px; white-space: nowrap;
     }
     .nav-center {
@@ -142,7 +155,7 @@
       display: flex; align-items: center; justify-content: flex-end; gap: 12px;
     }
     .nav-meta {
-      font-size: 11px; color: rgba(255,255,255,.5); white-space: nowrap;
+      font-size: 11px; color: rgba(255,255,255,.75); white-space: nowrap;
       display: flex; align-items: center; gap: 5px;
     }
     .nav-meta b { color: rgba(255,255,255,.85); font-weight: 600; }
@@ -168,31 +181,36 @@
     .theme-btn svg { width: 15px; height: 15px; fill: rgba(255,255,255,.85); }
 
     /* ── Hero ───────────────────────────────────────────────────────── */
+    /* Antes: degradado rojo→negro. Se reemplaza por el rojo de marca plano, que
+       une visualmente la barra y la cabecera en un solo bloque de color. */
     .hero {
-      background: linear-gradient(180deg, #A81414 0%, #6A0C0C 40%, #1A0404 80%, #000000 100%);
-      padding: 40px 24px 44px;
+      background: var(--red);
+      padding: 38px 24px 42px;
       text-align: center;
       position: relative; overflow: hidden;
     }
-    .hero-inner { max-width: 680px; margin: auto; position: relative; z-index: 1; }
+    .hero-inner { max-width: 900px; margin: auto; position: relative; z-index: 1; }
     .hero-watermark {
       position: absolute;
       right: -10px; bottom: -20px;
       font-family: 'IBM Plex Mono', monospace;
       font-size: clamp(90px, 14vw, 180px);
       font-weight: 500; letter-spacing: -6px;
-      color: rgba(255,255,255,.05);
+      color: rgba(255,255,255,.085);
       line-height: 1; pointer-events: none; user-select: none;
       z-index: 0;
     }
     .hero h1 {
-      font-size: clamp(22px, 3vw, 30px); font-weight: 800;
-      color: rgba(255,255,255,.95); letter-spacing: -.5px;
-      line-height: 1.15; margin-bottom: 10px;
+      font-family: var(--font-display);
+      font-size: clamp(25px, 3vw, 34px); font-weight: 600;
+      color: #fff; letter-spacing: -.3px;
+      line-height: 1.12; margin-bottom: 10px;
     }
-    .hero h1 em { color: rgba(255,255,255,.45); font-style: normal; font-weight: 400; }
+    .hero h1 em { color: rgba(255,255,255,.62); font-style: normal; font-weight: 400; }
+    /* Sobre rojo plano el texto necesita mas opacidad que sobre el degradado
+       oscuro anterior; con .42 quedaba ilegible. */
     .hero-desc {
-      font-size: 13.5px; color: rgba(255,255,255,.42); line-height: 1.7;
+      font-size: 13.5px; color: rgba(255,255,255,.78); line-height: 1.65;
     }
 
     /* ── Info strip ──────────────────────────────────────────────────── */
@@ -237,7 +255,10 @@
       color: var(--red); border: 1.5px solid rgba(199,30,29,.25);
       padding: 2px 7px; border-radius: 20px; margin-top: 3px; flex-shrink: 0;
     }
-    .section-titles h2 { font-size: 15.5px; font-weight: 700; color: var(--text); letter-spacing: -.15px; }
+    .section-titles h2 {
+      font-family: var(--font-display);
+      font-size: 20px; font-weight: 600; color: var(--text); letter-spacing: -.2px;
+    }
     .section-titles p  { font-size: 12.5px; color: var(--muted); margin-top: 3px; line-height: 1.55; }
 
     /* ── KPI Grid ────────────────────────────────────────────────────── */
@@ -250,20 +271,39 @@
     @media (max-width:  680px) { .kpi-grid { grid-template-columns: repeat(2,1fr); } }
     @media (max-width:  400px) { .kpi-grid { grid-template-columns: 1fr; } }
 
+    /* Tarjeta KPI — rediseño jul-2026.
+       Antes apilaba cinco elementos (rótulo, valor, delta, sparkline, nota) en un
+       bloque de 16px de alto cada uno: el ojo no encontraba dónde posarse y la nota
+       de dos líneas descuadraba las tarjetas entre sí. Ahora son TRES bandas:
+         1. rótulo
+         2. valor + variación en la MISMA línea de base (lo que se compara, junto)
+         3. filete + nota al pie
+       El acento de color pasa de un borde izquierdo redondeado a un filete
+       superior recto, coherente con las esquinas rectas del ecosistema. */
     .kpi-card {
       background: var(--card); border-radius: var(--radius);
-      box-shadow: var(--shadow); padding: 16px 18px 14px;
-      border-left: 3px solid transparent;
-      display: flex; flex-direction: column; gap: 3px;
-      transition: background var(--transition), box-shadow var(--transition), border-color var(--transition);
+      box-shadow: var(--shadow); padding: 0;
+      border-top: 2px solid transparent;
+      display: flex; flex-direction: column;
+      transition: background var(--transition), box-shadow var(--transition);
       position: relative;
     }
-    .kpi-card.venta  { border-left-color: var(--red); }
-    .kpi-card.compra { border-left-color: var(--petro); }
-    .kpi-card.usdt   { border-left-color: var(--orange); }
-    .kpi-card.spread { border-left-color: var(--teal); }
-    .kpi-card.prima  { border-left-color: var(--garnet); }
-    .kpi-card.brecha { border-left-color: var(--indigo); }
+    .kpi-card.venta  { border-top-color: var(--red); }
+    .kpi-card.compra { border-top-color: var(--petro); }
+    .kpi-card.usdt   { border-top-color: var(--orange); }
+    .kpi-card.spread { border-top-color: var(--teal); }
+    .kpi-card.prima  { border-top-color: var(--garnet); }
+    .kpi-card.brecha { border-top-color: var(--indigo); }
+    /* banda 1+2 */
+    /* crece para llenar la tarjeta: así el filete cae a la MISMA altura en las
+       seis, sin importar si la nota ocupa una línea o dos */
+    .kpi-body { padding: 13px 15px 12px; flex: 1 1 auto; }
+    /* banda 3: la nota queda abajo y alineada entre tarjetas gracias al margin-top
+       automático, así el filete cae siempre a la misma altura. */
+    .kpi-foot {
+      padding: 8px 15px 11px;
+      border-top: 1px solid var(--border2);
+    }
 
     /* ── Explicador de los tres tipos de cambio ────────────────────── */
     .rates-explainer {
@@ -305,37 +345,36 @@
     .kpis-hovering .kpi-hover-badge { opacity: 1; }
 
     .kpi-label {
-      font-size: 9.5px; font-weight: 700; letter-spacing: 1px;
+      font-size: 9.5px; font-weight: 600; letter-spacing: .9px;
       text-transform: uppercase; color: var(--muted);
+      display: block; margin-bottom: 7px;
     }
+    /* Valor y variación comparten línea de base: el número manda por tamaño y la
+       variación se lee al lado sin competir. */
+    .kpi-row { display: block; }
     .kpi-value {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 26px; font-weight: 500;
-      color: var(--text); line-height: 1.1; margin-top: 5px;
-      letter-spacing: -.5px;
+      font-family: var(--font-mono);
+      font-size: 27px; font-weight: 500;
+      color: var(--text); line-height: 1.05;
+      letter-spacing: -1px;
       transition: color var(--transition);
     }
-    .kpi-unit { font-size: 12px; font-weight: 400; color: var(--muted); }
-    .kpi-sub  { font-size: 10.5px; color: var(--muted); margin-top: 5px; line-height: 1.45; }
+    .kpi-unit { font-size: 11.5px; font-weight: 400; color: var(--muted); margin-left: 5px; }
+    .kpi-sub  { font-size: 10.5px; color: var(--muted); line-height: 1.45; display: block; }
 
-    /* ── KPI Deltas ────────────────────────────────────────────────── */
+    /* ── Variación ─────────────────────────────────────────────────── */
     .kpi-delta {
-      display: flex; align-items: center; gap: 4px;
-      font-size: 11px; font-weight: 600;
-      font-family: 'IBM Plex Mono', monospace;
-      margin-top: 3px; min-height: 16px;
+      display: flex; align-items: baseline; gap: 4px;
+      font-size: 11.5px; font-weight: 600;
+      font-family: var(--font-mono);
+      margin-top: 6px; min-height: 15px;
+      white-space: nowrap;
     }
-    .kpi-delta.up { color: #C71E1D; }
-    .kpi-delta.down { color: #0A9396; }
+    .kpi-delta.up { color: var(--red); }
+    .kpi-delta.down { color: var(--teal); }
     .kpi-delta .pct {
       font-weight: 400; color: var(--muted);
       font-size: 10px; margin-left: 1px;
-    }
-
-    /* ── KPI Sparklines ────────────────────────────────────────────── */
-    .kpi-spark {
-      width: 100%; height: 30px;
-      margin-top: 6px; display: block;
     }
 
     /* ── Hint de uso ─────────────────────────────────────────────────── */
@@ -706,8 +745,8 @@
       .range-btns { align-self: flex-start; }
       .chart-hint { font-size: 10px; }
       .kpi-value { font-size: 22px; }
-      .kpi-card { padding: 13px 14px 11px; }
-      .kpi-spark { height: 24px; }
+      .kpi-body { padding: 11px 13px 10px; }
+      .kpi-foot { padding: 7px 13px 9px; }
       .table-context { grid-template-columns: repeat(2, 1fr); gap: 8px; }
       .ctx-stat { padding: 10px 12px; }
       .ctx-stat-value { font-size: 17px; }
@@ -814,51 +853,70 @@
     <div class="kpi-grid" id="kpi-grid">
       <div class="kpi-card venta">
         <span class="kpi-hover-badge">historial</span>
-        <div class="kpi-label" id="label-tco">TCO · rige hoy</div>
-        <div class="kpi-value"><span id="kpi-tco">—</span> <span class="kpi-unit">Bs.</span></div>
-        <div class="kpi-delta" id="delta-tco"></div>
-        <svg class="kpi-spark" id="spark-tco" viewBox="0 0 100 30" preserveAspectRatio="none"></svg>
-        <div class="kpi-sub">tipo de cambio oficial · promedio ponderado de compra</div>
+        <div class="kpi-body">
+          <span class="kpi-label" id="label-tco">TCO · rige hoy</span>
+          <div class="kpi-row">
+            <span class="kpi-value"><span id="kpi-tco">—</span><span class="kpi-unit">Bs.</span></span>
+            <span class="kpi-delta" id="delta-tco"></span>
+          </div>
+        </div>
+        <div class="kpi-foot"><span class="kpi-sub">tipo de cambio oficial · promedio ponderado de compra</span></div>
       </div>
       <div class="kpi-card brecha">
-        <div class="kpi-label">Regirá mañana</div>
-        <div class="kpi-value"><span id="kpi-manana">—</span> <span class="kpi-unit">Bs.</span></div>
-        <div class="kpi-delta" id="delta-manana"></div>
-        <svg class="kpi-spark" viewBox="0 0 100 30" preserveAspectRatio="none"></svg>
-        <div class="kpi-sub" id="sub-manana">se fija al cierre de la sesión de hoy (20:00)</div>
+        <div class="kpi-body">
+          <span class="kpi-label">Regirá mañana</span>
+          <div class="kpi-row">
+            <span class="kpi-value"><span id="kpi-manana">—</span><span class="kpi-unit">Bs.</span></span>
+            <span class="kpi-delta" id="delta-manana"></span>
+          </div>
+        </div>
+        <div class="kpi-foot"><span class="kpi-sub" id="sub-manana">se fija al cierre de la sesión de hoy (20:00)</span></div>
       </div>
       <div class="kpi-card spread">
         <span class="kpi-hover-badge">historial</span>
-        <div class="kpi-label">Venta oficial</div>
-        <div class="kpi-value"><span id="kpi-vofic">—</span> <span class="kpi-unit">Bs.</span></div>
-        <div class="kpi-delta" id="delta-vofic"></div>
-        <svg class="kpi-spark" id="spark-vofic" viewBox="0 0 100 30" preserveAspectRatio="none"></svg>
-        <div class="kpi-sub">TCO + 0,10 Bs · disposición del BCB</div>
+        <div class="kpi-body">
+          <span class="kpi-label">Venta oficial</span>
+          <div class="kpi-row">
+            <span class="kpi-value"><span id="kpi-vofic">—</span><span class="kpi-unit">Bs.</span></span>
+            <span class="kpi-delta" id="delta-vofic"></span>
+          </div>
+        </div>
+        <div class="kpi-foot"><span class="kpi-sub">TCO + 0,10 Bs · disposición del BCB</span></div>
       </div>
       <div class="kpi-card usdt">
         <span class="kpi-hover-badge">historial</span>
-        <div class="kpi-label">USDT · P2P</div>
-        <div class="kpi-value"><span id="kpi-usdt">—</span> <span class="kpi-unit">Bs.</span></div>
-        <div class="kpi-delta" id="delta-usdt"></div>
-        <svg class="kpi-spark" id="spark-usdt" viewBox="0 0 100 30" preserveAspectRatio="none"></svg>
-        <div class="kpi-sub">VWAP diario — Binance P2P (ofertas de compra)</div>
+        <div class="kpi-body">
+          <span class="kpi-label">USDT · P2P</span>
+          <div class="kpi-row">
+            <span class="kpi-value"><span id="kpi-usdt">—</span><span class="kpi-unit">Bs.</span></span>
+            <span class="kpi-delta" id="delta-usdt"></span>
+          </div>
+        </div>
+        <div class="kpi-foot"><span class="kpi-sub">VWAP diario — Binance P2P (ofertas de compra)</span></div>
       </div>
       <div class="kpi-card prima">
         <span class="kpi-hover-badge">historial</span>
-        <div class="kpi-label">Prima USDT</div>
-        <div class="kpi-value"><span id="kpi-prima">—</span> <span class="kpi-unit">Bs.</span></div>
-        <div class="kpi-delta" id="delta-prima"></div>
-        <svg class="kpi-spark" id="spark-prima" viewBox="0 0 100 30" preserveAspectRatio="none"></svg>
-        <div class="kpi-sub">USDT − venta oficial · informal vs. oficial</div>
+        <div class="kpi-body">
+          <span class="kpi-label">Prima USDT</span>
+          <div class="kpi-row">
+            <span class="kpi-value"><span id="kpi-prima">—</span><span class="kpi-unit">Bs.</span></span>
+            <span class="kpi-delta" id="delta-prima"></span>
+          </div>
+        </div>
+        <div class="kpi-foot"><span class="kpi-sub">USDT − venta oficial · informal vs. oficial</span></div>
       </div>
       <div class="kpi-card compra">
         <span class="kpi-hover-badge">historial</span>
-        <div class="kpi-label">Volumen del día</div>
-        <div class="kpi-value"><span id="kpi-volumen">—</span> <span class="kpi-unit">USD</span></div>
-        <div class="kpi-delta" id="delta-volumen"></div>
-        <svg class="kpi-spark" id="spark-volumen" viewBox="0 0 100 30" preserveAspectRatio="none"></svg>
-        <div class="kpi-sub" id="sub-volumen">monto negociado en la sesión</div>
+        <div class="kpi-body">
+          <span class="kpi-label">Volumen del día</span>
+          <div class="kpi-row">
+            <span class="kpi-value"><span id="kpi-volumen">—</span><span class="kpi-unit">USD</span></span>
+            <span class="kpi-delta" id="delta-volumen"></span>
+          </div>
+        </div>
+        <div class="kpi-foot"><span class="kpi-sub" id="sub-volumen">monto negociado en la sesión</span></div>
       </div>
+    </div>
     </div>
     <div class="chart-hint" style="margin-top:10px">
       <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
@@ -1217,52 +1275,6 @@ const tipBase = () => {
     extraCssText: 'box-shadow:0 8px 28px rgba(0,0,0,.45);border-radius:10px;padding:12px 16px',
   };
 };
-
-/* ── Sparklines (SVG) ──────────────────────────────────────────────────── */
-function drawSparkline(svgId, data, color) {
-  const svg = document.getElementById(svgId);
-  if (!svg) return;
-  svg.innerHTML = '';
-  const vals = data.filter(v => v != null);
-  if (vals.length < 2) return;
-  const min = Math.min(...vals), max = Math.max(...vals);
-  const range = max - min || 1;
-  const w = 100, h = 30, pad = 2;
-  const pts = vals.map((v, i) => {
-    const x = (i / (vals.length - 1)) * w;
-    const y = h - pad - ((v - min) / range) * (h - pad * 2);
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  });
-  const area = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-  area.setAttribute('points', `0,${h} ${pts.join(' ')} ${w},${h}`);
-  area.setAttribute('fill', color);
-  area.setAttribute('opacity', '0.1');
-  svg.appendChild(area);
-  const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-  line.setAttribute('points', pts.join(' '));
-  line.setAttribute('fill', 'none');
-  line.setAttribute('stroke', color);
-  line.setAttribute('stroke-width', '1.5');
-  line.setAttribute('stroke-linecap', 'round');
-  line.setAttribute('stroke-linejoin', 'round');
-  svg.appendChild(line);
-  const lp = pts[pts.length - 1].split(',');
-  const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-  dot.setAttribute('cx', lp[0]);
-  dot.setAttribute('cy', lp[1]);
-  dot.setAttribute('r', '2.5');
-  dot.setAttribute('fill', color);
-  svg.appendChild(dot);
-}
-
-function renderAllSparklines(serie) {
-  const last = serie.slice(-14);
-  drawSparkline('spark-tco',     last.map(p => p.c), '#C71E1D');
-  drawSparkline('spark-vofic',   last.map(p => p.v), '#0A9396');
-  drawSparkline('spark-usdt',    last.map(p => p.usdt), '#D4920A');
-  drawSparkline('spark-prima',   last.map(p => p.usdt != null && p.v != null ? p.usdt - p.v : null), '#8B2226');
-  drawSparkline('spark-volumen', last.map(p => p.vol ?? null), '#005F73');
-}
 
 /* ── Deltas ─────────────────────────────────────────────────────────────── */
 function updateDelta(id, curr, prev) {
@@ -2913,11 +2925,10 @@ function buildState(hist, bancos, tco) {
   g_current = { ...g_vigente, f: hoyStr, usdt: g_vigente.usdt ?? lastUsdt };
 }
 
-// Pintado liviano (KPIs, sparklines, alerta): barato, se repite en cada refresh.
+// Pintado liviano (KPIs, deltas, alerta): barato, se repite en cada refresh.
 function paintKpis() {
   updateKPIs(g_current, false, g_currentPrev);
   setKpiManana(g_manana, g_vigente, g_mananaMode, g_mananaStr);
-  renderAllSparklines(g_serie);
   updateAlert(g_serie, g_hoy);
 }
 
