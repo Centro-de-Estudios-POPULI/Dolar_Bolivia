@@ -659,6 +659,13 @@
     .report-body .rpt-up { color: #C71E1D; }
     .report-body .rpt-down { color: #0A9396; }
     .report-body .rpt-muted { color: var(--muted); font-size: 12.5px; }
+    /* Advertencia de procedencia: el dato existe pero lo sumamos nosotros
+       porque el BCB no publicó los totales de esa sesión. */
+    .report-body .rpt-note {
+      display: block; margin-top: 6px; padding-left: 8px;
+      border-left: 2px solid var(--muted);
+      color: var(--muted); font-size: 12px; line-height: 1.45;
+    }
     .report-body .rpt-tbl {
       width: 100%; border-collapse: collapse; margin: 6px 0 4px;
       font-size: 13px;
@@ -2493,7 +2500,20 @@ function generateReport() {
 
   // Volumen + top banco de UNA sesión (mismo texto para el bloque vigente y el de la
   // próxima sesión), comparado contra el promedio móvil de 22 sesiones de la serie.
-  const bloqueVolumen = (vol, tx, bancosArr) => {
+  // ¿La sesión trae los totales reconstruidos por nosotros? El BCB a veces
+  // publica la distribución por nivel de precio pero deja vacía la fila TOTAL;
+  // el scraper la reconstruye sumando, y acá se advierte para no presentarlo
+  // como si lo hubiera sumado el emisor.
+  const esReconstruida = (f) => {
+    const rec = (g_tcoData && g_tcoData.reconstruidas) || [];
+    return !!f && rec.indexOf(f) !== -1;
+  };
+  const notaRecon = (f) => esReconstruida(f)
+    ? ' <span class="rpt-note">El BCB no publicó los totales de esta sesión: el volumen y las' +
+      ' transacciones se reconstruyeron sumando su propio detalle por nivel de precio.</span>'
+    : '';
+
+  const bloqueVolumen = (vol, tx, bancosArr, fecha) => {
     let vt = '', vp = '';
     if (!vol) return { vt, vp };
     vt = `Se operaron ${mu(vol)} en el sistema bancario`;
@@ -2527,6 +2547,8 @@ function generateReport() {
         vp += ` ${top.banco} lideró las operaciones con $${fmtM(top[key])} (${pc}% del total).`;
       }
     }
+    vt += notaRecon(fecha);
+    if (esReconstruida(fecha)) vp += ' (totales reconstruidos: el BCB no los publicó)';
     return { vt, vp };
   };
 
@@ -2534,15 +2556,22 @@ function generateReport() {
   // Antes el reporte solo nombraba al líder; esto muestra quiénes movieron el
   // mercado, que es lo que se pide para leer la sesión.
   const desgloseBancos = (bancosArr) => {
-    const bh = (bancosArr || []).filter(b => (b.monto ?? b.vol) || b.tx);
-    if (!bh.length) return { html: '', plain: '' };
+    const todos = (bancosArr || []).filter(b => (b.monto ?? b.vol) || b.tx || b.tco != null);
+    if (!todos.length) return { html: '', plain: '' };
+    // Puede haber sesiones con precio por banco pero sin volumen (el BCB dejó de
+    // publicar la fila TOTAL el 2026-07-31). En ese caso la tabla igual se
+    // muestra, ordenada por precio y con guiones donde no hay dato, en vez de
+    // desaparecer entera como pasaba antes.
+    const conVol = todos.filter(b => (b.monto ?? b.vol) || b.tx);
+    const bh = conVol.length ? conVol : todos.slice().sort((a, z) => (z.tco || 0) - (a.tco || 0));
+    const sinVol = !conVol.length;
     const key = bh[0].monto != null ? 'monto' : 'vol';
     const tot = bh.reduce((s, b) => s + (b[key] || 0), 0) || 1;
     const top = bh.slice(0, 6);
     const filas = top.map(b => {
-      const pc = ((b[key] || 0) / tot * 100).toFixed(0);
+      const pc = sinVol ? null : ((b[key] || 0) / tot * 100).toFixed(0);
       const tx = b.tx != null ? b.tx.toLocaleString('es-BO') : '—';
-      return { banco: b.banco, monto: b[key] || 0, tx, pc,
+      return { banco: b.banco, monto: b[key], tx, pc,
                tco: b.tco != null ? fmt2(b.tco) : null };
     });
     let html = `<h3>Movimientos por banco</h3>
@@ -2550,10 +2579,17 @@ function generateReport() {
         <th>Transacc.</th><th>Volumen</th><th>%</th></tr></thead><tbody>`;
     let plain = 'MOVIMIENTOS POR BANCO\n';
     for (const f of filas) {
+      const mo = f.monto != null ? '$' + fmtM(f.monto) : '—';
+      const pc = f.pc != null ? f.pc + '%' : '—';
       html += `<tr><td>${f.banco}</td><td>${f.tco ? 'Bs. '+f.tco : '—'}</td>
-        <td class="num">${f.tx}</td><td class="num">$${fmtM(f.monto)}</td>
-        <td class="num">${f.pc}%</td></tr>`;
-      plain += `  ${f.banco.padEnd(14)} ${(f.tco?'Bs.'+f.tco:'—').padStart(8)}  ${String(f.tx).padStart(6)} tx  $${fmtM(f.monto).padStart(7)}  ${f.pc}%\n`;
+        <td class="num">${f.tx}</td><td class="num">${mo}</td>
+        <td class="num">${pc}</td></tr>`;
+      plain += `  ${f.banco.padEnd(14)} ${(f.tco?'Bs.'+f.tco:'—').padStart(8)}  ${String(f.tx).padStart(6)} tx  ${mo.padStart(8)}  ${pc}\n`;
+    }
+    if (sinVol) {
+      html += `<tr class="rpt-tbl-resto"><td colspan="5">El BCB publicó el precio por banco
+        pero no los montos de esta sesión.</td></tr>`;
+      plain += '  (el BCB no publicó montos para esta sesión)\n';
     }
     if (bh.length > top.length) {
       const resto = bh.length - top.length;
@@ -2607,7 +2643,7 @@ function generateReport() {
     }
     nt += `. La venta oficial se ubicará en ${m(ult.tco_venta)}.` + notaFinde(ult.vig);
     np += `. La venta oficial se ubicará en Bs. ${fmt2(ult.tco_venta)}.` + notaFinde(ult.vig);
-    const { vt, vp } = bloqueVolumen(ult.vol, ult.tx, g_tcoData.bancos_hoy);
+    const { vt, vp } = bloqueVolumen(ult.vol, ult.tx, g_tcoData.bancos_hoy, ult.f);
     if (vt) { nt += ' ' + vt; np += ' ' + vp; }
     html += `<p>${nt}</p>`;
     plain += np + '\n\n';
@@ -2695,7 +2731,7 @@ function generateReport() {
   // Cuando NO es dual, la sesión vigente ES la última, así que aquí queda coherente.
   if (!dual) {
     const { vt, vp } = bloqueVolumen(hoy.vol, hoy.tx,
-      (g_tcoData && g_tcoData.bancos_hoy) || bancos.tabla_hoy);
+      (g_tcoData && g_tcoData.bancos_hoy) || bancos.tabla_hoy, hoy.f);
     if (vt) {
       html += `<h3>Volumen bancario</h3>`;
       html += `<p>${vt}</p>`;

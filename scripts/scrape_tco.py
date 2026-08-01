@@ -177,12 +177,43 @@ def parse_reporte(texto: str) -> dict[str, dict]:
                 g["dist"].setdefault(alias_banco(nombre), []).append(
                     (precio, int(ntx), int(mto) if mto else 0))
 
-    # El BCB a veces publica el desglose por banco de la fila TOTAL pero deja
-    # vacia la columna TOTAL BANCOS (visto 2026-07-20 y 07-21): el total del dia
-    # existe, solo hay que sumar los bancos. Sin esto el volumen y las tx del
-    # dia quedan en blanco en los KPIs aunque el dato esta.
-    for g in fechas.values():
-        bancos = g.get("bancos", {})
+    # ── Reconstruccion de los totales cuando el BCB no los publica ──────────
+    #
+    # El reporte trae DOS vistas del mismo dia: la fila TOTAL (nº de tx y monto
+    # por banco) y las filas de DISTRIBUCION (esas mismas operaciones abiertas
+    # por nivel de precio). La segunda contiene a la primera, asi que los
+    # totales siempre se pueden reconstruir sumando la distribucion.
+    #
+    # Hace falta porque el BCB deja huecos, y cada vez mas grandes:
+    #   · 2026-07-20 y 07-21: publico el detalle por banco pero dejo vacia la
+    #     columna TOTAL BANCOS -> faltaba el total del dia.
+    #   · 2026-07-31: dejo la fila TOTAL **entera** vacia (30/30 celdas) con la
+    #     distribucion completa -> quedaban en cero las tx y el monto de los 14
+    #     bancos, el volumen del dia, la tabla del reporte y la serie de volumen
+    #     por entidad. El dato estaba publicado; solo no estaba sumado.
+    #
+    # Verificado contra los 24 dias que si traen fila TOTAL: el nº de
+    # transacciones reconstruido coincide EXACTO en los 24, y el monto difiere
+    # entre 0 y 4 USD sobre decenas de millones (0,000%) por el redondeo con que
+    # el BCB publica cada nivel de precio. Si mas tarde el BCB publica la fila
+    # TOTAL, el upsert la reemplaza por la oficial: la reconstruccion nunca
+    # pisa un dato bueno.
+    for f, g in fechas.items():
+        bancos, dist = g.get("bancos", {}), g.get("dist", {})
+        recon = []
+        for banco, niveles in dist.items():
+            b = bancos.setdefault(banco, {})
+            if b.get("tx") is None and niveles:
+                b["tx"] = sum(n for _, n, _ in niveles)
+                recon.append(banco)
+            if b.get("monto") is None and niveles:
+                b["monto"] = sum(m for _, _, m in niveles)
+        if recon:
+            g["reconstruido"] = True
+            print(f"[INFO] {f}: el BCB no publico la fila TOTAL; se reconstruyeron "
+                  f"tx/monto de {len(recon)} banco(s) sumando la distribucion por "
+                  f"nivel de precio.", file=sys.stderr)
+        # Total del dia: sumar los bancos (ya completos tras lo anterior).
         if g.get("vol_usd") is None:
             montos = [b["monto"] for b in bancos.values() if b.get("monto")]
             if montos:
@@ -456,7 +487,12 @@ def _totales_por_banco(bancos_rows: list[dict]) -> dict[str, dict]:
 
 
 def exportar_json(global_rows: list[dict], bancos_rows: list[dict],
-                  dist_hoy: dict | None = None) -> None:
+                  dist_hoy: dict | None = None,
+                  recon_fechas: tuple = ()) -> None:
+    """`recon_fechas`: sesiones cuyos totales se reconstruyeron desde la
+    distribución porque el BCB no publicó la fila TOTAL. Se marcan en la serie
+    (`rec: true`) para que el dashboard lo pueda advertir en vez de mostrar el
+    dato como si viniera sumado por el emisor."""
     usdt = usdt_por_fecha()
     sum_banco = _totales_por_banco(bancos_rows)
 
@@ -481,7 +517,7 @@ def exportar_json(global_rows: list[dict], bancos_rows: list[dict],
             vol = sb["vol"]
         if tx is None and sb and sb["tx"]:
             tx = sb["tx"]
-        serie.append({
+        item = {
             "f": r["fecha"],
             "vig": dia_siguiente(r["fecha"]),   # día calendario desde el que rige este TCO
             "tco": tco,
@@ -489,7 +525,10 @@ def exportar_json(global_rows: list[dict], bancos_rows: list[dict],
             "usdt": usdt.get(r["fecha"]),
             "vol": vol,
             "tx":  tx,
-        })
+        }
+        if r["fecha"] in recon_fechas:
+            item["rec"] = True
+        serie.append(item)
 
     # Detalle por banco del último día con datos
     bancos_hoy = []
@@ -545,11 +584,13 @@ def exportar_json(global_rows: list[dict], bancos_rows: list[dict],
         "bancos_fechas": fechas_b,
         "bancos_series": bancos_series,
         "dist_hoy": dist_hoy,
+        "reconstruidas": sorted(recon_fechas),
     }
     TCO_JSON.write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     nb = len(dist_hoy["bancos"]) if dist_hoy else 0
     print(f"[OK] tco.json — {len(serie)} registro(s), {len(bancos_hoy)} banco(s) hoy, "
-          f"boxplot {nb} banco(s)")
+          f"boxplot {nb} banco(s)"
+          + (f", {len(recon_fechas)} sesión(es) con totales reconstruidos" if recon_fechas else ""))
 
 
 # ── Main ────────────────────────────────────────────────────────────────────────
@@ -557,6 +598,10 @@ def exportar_json(global_rows: list[dict], bancos_rows: list[dict],
 def _regenerar_desde_disco() -> None:
     """Regenera el JSON con los CSV ya guardados (sin datos frescos)."""
     exportar_json(leer_csv(TCO_CSV), leer_csv(TCO_BANCOS), None)
+
+
+def _fechas_reconstruidas(reporte: dict[str, dict]) -> tuple:
+    return tuple(f for f, g in reporte.items() if g.get("reconstruido"))
 
 
 def main() -> None:
@@ -610,12 +655,14 @@ def main() -> None:
         global_rows = agregar_global_csv(reporte, ts)
         bancos_rows = agregar_bancos_csv(reporte, ts)
         dist_hoy = construir_dist_hoy(reporte)
+        recon = _fechas_reconstruidas(reporte)
     else:
         global_rows = leer_csv(TCO_CSV)
         bancos_rows = leer_csv(TCO_BANCOS)
         dist_hoy = None
+        recon = ()
 
-    exportar_json(global_rows, bancos_rows, dist_hoy)
+    exportar_json(global_rows, bancos_rows, dist_hoy, recon)
 
 
 if __name__ == "__main__":
