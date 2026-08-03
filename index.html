@@ -2269,13 +2269,6 @@ function renderVolumen(bancos) {
   const bancosList  = bancos.bancos;
   const compraSerie = bancos.compra_serie;
 
-  let maxStack = 0;
-  for (let j = 0; j < fechas.length; j++) {
-    let daySum = 0;
-    for (const b of bancosList) daySum += (bancos.series[b] || [])[j] || 0;
-    if (daySum > maxStack) maxStack = daySum;
-  }
-
   if (volumenChart) volumenChart.dispose();
   const el = document.getElementById('chart-volumen');
   el.innerHTML = '';
@@ -2284,16 +2277,17 @@ function renderVolumen(bancos) {
   const dark = document.documentElement.getAttribute('data-theme') === 'dark';
   const lineCompraColor = dark ? '#94D2BD' : '#005F73';
 
+  // Barras apiladas (antes áreas apiladas): cada día es una sesión discreta, así
+  // que la barra no insinúa continuidad entre días y los fines de semana quedan
+  // como hueco real en vez de una pendiente inventada.
   const seriesArea = bancosList.map((banco, i) => {
     const color = banco === 'OTROS' ? (dark ? '#555' : '#9AACBA') : PAL[i % PAL.length];
     return {
-      name: banco, type:'line', stack:'total',
-      areaStyle:{ color, opacity: banco === 'OTROS' ? .12 : .22 },
-      lineStyle:{ width: banco === 'OTROS' ? 0.5 : 1, color, opacity:.4 },
-      itemStyle:{ color },
-      symbol:'none', smooth:.45,
-      emphasis:{ focus:'series', areaStyle:{ opacity:.45 }, lineStyle:{ width:2, opacity:1 } },
-      blur:{ areaStyle:{ opacity:.04 }, lineStyle:{ opacity:.1 } },
+      name: banco, type:'bar', stack:'total',
+      itemStyle:{ color, opacity: banco === 'OTROS' ? .55 : .92 },
+      barMaxWidth: 26, barMinWidth: 1,
+      emphasis:{ focus:'series', itemStyle:{ opacity:1 } },
+      blur:{ itemStyle:{ opacity:.12 } },
       data:(bancos.series[banco]||[]).map((v,j)=>[fechas[j], v||0]),
     };
   });
@@ -2311,7 +2305,9 @@ function renderVolumen(bancos) {
     backgroundColor:'transparent',
     tooltip:{
       trigger:'axis',
-      axisPointer:{ type:'cross', lineStyle:{ color:'rgba(100,150,180,.2)', type:'dashed' } },
+      // shadow (no cross): con barras apiladas, resaltar la columna del día lee
+      // mejor que una cruz sobre un punto que ya no existe.
+      axisPointer:{ type:'shadow', shadowStyle:{ color:'rgba(100,150,180,.10)' } },
       ...tipBase(),
       formatter(params) {
         const fecha = params[0]?.value[0];
@@ -2352,8 +2348,9 @@ function renderVolumen(bancos) {
     },
     yAxis:[
       {
+        // Sin `max` fijo al máximo histórico: con filterMode:'filter' el eje se
+        // ajusta al rango visible, así la vista 1M no queda con media escala vacía.
         type:'value', name:'Volumen ($us)', position:'left',
-        max: Math.ceil(maxStack * 1.1 / 1e6) * 1e6,
         nameTextStyle:{ color:c.axis, fontSize:10, fontFamily:'Inter' },
         axisLabel:{ formatter:v=> mob() ? (v/1e6).toFixed(1)+'M' : '$'+(v/1e6).toFixed(1)+'M', fontSize:11, color:c.axis, fontFamily:'IBM Plex Mono' },
         axisLine:{ show:false },
