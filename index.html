@@ -447,6 +447,15 @@
     }
     .rbtn:hover { border-color: var(--red); color: var(--red); background: rgba(199,30,29,.06); }
     .rbtn.active { background: var(--red); border-color: var(--red); color: #fff; }
+    /* Dos grupos de botones en la misma tarjeta (unidad + rango) */
+    .btn-groups { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; flex-shrink: 0; }
+    .unit-btns { position: relative; padding-right: 10px; }
+    .unit-btns::after {
+      content: ''; position: absolute; right: 0; top: 4px; bottom: 4px;
+      width: 1px; background: var(--border);
+    }
+    .unit-btns .rbtn { min-width: 44px; }
+    @media (max-width: 520px) { .btn-groups { align-self: flex-start; } }
 
     /* ── Tabla bancos ─────────────────────────────────────────────────── */
     .table-wrap {
@@ -529,6 +538,10 @@
     .ctx-stat-sub {
       font-size: 10.5px; color: var(--muted); margin-top: 4px; line-height: 1.4;
     }
+    /* Mismas tarjetas de contexto, pero DEBAJO del gráfico de variación */
+    .var-stats { margin-bottom: 0; margin-top: 14px; }
+    .var-stats .ctx-stat { box-shadow: none; background: var(--card2); }
+    .ctx-stat-value .u { font-size: 12px; color: var(--muted); margin-left: 3px; }
 
     .td-delta {
       font-family: 'IBM Plex Mono', monospace;
@@ -1044,10 +1057,46 @@
     </div>
   </section>
 
-  <!-- 04 · Prima USDT -->
+  <!-- 04 · Variación diaria -->
   <section class="section">
     <div class="section-header">
       <span class="section-num">04</span>
+      <div class="section-titles">
+        <h2>Variación Diaria del Tipo de Cambio</h2>
+        <p>Cuánto se movió el tipo de cambio en cada sesión respecto de la sesión anterior, medido en centavos de boliviano. Desde el cambio de régimen se compara el TCO; antes, el valor referencial de compra del BCB.</p>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-top">
+        <div class="chart-card-meta">
+          <span class="chart-card-title" id="var-title">Cambio por sesión · centavos de Bs.</span>
+          <span class="chart-card-sub" id="var-sub">Barras rojas = el dólar sube · turquesa = baja · cada barra en el día en que rige el nuevo tipo de cambio</span>
+        </div>
+        <div class="btn-groups">
+          <div class="range-btns unit-btns" id="ub-var">
+            <button class="rbtn active" data-unit="ctvs">Ctvs.</button>
+            <button class="rbtn" data-unit="pct">%</button>
+          </div>
+          <div class="range-btns" id="rb-var">
+            <button class="rbtn active" data-dias="30">1M</button>
+            <button class="rbtn" data-dias="90">3M</button>
+            <button class="rbtn" data-dias="0">Todo</button>
+          </div>
+        </div>
+      </div>
+      <div id="chart-variacion" class="chart"><div class="loading">Cargando…</div></div>
+      <div class="table-context var-stats" id="var-stats"></div>
+      <div class="chart-hint" style="margin-top:10px">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        100 centavos = Bs. 1. La sesión cierra a las 20:00 y el TCO que fija rige el día siguiente: cada barra está fechada en el día en que rige. La línea punteada es la media móvil de 5 sesiones. Las tarjetas se recalculan con el rango elegido.
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 · Prima USDT -->
+  <section class="section">
+    <div class="section-header">
+      <span class="section-num">05</span>
       <div class="section-titles">
         <h2>Prima USDT sobre el Tipo de Cambio Oficial</h2>
         <p>Diferencia diaria entre el precio informal (Binance P2P) y la venta oficial del BCB. Antes del cambio de régimen (26-jun) se calculaba sobre el valor referencial</p>
@@ -1069,10 +1118,10 @@
     </div>
   </section>
 
-  <!-- 05 · Brecha Cambiaria -->
+  <!-- 06 · Brecha Cambiaria -->
   <section class="section">
     <div class="section-header">
-      <span class="section-num">05</span>
+      <span class="section-num">06</span>
       <div class="section-titles">
         <h2>Brecha Cambiaria · TCO vs. Oficial fijo (Bs. 6,96)</h2>
         <p>Cuánto se aleja el TCO del tipo de cambio oficial fijo de Bs. 6,96 — una medida de la devaluación implícita del régimen</p>
@@ -1098,10 +1147,10 @@
     </div>
   </section>
 
-  <!-- 06 · Volúmenes -->
+  <!-- 07 · Volúmenes -->
   <section class="section">
     <div class="section-header">
-      <span class="section-num">06</span>
+      <span class="section-num">07</span>
       <div class="section-titles">
         <h2>Volumen de Compra por Entidad Bancaria</h2>
         <p>$us operados diariamente por banco. Línea = tasa de compra promedio ponderado, que continúa como TCO tras el cambio de régimen (eje der.). Datos desde ene. 2026.</p>
@@ -1127,10 +1176,10 @@
     </div>
   </section>
 
-  <!-- 07 · Distribución de tipos de cambio por banco (boxplot) -->
+  <!-- 08 · Distribución de tipos de cambio por banco (boxplot) -->
   <section class="section">
     <div class="section-header">
-      <span class="section-num">07</span>
+      <span class="section-num">08</span>
       <div class="section-titles">
         <h2>Distribución de los Tipos de Cambio por Banco</h2>
         <p id="box-fecha-sub">Cada banco compra divisas a múltiples precios dentro de la sesión. Las cajas muestran esa dispersión, ponderada por monto operado (igual que el TCO del BCB).</p>
@@ -1156,10 +1205,10 @@
     </div>
   </section>
 
-  <!-- 08 · Heatmap Calendario -->
+  <!-- 09 · Heatmap Calendario -->
   <section class="section">
     <div class="section-header">
-      <span class="section-num">08</span>
+      <span class="section-num">09</span>
       <div class="section-titles">
         <h2>Mapa de Actividad Diaria</h2>
         <p>Volumen total de operaciones por día — intensidad del color proporcional al monto</p>
@@ -1183,10 +1232,10 @@
     </div>
   </section>
 
-  <!-- 09 · Tabla -->
+  <!-- 10 · Tabla -->
   <section class="section">
     <div class="section-header">
-      <span class="section-num">09</span>
+      <span class="section-num">10</span>
       <div class="section-titles">
         <h2>Detalle por Entidad — Hoy</h2>
         <p id="tabla-fecha-sub">TCO, montos y transacciones declarados al BCB por cada EIF</p>
@@ -1254,8 +1303,9 @@ const PAL = ['#C0392B','#2A7FAF','#0E9396','#C89010','#C06030','#6B3F8C','#2E7D4
 
 /* ── Estado global ──────────────────────────────────────────────────────── */
 const BCB_OFICIAL = 6.96;   // tipo de cambio oficial fijo (Bs./$us) desde noviembre de 2011
-let preciosChart = null, volumenChart = null, primaChart = null, heatmapChart = null, brechaChart = null, tcoChart = null, boxplotChart = null;
+let preciosChart = null, volumenChart = null, primaChart = null, heatmapChart = null, brechaChart = null, tcoChart = null, boxplotChart = null, variacionChart = null;
 let g_serie = [], g_hoy = {}, g_bancos = {}, g_tco = [], g_tcoData = null, g_bancosUni = {};
+let g_var = [], g_varUnit = 'ctvs', g_varDias = 30;   // variación por sesión: datos, unidad y rango activos
 let g_current = {}, g_currentPrev = null;   // punto "vigente hoy" para los KPIs (no-hover)
 let g_vigente = null, g_manana = null;      // puntos "rige hoy" / "regirá mañana"
 let g_mananaMode = 'pend', g_mananaStr = null;  // estado del KPI mañana: 'pub'|'finde'|'pend' + fecha de mañana
@@ -1742,6 +1792,320 @@ function renderTco(serie) {
   });
 
   wireRange('rb-tco', () => tcoChart);
+}
+
+/* ── Variación por sesión (Δ del tipo de cambio) ────────────────────────── */
+// Cada punto REAL de la serie (referencial hasta el 26-jun, TCO desde entonces)
+// contra el punto real inmediatamente anterior. El salto referencial→TCO NO se
+// computa: son dos regímenes distintos y su diferencia no es una variación de
+// mercado. Los puntos del TCO ya vienen fechados por VIGENCIA, así que cada
+// barra cae en el día en que el nuevo tipo de cambio entra a regir; los días
+// rellenados por carry-forward (findes) no son sesiones y quedan fuera.
+function buildVariacion(serie) {
+  const reales = serie.filter(p => p.c != null && !p.carried);
+  const out = [];
+  for (let i = 1; i < reales.length; i++) {
+    const p = reales[i], q = reales[i - 1];
+    if ((p.reg || '') !== (q.reg || '')) continue;      // cruce de régimen
+    const d = p.c - q.c;
+    out.push({
+      f: p.f,                          // día en que rige el nuevo tipo de cambio
+      sesion: p.sesion || p.f,         // sesión que lo fijó (cierre 20:00)
+      c: p.c, prev: q.c,
+      bs:   +d.toFixed(4),
+      ctvs: +(d * 100).toFixed(1),
+      pct:  +(d / q.c * 100).toFixed(3),
+      vol: p.sesVol ?? p.vol ?? null,
+      tx:  p.sesTx  ?? p.tx  ?? null,
+      reg: p.reg || 'ref',
+    });
+  }
+  return out;
+}
+
+const VAR_UP = '#C71E1D', VAR_DN = '#0A9396', VAR_EQ = '#9AACBA';
+const varCol = v => v > 0 ? VAR_UP : (v < 0 ? VAR_DN : VAR_EQ);
+const sgn = v => v > 0 ? '+' : '';
+// Los precios llegan con 2 decimales, así que los centavos casi siempre son
+// enteros; se deja el decimal solo si aparece.
+const fmtCtvs = v => v == null ? '—' : (Math.abs(v % 1) < 1e-9 ? String(Math.round(v)) : v.toFixed(1));
+const fmtVarPct = v => v == null ? '—' : sgn(v) + v.toFixed(2) + '%';
+
+// Ventana de los botones de rango — la MISMA que aplica applyVarZoom(), para que
+// las tarjetas describan exactamente lo que se ve en el gráfico.
+const varDesde = dias => new Date(Date.now() - dias * 864e5).toISOString().slice(0, 10);
+function varItems(dias) {
+  if (!dias) return g_var;
+  const lim = varDesde(dias);
+  return g_var.filter(it => it.f >= lim);
+}
+// Zoom propio (no applyZoom): tras el cierre de las 20:00 la última barra está
+// fechada MAÑANA (su día de vigencia), y applyZoom() corta en "hoy" — la dejaría
+// fuera justo en la vista por defecto. Se cierra en la última fecha con dato y se
+// deja medio día de aire a cada lado para que las barras de los extremos no se
+// corten por la mitad.
+function applyVarZoom(dias) {
+  if (!variacionChart) return;
+  if (!dias) { variacionChart.setOption({ dataZoom:[{ type:'inside', start:0, end:100 }] }); return; }
+  const hoy  = new Date().toISOString().slice(0, 10);
+  const ult  = g_var.length ? g_var[g_var.length - 1].f : hoy;
+  const fin  = ult > hoy ? ult : hoy;
+  variacionChart.setOption({ dataZoom:[{
+    type:'inside',
+    startValue: +new Date(varDesde(dias) + 'T00:00:00') - 12 * 36e5,
+    endValue:   +new Date(fin + 'T00:00:00') + 12 * 36e5,
+  }] });
+}
+const varAxisFmt = () => g_varUnit === 'pct'
+  ? (v => (v > 0 ? '+' : '') + v.toFixed(1) + '%')
+  : (v => (v > 0 ? '+' : '') + v);
+const varYName = () => g_varUnit === 'pct' ? 'Variación (%)' : 'Centavos de Bs.';
+function setVarTitulo() {
+  const t = document.getElementById('var-title');
+  if (t) t.textContent = g_varUnit === 'pct'
+    ? 'Cambio por sesión · variación porcentual'
+    : 'Cambio por sesión · centavos de Bs.';
+}
+
+// Punto de barra: color y etiqueta dependen del signo, así que van por dato.
+function varPoint(it, unit, showLbl) {
+  const v = unit === 'pct' ? it.pct : it.ctvs;
+  const col = varCol(v);
+  return {
+    value: [it.f, v],
+    meta: it,
+    itemStyle: { color: col },
+    label: {
+      show: showLbl, position: v >= 0 ? 'top' : 'bottom', distance: 3,
+      formatter: unit === 'pct' ? sgn(v) + v.toFixed(1) : sgn(v) + fmtCtvs(v),
+      fontSize: 9.5, fontFamily: 'IBM Plex Mono', fontWeight: 600, color: col,
+    },
+  };
+}
+
+// Media móvil de n sesiones (sobre sesiones, no días calendario).
+function varMA(items, unit, n) {
+  const arr = items.map(it => unit === 'pct' ? it.pct : it.ctvs);
+  return items.map((it, i) => {
+    if (i < n - 1) return [it.f, null];
+    let s = 0;
+    for (let k = i - n + 1; k <= i; k++) s += arr[k];
+    return [it.f, +(s / n).toFixed(2)];
+  });
+}
+
+function renderVariacion(serie) {
+  g_var = buildVariacion(serie);
+  const el = document.getElementById('chart-variacion');
+  if (!el) return;
+  if (!g_var.length) {
+    el.innerHTML = '<div class="loading">Aún no hay dos sesiones comparables.</div>';
+    renderVarStats([], g_varDias);
+    return;
+  }
+
+  if (variacionChart) variacionChart.dispose();
+  el.innerHTML = '';
+  variacionChart = echarts.init(el, null, { renderer:'canvas' });
+  const c = ct();
+  const vis = varItems(g_varDias);
+  const showLbl = vis.length <= (mob() ? 12 : 26);
+
+  variacionChart.setOption({
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger:'axis',
+      axisPointer:{ type:'shadow', shadowStyle:{ color:'rgba(155,34,38,.07)' } },
+      ...tipBase(),
+      formatter(params) {
+        const bar = params.find(p => p.seriesName === 'Variación');
+        const it  = bar && bar.data && bar.data.meta;
+        if (!it) return '';
+        const col = varCol(it.ctvs);
+        let o = `<div style="font-weight:700;margin-bottom:7px;font-size:11.5px;color:#7AA8C0">${fmtDate(it.f)}</div>`;
+        o += `<div style="display:flex;justify-content:space-between;gap:22px;align-items:baseline">
+            <span style="color:${col}">● Variación</span>
+            <b style="font-family:'IBM Plex Mono',monospace;font-size:15px;color:${col}">${sgn(it.ctvs)}${fmtCtvs(it.ctvs)} ctvs</b>
+          </div>`;
+        o += `<div style="display:flex;justify-content:space-between;gap:22px;margin-top:3px">
+            <span style="font-size:12px;color:#8FA6B8">En bolivianos · en %</span>
+            <b style="font-family:'IBM Plex Mono',monospace;font-size:12px">${sgn(it.bs)}${it.bs.toFixed(2)} Bs. · ${fmtVarPct(it.pct)}</b>
+          </div>`;
+        o += `<div style="margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,.08);
+            display:flex;justify-content:space-between;gap:22px">
+            <span style="font-size:12px;color:#8FA6B8">${it.reg === 'tco' ? 'TCO' : 'Referencial (compra)'}</span>
+            <b style="font-family:'IBM Plex Mono',monospace;font-size:12px">Bs. ${it.prev.toFixed(2)} → ${it.c.toFixed(2)}</b>
+          </div>`;
+        const ma = params.find(p => p.seriesName.indexOf('Media móvil') === 0);
+        if (ma && ma.value[1] != null) {
+          const mv = ma.value[1];
+          o += `<div style="display:flex;justify-content:space-between;gap:22px;margin-top:3px">
+              <span style="font-size:12px;color:#EE9B00">● Media móvil 5 sesiones</span>
+              <b style="font-family:'IBM Plex Mono',monospace;font-size:12px">${sgn(mv)}${g_varUnit === 'pct' ? mv.toFixed(2) + '%' : fmtCtvs(mv) + ' ctvs'}</b>
+            </div>`;
+        }
+        const act = it.vol ? ` · $${fmtM(it.vol)} en ${Number(it.tx || 0).toLocaleString('es-BO')} operaciones` : '';
+        o += `<div style="margin-top:7px;font-size:11px;color:#7AA8C0">Sesión del ${fmtDate(it.sesion)}${act}</div>`;
+        return o;
+      }
+    },
+    legend:{
+      data:['Media móvil · 5 sesiones'],
+      textStyle:{ color:c.leg, fontSize: mob() ? 10.5 : 12, fontFamily:'Inter' },
+      icon:'roundRect', itemWidth:14, itemHeight:3, top:2, right:12,
+    },
+    grid:{ left:12, right:14, top:40, bottom:40, containLabel:true },
+    xAxis:{
+      type:'time',
+      // hideOverlap: con 3 meses de sesiones las fechas se pisaban entre sí
+      axisLabel:{ formatter:v=>fmtMes(new Date(v).toISOString().slice(0,10)), fontSize:11, color:c.axis, fontFamily:'Inter', hideOverlap:true },
+      axisLine:{ lineStyle:{ color:c.grid } },
+      axisTick:{ show:false },
+      splitLine:{ show:false },
+    },
+    yAxis:{
+      type:'value',
+      name: varYName(),
+      nameTextStyle:{ color:c.axis, fontSize:10, fontFamily:'Inter', padding:[0,0,0,4] },
+      nameLocation:'end',
+      axisLabel:{ formatter: varAxisFmt(), fontSize:11, color:c.axis, fontFamily:'IBM Plex Mono' },
+      axisLine:{ show:false },
+      splitLine:{ lineStyle:{ color:c.grid, type:'dashed' } },
+    },
+    dataZoom:[{ type:'inside', filterMode:'filter' }],
+    series:[
+      {
+        name:'Variación', type:'bar',
+        data: g_var.map(it => varPoint(it, g_varUnit, showLbl)),
+        barMaxWidth: 22, barMinWidth: 1.5, z: 3,
+        markLine:{
+          symbol:'none', silent:true, animation:false,
+          data:[
+            // Línea del cero: ancla visual de las barras (sin etiqueta propia)
+            { yAxis:0, label:{ show:false }, lineStyle:{ color:c.axis, type:'solid', width:1, opacity:.55 } },
+            ...(regimeMarkLineItem() ? [regimeMarkLineItem()] : []),
+          ],
+        },
+      },
+      {
+        name:'Media móvil · 5 sesiones', type:'line',
+        data: varMA(g_var, g_varUnit, 5),
+        itemStyle:{ color:'#EE9B00' },
+        lineStyle:{ width:1.8, color:'#EE9B00', type:'dashed' },
+        symbol:'none', smooth:0.35, connectNulls:true, z:5,
+      },
+    ],
+  });
+
+  applyVarZoom(g_varDias);
+  setVarTitulo();
+  renderVarStats(vis, g_varDias);
+  wireVariacion();
+}
+
+// Cambio de unidad (ctvs ↔ %) sin recrear el gráfico: así se conserva el zoom.
+function applyVarUnit() {
+  if (!variacionChart || !g_var.length) return;
+  const vis = varItems(g_varDias);
+  const showLbl = vis.length <= (mob() ? 12 : 26);
+  setVarTitulo();
+  variacionChart.setOption({
+    yAxis:{
+      name: varYName(),
+      axisLabel:{ formatter: varAxisFmt() },
+    },
+    series:[
+      { name:'Variación', data: g_var.map(it => varPoint(it, g_varUnit, showLbl)) },
+      { name:'Media móvil · 5 sesiones', data: varMA(g_var, g_varUnit, 5) },
+    ],
+  });
+}
+
+let _varWired = false;
+function wireVariacion() {
+  if (_varWired) return;   // el gráfico se re-crea (tema/resize): no duplicar listeners
+  _varWired = true;
+  document.querySelectorAll('#ub-var .rbtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#ub-var .rbtn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      g_varUnit = btn.dataset.unit;
+      applyVarUnit();
+    });
+  });
+  document.querySelectorAll('#rb-var .rbtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#rb-var .rbtn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      g_varDias = parseInt(btn.dataset.dias);
+      applyVarZoom(g_varDias);
+      applyVarUnit();                                   // re-evalúa las etiquetas visibles
+      renderVarStats(varItems(g_varDias), g_varDias);
+    });
+  });
+}
+
+// Tarjetas de lectura bajo el gráfico: describen el rango elegido.
+function renderVarStats(items, dias) {
+  const el = document.getElementById('var-stats');
+  if (!el) return;
+  if (!items.length) {
+    el.innerHTML = `<div class="ctx-stat neutral">
+        <div class="ctx-stat-label">Sin sesiones</div>
+        <div class="ctx-stat-sub">No hay variaciones en el rango elegido.</div>
+      </div>`;
+    return;
+  }
+  const per   = dias ? `últimos ${dias} días` : 'todo el histórico';
+  const ult   = items[items.length - 1];
+  const acumC = +items.reduce((s, it) => s + it.ctvs, 0).toFixed(1);
+  const prom  = acumC / items.length;
+  const nUp   = items.filter(it => it.ctvs > 0).length;
+  const nDn   = items.filter(it => it.ctvs < 0).length;
+  let maxUp = items[0], maxDn = items[0];
+  for (const it of items) {
+    if (it.ctvs > maxUp.ctvs) maxUp = it;
+    if (it.ctvs < maxDn.ctvs) maxDn = it;
+  }
+  // Racha: sesiones consecutivas en la misma dirección, contando hacia atrás.
+  const dir = Math.sign(ult.ctvs);
+  let racha = 0;
+  if (dir) for (let i = items.length - 1; i >= 0 && Math.sign(items[i].ctvs) === dir; i--) racha++;
+  const rachaTxt = racha >= 2
+    ? `${racha}ª sesión seguida ${dir > 0 ? 'al alza' : 'a la baja'}`
+    : (dir === 0 ? 'sin cambio respecto de la sesión anterior' : `cambia de dirección respecto de la sesión previa`);
+  // % acumulado: solo tiene sentido si el rango no cruza el cambio de régimen.
+  const mismoReg = items.every(it => it.reg === items[0].reg);
+  const acumPct  = mismoReg ? (ult.c - items[0].prev) / items[0].prev * 100 : null;
+
+  const cls  = v => v > 0 ? 'up' : (v < 0 ? 'down' : 'neutral');
+  const val  = v => `${sgn(v)}${fmtCtvs(v)}<span class="u">ctvs</span>`;
+  const valB = v => Math.abs(v) >= 100
+    ? `${sgn(v)}${(v / 100).toFixed(2)}<span class="u">Bs.</span>`
+    : val(v);
+  const card = (v, label, value, delta, sub) => `
+    <div class="ctx-stat ${cls(v)}">
+      <div class="ctx-stat-label">${label}</div>
+      <div class="ctx-stat-value">${value}</div>
+      ${delta ? `<div class="ctx-stat-delta ${cls(v)}">${delta}</div>` : ''}
+      <div class="ctx-stat-sub">${sub}</div>
+    </div>`;
+
+  el.innerHTML = [
+    card(ult.ctvs, 'Última sesión', val(ult.ctvs), fmtVarPct(ult.pct),
+         `Rige desde el ${fmtDate(ult.f)} · ${rachaTxt}`),
+    card(acumC, `Acumulado · ${per}`, valB(acumC),
+         acumPct != null ? fmtVarPct(acumPct) : '',
+         `${items.length} sesiones · ${nUp} al alza / ${nDn} a la baja${acumPct == null ? ' · cruza el cambio de régimen' : ''}`),
+    card(prom, 'Promedio por sesión', `${sgn(prom)}${prom.toFixed(1)}<span class="u">ctvs</span>`, '',
+         `Media de las ${items.length} sesiones del período`),
+    card(maxUp.ctvs > 0 ? 1 : 0, 'Mayor alza', maxUp.ctvs > 0 ? val(maxUp.ctvs) : '—',
+         maxUp.ctvs > 0 ? fmtVarPct(maxUp.pct) : '',
+         maxUp.ctvs > 0 ? `Rige desde el ${fmtDate(maxUp.f)}` : 'Sin sesiones al alza en el período'),
+    card(maxDn.ctvs < 0 ? -1 : 0, 'Mayor baja', maxDn.ctvs < 0 ? val(maxDn.ctvs) : '—',
+         maxDn.ctvs < 0 ? fmtVarPct(maxDn.pct) : '',
+         maxDn.ctvs < 0 ? `Rige desde el ${fmtDate(maxDn.f)}` : 'Sin sesiones a la baja en el período'),
+  ].join('');
 }
 
 /* ── Gráfico Prima USDT ────────────────────────────────────────────────── */
@@ -2852,6 +3216,7 @@ function applyTheme(theme) {
     renderVolumen(g_bancosUni);
     renderHeatmap(g_serie);
     if (g_tco.length) renderTco(g_serie);
+    renderVariacion(g_serie);
     if (g_tcoData && g_tcoData.dist_hoy) renderBoxplot(g_tcoData.dist_hoy);
   }
 }
@@ -2880,6 +3245,7 @@ window.addEventListener('resize', () => {
       renderVolumen(g_bancosUni);
       renderHeatmap(g_serie);
       if (g_tco.length) renderTco(g_serie);
+      renderVariacion(g_serie);
       if (g_tcoData && g_tcoData.dist_hoy) renderBoxplot(g_tcoData.dist_hoy);
     }
   }, 200);
@@ -3004,6 +3370,7 @@ function paintKpis() {
 function paintCharts() {
   try { renderPrecios(g_serie); } catch(e) { console.error('Precios:', e); }
   try { if (g_tco.length) renderTco(g_serie); } catch(e) { console.error('TCO:', e); }
+  try { renderVariacion(g_serie); } catch(e) { console.error('Variación:', e); }
   try { renderPrima(g_serie); } catch(e) { console.error('Prima:', e); }
   try { renderBrecha(g_serie); } catch(e) { console.error('Brecha:', e); }
   try { renderVolumen(g_bancosUni); } catch(e) { console.error('Volumen:', e); }

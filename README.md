@@ -19,6 +19,13 @@ Dashboard de seguimiento diario del tipo de cambio del dólar en Bolivia. Combin
 
 Se usa la **mediana** de las ofertas listadas en Binance P2P (columna `median` de mauforonda), no el VWAP, porque este último se infla por ofertas outlier a precios irreales (20+ Bs). La mediana refleja el precio de mercado que un usuario real encuentra en la plataforma.
 
+### Variación por sesión
+
+El dashboard muestra cuánto se movió el tipo de cambio en cada sesión respecto de la anterior, en centavos de boliviano. Dos criterios:
+
+- **Cada variación se fecha en el día en que RIGE**, no en el de la sesión que la fijó: la sesión cierra a las 20:00 y su TCO gobierna el día calendario siguiente. Así el gráfico queda alineado con las series de precio, que también se grafican por fecha de vigencia. Los días rellenados por *carry-forward* (fines de semana y feriados) no son sesiones y no generan barra.
+- **El salto referencial → TCO (jun-2026) no se computa.** Son dos regímenes distintos y su diferencia no sería una variación de mercado; el corte se marca en el gráfico. Por lo mismo, la variación acumulada solo se expresa en % cuando el rango elegido no cruza ese corte.
+
 ## Estructura
 
 ```
