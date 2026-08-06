@@ -1,11 +1,11 @@
 "Tipo de Cambio Oficial del Dólar Estadounidense (TCO)"
-"Rango de fecha de corte";2026-06-26;2026-08-04
-"Rango de fecha de vigencia";2026-06-29;2026-08-05
+"Rango de fecha de corte";2026-06-26;2026-08-05
+"Rango de vigencia";2026-06-29;"2026-08-06 al 2026-08-10"
 "Monto - Expresado en dólares estadounidenses"
 "N° - Número de Transacciones"
 "TCO - Tipo de Cambio Oficial (En Bs/USD)"
 
-"Fecha de corte";"Fecha de vigencia";"TC (En Bs/USD)";"BANCO BISA";;"BANCO DE CRÉDITO";;"BANCO DE LA NACIÓN ARGENTINA";;"BANCO ECONÓMICO";;"BANCO FIE";;"BANCO FORTALEZA";;"BANCO GANADERO";;"BANCO MERCANTIL SANTA CRUZ";;"BANCO NACIONAL DE BOLIVIA";;"BANCO PRODEM";;"BANCO PYME DE LA COMUNIDAD";;"BANCO PYME ECOFUTURO";;"BANCO SOLIDARIO";;"BANCO UNION";;"TOTAL BANCOS";
+"Fecha de corte";Vigencia;"TC (En Bs/USD)";"BANCO BISA";;"BANCO DE CRÉDITO";;"BANCO DE LA NACIÓN ARGENTINA";;"BANCO ECONÓMICO";;"BANCO FIE";;"BANCO FORTALEZA";;"BANCO GANADERO";;"BANCO MERCANTIL SANTA CRUZ";;"BANCO NACIONAL DE BOLIVIA";;"BANCO PRODEM";;"BANCO PYME DE LA COMUNIDAD";;"BANCO PYME ECOFUTURO";;"BANCO SOLIDARIO";;"BANCO UNION";;"TOTAL BANCOS";
 2026-07-02;2026-07-03;9,2900;-;-;-;-;-;-;-;-;-;-;-;-;-;-;-;-;-;-;-;-;-;-;-;-;27;19.191;-;-;27;19.191
 2026-07-02;2026-07-03;9,3800;-;-;-;-;-;-;-;-;-;-;-;-;-;-;-;-;-;-;-;-;-;-;2;2.640;-;-;-;-;2;2.640
 2026-07-02;2026-07-03;9,4800;-;-;-;-;-;-;-;-;-;-;-;-;-;-;-;-;-;-;8;4.502;-;-;-;-;-;-;-;-;8;4.502
