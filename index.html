@@ -457,6 +457,40 @@
     .unit-btns .rbtn { min-width: 44px; }
     @media (max-width: 520px) { .btn-groups { align-self: flex-start; } }
 
+    /* ── Selector de sesión (boxplot) ─────────────────────────────────── */
+    .day-picker { display: flex; gap: 4px; align-items: stretch; flex-shrink: 0; }
+    .day-picker select {
+      padding: 4px 8px; border-radius: 0;
+      border: 1.5px solid var(--border); background: var(--card);
+      color: var(--text); font-family: 'Inter', sans-serif;
+      font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: all .14s;
+      /* Es el único control nativo de la página: sin esto el desplegable de
+         sesiones se dibuja claro sobre el tema oscuro. */
+      color-scheme: light;
+    }
+    [data-theme="dark"] .day-picker select { color-scheme: dark; }
+    .day-picker select:hover { border-color: var(--red); }
+    .day-picker select:focus-visible { outline: 2px solid var(--red); outline-offset: 1px; }
+    .dbtn {
+      width: 26px; border-radius: 0;
+      border: 1.5px solid var(--border); background: transparent;
+      color: var(--muted); font-family: 'Inter', sans-serif;
+      font-size: 15px; line-height: 1; font-weight: 600;
+      cursor: pointer; transition: all .14s;
+    }
+    .dbtn:hover:not(:disabled) { border-color: var(--red); color: var(--red); background: rgba(199,30,29,.06); }
+    .dbtn:disabled, .day-picker .rbtn:disabled { opacity: .35; cursor: default; }
+    /* Aviso de que lo mostrado NO es la última sesión */
+    .box-hist {
+      display: none; align-items: center; gap: 5px;
+      margin-top: 10px; padding: 6px 10px;
+      border-left: 3px solid var(--red); background: rgba(199,30,29,.06);
+      font-size: 11px; color: var(--muted);
+    }
+    .box-hist.show { display: flex; }
+    @media (max-width: 520px) { .day-picker { align-self: flex-start; } }
+
     /* ── Tabla bancos ─────────────────────────────────────────────────── */
     .table-wrap {
       background: var(--card); border-radius: var(--radius);
@@ -1191,6 +1225,14 @@
           <span class="chart-card-title">Cajas y bigotes · TC negociados por banco</span>
           <span class="chart-card-sub">Ponderado por monto operado (igual que el TCO del BCB) · línea roja punteada = TCO oficial de la sesión</span>
         </div>
+        <!-- Selector de sesión: abre en la última y permite recorrer cualquier
+             día desde el cambio de régimen cambiario. -->
+        <div class="day-picker" id="box-daypick" hidden>
+          <button class="dbtn" id="box-prev" aria-label="Sesión anterior" title="Sesión anterior">‹</button>
+          <select id="box-fecha" aria-label="Elegir la sesión del boxplot"></select>
+          <button class="dbtn" id="box-next" aria-label="Sesión siguiente" title="Sesión siguiente">›</button>
+          <button class="rbtn" id="box-last" title="Volver a la última sesión">Última</button>
+        </div>
       </div>
       <div class="box-scroll">
         <div id="chart-boxplot" class="chart chart-tall"><div class="loading">Cargando…</div></div>
@@ -1198,6 +1240,10 @@
       <!-- En móvil el lienzo es más ancho que la pantalla para que cada banco
            tenga su banda; sin este aviso el corte parece un error de carga. -->
       <div class="box-swipe" id="box-swipe">Desliza el gráfico para ver todas las entidades →</div>
+      <div class="box-hist" id="box-hist">
+        <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:var(--red);flex-shrink:0"><path d="M11 8v5l4.25 2.52.77-1.28-3.52-2.09V8H11zm1-6a10 10 0 100 20 10 10 0 000-20zm0 18a8 8 0 110-16 8 8 0 010 16z"/></svg>
+        <span id="box-hist-txt"></span>
+      </div>
       <div class="chart-hint" style="margin-top:8px">
         <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
         Ponderado por monto operado (USD), igual que el TCO del BCB. Caja = rango intercuartílico (50% central) · línea interna = mediana · ▲ media = TCO oficial del banco · ● atípicos · bigotes a 1,5×IQR. Bajo cada banco: TCO del banco (azul) y (nº de transacciones). Ordenados de menor a mayor TCO.
@@ -2449,7 +2495,10 @@ function renderBoxplot(dist) {
         return o;
       }
     },
-    grid:{ left:12, right:14, top:18, bottom: mob() ? 66 : 58, containLabel:true },
+    // `containLabel` reserva sitio para las etiquetas, pero NO para el nombre del
+    // eje: con top:18 el rótulo 'Bs./$us' quedaba cortado contra el borde. Mismo
+    // criterio que los gráficos de prima, brecha y variación.
+    grid:{ left:12, right:14, top:34, bottom: mob() ? 66 : 58, containLabel:true },
     xAxis:{
       type:'category', data:cats, boundaryGap:true,
       axisLine:{ lineStyle:{ color:c.grid } }, axisTick:{ show:false },
@@ -2468,7 +2517,8 @@ function renderBoxplot(dist) {
     },
     yAxis:{
       type:'value', min:ymin, max:ymax, name:'Bs./$us',
-      nameTextStyle:{ color:c.axis, fontSize:10, fontFamily:'Inter', padding:[0,0,0,30] },
+      nameTextStyle:{ color:c.axis, fontSize:10, fontFamily:'Inter', padding:[0,0,0,4] },
+      nameLocation:'end',
       axisLabel:{ formatter:v=>v.toFixed(2), fontSize:11, color:c.axis, fontFamily:'IBM Plex Mono' },
       axisLine:{ show:false },
       splitLine:{ lineStyle:{ color:c.grid, type:'dashed' } },
@@ -2492,6 +2542,123 @@ function renderBoxplot(dist) {
         itemStyle:{ color:meanColor }, z:6 },
     ],
   });
+}
+
+/* ── Boxplot · selector de sesión ───────────────────────────────────────────
+   El gráfico abre en la última sesión, cuya distribución ya viaja en tco.json
+   (`dist_hoy`): la carga inicial no cambia. Al elegir otro día se baja
+   `data/tco_dist/<fecha>.json` — un archivo por sesión, así el peso no crece
+   con la historia — y se guarda en memoria para no repetir la descarga.       */
+const g_distCache = {};   // fecha → distribución ya descargada
+let g_distSel = null;     // sesión elegida a mano (null = seguir la última)
+let g_distActual = null;  // distribución en pantalla (para re-pintar en tema/resize)
+
+// Sesiones disponibles (asc). La última entra aunque el archivo por día aún no
+// exista, porque su distribución ya viene dentro de tco.json.
+function distFechas() {
+  const fs = (g_tcoData && g_tcoData.dist_fechas) || [];
+  const ult = g_tcoData && g_tcoData.dist_hoy && g_tcoData.dist_hoy.fecha;
+  return [...new Set(ult ? [...fs, ult] : fs)].sort();
+}
+
+// "vie 31 jul. 2026" — el día de la semana ayuda a ubicarse en la serie.
+const DIAS_SEM = ['dom','lun','mar','mié','jue','vie','sáb'];
+const fmtDiaSesion = s => `${DIAS_SEM[new Date(s + 'T00:00:00').getDay()]} ${fmtDate(s)}`;
+
+async function getDist(fecha) {
+  const ult = g_tcoData && g_tcoData.dist_hoy;
+  if (ult && ult.fecha === fecha) return ult;
+  if (g_distCache[fecha]) return g_distCache[fecha];
+  const r = await fetch(`./data/tco_dist/${fecha}.json`);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const d = await r.json();
+  g_distCache[fecha] = d;
+  return d;
+}
+
+function syncDayBtns(fecha) {
+  const fs = distFechas(), i = fs.indexOf(fecha), ultima = i === fs.length - 1;
+  const prev = document.getElementById('box-prev');
+  const next = document.getElementById('box-next');
+  const last = document.getElementById('box-last');
+  if (prev) prev.disabled = i <= 0;
+  if (next) next.disabled = ultima || i < 0;
+  if (last) last.disabled = ultima;
+  const flag = document.getElementById('box-hist');
+  const txt  = document.getElementById('box-hist-txt');
+  if (flag && txt) {
+    flag.classList.toggle('show', !ultima && i >= 0);
+    if (!ultima && i >= 0) txt.textContent =
+      `Estás viendo una sesión pasada (${fmtDate(fecha)}). La última disponible es la del ${fmtDate(fs[fs.length - 1])}.`;
+  }
+}
+
+async function showDist(fecha) {
+  const el  = document.getElementById('chart-boxplot');
+  const sel = document.getElementById('box-fecha');
+  if (!el || !fecha) return;
+  if (sel && sel.value !== fecha) sel.value = fecha;
+  syncDayBtns(fecha);
+  try {
+    const d = await getDist(fecha);
+    if (sel && sel.value !== fecha) return;   // el usuario ya cambió de día
+    g_distActual = d;
+    renderBoxplot(d);
+  } catch (e) {
+    console.error('Boxplot:', e);
+    if (boxplotChart) { boxplotChart.dispose(); boxplotChart = null; }
+    g_distActual = null;
+    el.style.minWidth = '';
+    el.innerHTML = `<div class="loading">No se pudo cargar la sesión del ${fmtDate(fecha)}.</div>`;
+  }
+}
+
+function stepDay(paso) {
+  const sel = document.getElementById('box-fecha');
+  const fs = distFechas(), j = fs.indexOf(sel ? sel.value : '') + paso;
+  if (j < 0 || j >= fs.length) return;
+  pickDay(fs[j]);
+}
+
+// Elegir la última equivale a "seguir la última": el auto-refresh sigue saltando
+// al día nuevo. Elegir cualquier otra fija la vista en esa sesión.
+function pickDay(fecha) {
+  const fs = distFechas();
+  g_distSel = fecha === fs[fs.length - 1] ? null : fecha;
+  showDist(fecha);
+}
+
+function initDayPicker() {
+  const sel = document.getElementById('box-fecha');
+  if (!sel || sel.dataset.wired) return;
+  sel.dataset.wired = '1';
+  sel.addEventListener('change', () => pickDay(sel.value));
+  document.getElementById('box-prev').addEventListener('click', () => stepDay(-1));
+  document.getElementById('box-next').addEventListener('click', () => stepDay(1));
+  document.getElementById('box-last').addEventListener('click', () => {
+    const fs = distFechas();
+    if (fs.length) pickDay(fs[fs.length - 1]);
+  });
+}
+
+// Rearma las opciones (el cron agrega sesiones) y pinta la que corresponde:
+// la elegida si sigue existiendo, si no la última.
+function paintBoxplot() {
+  const fs = distFechas();
+  const pick = document.getElementById('box-daypick');
+  const sel  = document.getElementById('box-fecha');
+  if (!fs.length) { if (pick) pick.hidden = true; return; }
+  initDayPicker();
+  if (pick) pick.hidden = fs.length < 2;   // con una sola sesión no hay nada que elegir
+  if (sel) {
+    const opciones = fs.slice().reverse()
+      .map(f => `<option value="${f}">${fmtDiaSesion(f)}</option>`).join('');
+    if (sel.dataset.opts !== String(fs.length) || sel.innerHTML !== opciones) {
+      sel.innerHTML = opciones;
+      sel.dataset.opts = String(fs.length);
+    }
+  }
+  showDist(g_distSel && fs.includes(g_distSel) ? g_distSel : fs[fs.length - 1]);
 }
 
 /* ── Heatmap Calendario ────────────────────────────────────────────────── */
@@ -3214,7 +3381,7 @@ function applyTheme(theme) {
     renderHeatmap(g_serie);
     if (g_tco.length) renderTco(g_serie);
     renderVariacion(g_serie);
-    if (g_tcoData && g_tcoData.dist_hoy) renderBoxplot(g_tcoData.dist_hoy);
+    if (g_distActual) renderBoxplot(g_distActual);   // la sesión que el usuario tenga elegida
   }
 }
 document.getElementById('theme-btn').addEventListener('click', () => {
@@ -3243,7 +3410,7 @@ window.addEventListener('resize', () => {
       renderHeatmap(g_serie);
       if (g_tco.length) renderTco(g_serie);
       renderVariacion(g_serie);
-      if (g_tcoData && g_tcoData.dist_hoy) renderBoxplot(g_tcoData.dist_hoy);
+      if (g_distActual) renderBoxplot(g_distActual);
     }
   }, 200);
 });
@@ -3371,7 +3538,7 @@ function paintCharts() {
   try { renderPrima(g_serie); } catch(e) { console.error('Prima:', e); }
   try { renderBrecha(g_serie); } catch(e) { console.error('Brecha:', e); }
   try { renderVolumen(g_bancosUni); } catch(e) { console.error('Volumen:', e); }
-  try { if (g_tcoData && g_tcoData.dist_hoy) renderBoxplot(g_tcoData.dist_hoy); } catch(e) { console.error('Boxplot:', e); }
+  try { paintBoxplot(); } catch(e) { console.error('Boxplot:', e); }
   try { renderHeatmap(g_serie); updateHmSubtitle(); } catch(e) { console.error('Heatmap:', e); }
   try {
     // Régimen TCO: tabla por banco con el detalle del TCO. El referencial por

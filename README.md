@@ -39,6 +39,7 @@ El dashboard muestra cuánto se movió el tipo de cambio en cada sesión respect
 │   ├── tco.csv                        # Serie diaria GLOBAL del TCO (fuente de verdad)
 │   ├── tco_bancos.csv                 # Detalle POR BANCO del TCO por día (TCO, tx, monto)
 │   ├── tco_raw/<fecha>.csv            # Copia verbatim del reporte del BCB (red de seguridad sin pérdida)
+│   ├── tco_dist/<fecha>.json          # Caja y bigotes por banco de cada sesión (selector de día del boxplot)
 │   ├── tco.json                       # JSON del TCO: serie global + venta (+0,10) + USDT + detalle por banco
 │   ├── historico.json                 # JSON para gráficos de evolución
 │   └── bancos.json                    # JSON del referencial por banco (histórico, congelado)
@@ -56,6 +57,16 @@ Tras el cambio de régimen (jun-2026) el **valor referencial** del BCB quedó co
 - **`update_dolar.yml`** — corre **1x/día** (23:00 BOT) y solo mantiene viva la serie **USDT** (paralelo) por fecha de calendario. Si el BCB reactivara el referencial, también lo recogería.
 
 > **Auto-recuperación:** desde jul-2026 el CSV del BCB acepta rango de fechas, así que cada corrida rebaja la serie completa y **rellena sola** cualquier sesión que se hubiera perdido. Aun así se conserva la copia propia en `data/tco_raw/<fecha>.csv` por si el BCB algún día recorta la ventana.
+
+### Elegir el día del boxplot (sección 08)
+
+La distribución de tipos de cambio por banco se puede ver de **cualquier sesión desde el cambio de régimen**, no solo de la última. El scraper archiva la caja y bigotes de cada día en `data/tco_dist/<fecha>.json` — un archivo por sesión, no un blob que crece.
+
+Así el dashboard abre igual de rápido que antes (la última sesión ya viaja dentro de `tco.json`, en `dist_hoy`) y solo baja el archivo del día que el usuario elige, que además queda en caché. `tco.json` lleva únicamente la **lista** de sesiones disponibles (`dist_fechas`) para armar el selector.
+
+Elegir la última equivale a *seguir la última*: el auto-refresh salta solo al día nuevo. Si hay una sesión pasada en pantalla, la vista se queda ahí y el gráfico lo advierte.
+
+> `python scripts/scrape_tco.py --desde-raw` rehace `tco_dist/` y `tco.json` desde el archivo local `tco_raw/`, sin red. Es el backfill de las sesiones anteriores a que existiera el selector y la vía de recuperación si el BCB recorta la ventana del endpoint.
 
 ### Cuando el BCB no publica los totales
 

@@ -86,7 +86,7 @@ jobs:
           # Solo commiteamos cuando cambian los datos reales (CSV / raw). El
           # tco.json se regenera con timestamp nuevo en cada corrida, así que se
           # adjunta SOLO cuando ya hay un cambio de datos (evita commits de ruido).
-          git add data/tco.csv data/tco_bancos.csv data/tco_raw
+          git add data/tco.csv data/tco_bancos.csv data/tco_raw data/tco_dist
           if git diff --cached --quiet; then
             echo "Sin datos nuevos de TCO."
           else

@@ -18,6 +18,8 @@ entidad) y la distribución por nivel de precio. Persistimos TODO:
   data/tco_raw/<fecha>.csv — copia VERBATIM del reporte del BCB (red de seguridad
                              sin pérdida: preserva incluso la distribución por
                              nivel de precio que aún no exponemos en tidy)
+  data/tco_dist/<fecha>.json — caja y bigotes por banco de CADA sesión (el
+                             dashboard deja elegir qué día ver en el boxplot)
   data/tco.json           — dashboard: serie global + venta (+0,10) + USDT +
                              detalle por banco del día
 
@@ -73,6 +75,7 @@ DATA_DIR   = Path(__file__).parent.parent / "data"
 TCO_CSV    = DATA_DIR / "tco.csv"
 TCO_BANCOS = DATA_DIR / "tco_bancos.csv"
 TCO_RAW    = DATA_DIR / "tco_raw"
+TCO_DIST   = DATA_DIR / "tco_dist"
 TCO_JSON   = DATA_DIR / "tco.json"
 DOLAR_CSV  = DATA_DIR / "dolar.csv"          # para cruzar el USDT por fecha
 
@@ -426,15 +429,14 @@ def boxplot_stats(pairs: list[tuple[float, int]]) -> dict:
             "mean": r(mean), "outliers": [r(o) for o in outliers]}
 
 
-def construir_dist_hoy(reporte: dict[str, dict]) -> dict | None:
+def construir_dist(reporte: dict[str, dict], fecha: str) -> dict | None:
     """
-    Distribución de la sesión más reciente para el boxplot: por banco activo, su
+    Distribución de UNA sesión para el boxplot: por banco activo, su
     caja/bigotes/outliers + TCO y nº de transacciones. Orden ascendente por TCO.
     """
-    if not reporte:
+    g = reporte.get(fecha)
+    if not g:
         return None
-    fecha = max(reporte.keys())
-    g = reporte[fecha]
     bancos_box = []
     for banco, niveles in g.get("dist", {}).items():
         # Ponderar por MONTO (USD), igual que el BCB: así la media (triángulo)
@@ -448,7 +450,47 @@ def construir_dist_hoy(reporte: dict[str, dict]) -> dict | None:
     # Orden ascendente por la media mostrada (triángulo / número azul).
     bancos_box.sort(key=lambda x: x["mean"])
     return {"fecha": fecha, "vig": dia_siguiente(fecha),
-            "tco_oficial": g.get("tco"), "bancos": bancos_box}
+            "tco_oficial": g.get("tco"), "vol_usd": g.get("vol_usd"),
+            "tx": g.get("tx"), "bancos": bancos_box}
+
+
+def construir_dist_hoy(reporte: dict[str, dict]) -> dict | None:
+    """Distribución de la sesión más reciente (la que abre el dashboard)."""
+    return construir_dist(reporte, max(reporte)) if reporte else None
+
+
+def fechas_dist() -> list[str]:
+    """Sesiones con distribución archivada (asc) — alimenta el selector de día."""
+    return sorted(p.stem for p in TCO_DIST.glob("*.json")) if TCO_DIST.exists() else []
+
+
+def guardar_dist_series(reporte: dict[str, dict]) -> list[str]:
+    """
+    Archiva la caja y bigotes de CADA sesión en `tco_dist/<fecha>.json`, un
+    archivo por día.
+
+    Un archivo por sesión (y no un blob único con toda la serie) por dos razones:
+    el dashboard sólo baja el día que el usuario elige — la carga inicial no
+    crece con la historia —, y cada corrida agrega un archivo nuevo en vez de
+    reescribir uno cada vez más grande. Idempotente: no toca lo ya escrito si el
+    contenido no cambió. Devuelve las fechas disponibles en disco (asc).
+    """
+    TCO_DIST.mkdir(parents=True, exist_ok=True)
+    nuevas = 0
+    for fecha in sorted(reporte):
+        d = construir_dist(reporte, fecha)
+        if not d or not d["bancos"]:
+            continue
+        destino = TCO_DIST / f"{fecha}.json"
+        contenido = json.dumps(d, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        if destino.exists() and destino.read_bytes() == contenido:
+            continue
+        destino.write_bytes(contenido)
+        nuevas += 1
+    fechas = fechas_dist()
+    print(f"[OK] tco_dist — {nuevas} sesión(es) nueva(s)/actualizada(s), "
+          f"{len(fechas)} disponible(s) para el selector del boxplot")
+    return fechas
 
 
 # ── USDT desde dolar.csv (para comparación) ─────────────────────────────────────
@@ -488,7 +530,8 @@ def _totales_por_banco(bancos_rows: list[dict]) -> dict[str, dict]:
 
 def exportar_json(global_rows: list[dict], bancos_rows: list[dict],
                   dist_hoy: dict | None = None,
-                  recon_fechas: tuple = ()) -> None:
+                  recon_fechas: tuple = (),
+                  dist_fechas: list[str] | None = None) -> None:
     """`recon_fechas`: sesiones cuyos totales se reconstruyeron desde la
     distribución porque el BCB no publicó la fila TOTAL. Se marcan en la serie
     (`rec: true`) para que el dashboard lo pueda advertir en vez de mostrar el
@@ -584,6 +627,10 @@ def exportar_json(global_rows: list[dict], bancos_rows: list[dict],
         "bancos_fechas": fechas_b,
         "bancos_series": bancos_series,
         "dist_hoy": dist_hoy,
+        # Sólo la LISTA de sesiones con boxplot disponible (unos bytes): el
+        # selector del dashboard se arma con esto y baja `tco_dist/<fecha>.json`
+        # únicamente cuando el usuario cambia de día.
+        "dist_fechas": dist_fechas if dist_fechas is not None else fechas_dist(),
         "reconstruidas": sorted(recon_fechas),
     }
     TCO_JSON.write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
@@ -600,11 +647,44 @@ def _regenerar_desde_disco() -> None:
     exportar_json(leer_csv(TCO_CSV), leer_csv(TCO_BANCOS), None)
 
 
+def reporte_desde_raw() -> dict[str, dict]:
+    """
+    Reconstruye el reporte completo desde el archivo local `tco_raw/`, sin red.
+    Cada raw es el bloque verbatim de una sesión (cabecera + filas), así que
+    parsea con el mismo `parse_reporte` del CSV en vivo. Es el backfill de las
+    sesiones anteriores a que existiera `tco_dist/`, y la vía de recuperación si
+    el BCB algún día recorta la ventana del endpoint.
+    """
+    rep: dict[str, dict] = {}
+    for p in sorted(TCO_RAW.glob("*.csv")):
+        try:
+            rep.update(parse_reporte(_decode_bcb(p.read_bytes())))
+        except Exception as e:
+            print(f"[WARN] {p.name}: no se pudo parsear ({e})", file=sys.stderr)
+    return rep
+
+
+def regenerar_desde_raw() -> None:
+    """`--desde-raw`: rehace tco_dist/ y tco.json con el archivo local (offline)."""
+    reporte = reporte_desde_raw()
+    if not reporte:
+        print("::error::no hay sesiones parseables en data/tco_raw/")
+        sys.exit(1)
+    print(f"[OK] archivo local: {len(reporte)} sesión(es) leída(s) de tco_raw/")
+    dist_fechas = guardar_dist_series(reporte)
+    exportar_json(leer_csv(TCO_CSV), leer_csv(TCO_BANCOS),
+                  construir_dist_hoy(reporte), _fechas_reconstruidas(reporte),
+                  dist_fechas)
+
+
 def _fechas_reconstruidas(reporte: dict[str, dict]) -> tuple:
     return tuple(f for f, g in reporte.items() if g.get("reconstruido"))
 
 
 def main() -> None:
+    if "--desde-raw" in sys.argv:
+        regenerar_desde_raw()
+        return
     print("Obteniendo TCO (serie completa)...")
     # Dos modos de fallo, tratados MUY distinto:
     #  • WAF/red (request_bcb agota reintentos): transitorio y benigno. Conservamos
@@ -654,15 +734,17 @@ def main() -> None:
         guardar_raw_serie(crudo)
         global_rows = agregar_global_csv(reporte, ts)
         bancos_rows = agregar_bancos_csv(reporte, ts)
+        dist_fechas = guardar_dist_series(reporte)
         dist_hoy = construir_dist_hoy(reporte)
         recon = _fechas_reconstruidas(reporte)
     else:
         global_rows = leer_csv(TCO_CSV)
         bancos_rows = leer_csv(TCO_BANCOS)
+        dist_fechas = fechas_dist()
         dist_hoy = None
         recon = ()
 
-    exportar_json(global_rows, bancos_rows, dist_hoy, recon)
+    exportar_json(global_rows, bancos_rows, dist_hoy, recon, dist_fechas)
 
 
 if __name__ == "__main__":
