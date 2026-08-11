@@ -11,10 +11,10 @@
   <style>
     /* ── Variables — Tema Claro (Populi Website) ─────────────────── */
     :root {
-      --populi:       #8B1A1A;
+      --populi:       #C71E1D;
       --populi-dark:  #6B0300;
-      --populi-light: #C00000;
-      --populi-gold:  #D4A017;
+      --populi-light: #E8706B;
+      --populi-gold:  #EE9B00;
       --cream:        #F5EFE0;
       --brown:        #5C3D1E;
       --brown-dark:   #3D2B1F;
@@ -34,9 +34,9 @@
       --muted: var(--slate-light);
 
       --ct-venta:   #C71E1D;
-      --ct-compra:  #0D9488;
-      --ct-usdt:    #D97706;
-      --ct-oficial: #6366F1;
+      --ct-compra:  #0A9396;
+      --ct-usdt:    #EE9B00;
+      --ct-oficial: #005F73;
 
       --shadow: 0 1px 3px rgba(13,27,42,.04), 0 4px 16px rgba(13,27,42,.06);
       --radius: 12px;
@@ -169,7 +169,7 @@
       margin-top: 5px;
     }
     .kpi-delta.up { background: rgba(199,30,29,.08); color: #C71E1D; }
-    .kpi-delta.down { background: rgba(5,150,105,.08); color: #059669; }
+    .kpi-delta.down { background: rgba(5,150,105,.08); color: #0A9396; }
     .kpi-delta.flat { background: rgba(100,116,139,.08); color: #64748B; }
     [data-theme="dark"] .kpi-delta.up { background: rgba(199,30,29,.15); }
     [data-theme="dark"] .kpi-delta.down { background: rgba(5,150,105,.15); }
@@ -373,9 +373,9 @@
       white-space: nowrap;
     }
     .dt-red { background: rgba(199,30,29,.08); color: #C71E1D; }
-    .dt-teal { background: rgba(13,148,136,.08); color: #0D9488; }
-    .dt-amber { background: rgba(217,119,6,.08); color: #D97706; }
-    .dt-indigo { background: rgba(99,102,241,.08); color: #6366F1; }
+    .dt-teal { background: rgba(13,148,136,.08); color: #0A9396; }
+    .dt-amber { background: rgba(217,119,6,.08); color: #EE9B00; }
+    .dt-indigo { background: rgba(99,102,241,.08); color: #005F73; }
 
     /* ── Edu Boxes ────────────────────────────────────────────────── */
     .edu-box {
@@ -433,9 +433,9 @@
       border-radius: 3px;
     }
     .hl-red { background: rgba(199,30,29,.08); color: #C71E1D; }
-    .hl-teal { background: rgba(13,148,136,.08); color: #0D9488; }
-    .hl-amber { background: rgba(217,119,6,.08); color: #D97706; }
-    .hl-indigo { background: rgba(99,102,241,.08); color: #6366F1; }
+    .hl-teal { background: rgba(13,148,136,.08); color: #0A9396; }
+    .hl-amber { background: rgba(217,119,6,.08); color: #EE9B00; }
+    .hl-indigo { background: rgba(99,102,241,.08); color: #005F73; }
 
     /* ── Ampliar Button ──────────────────────────────────────────── */
     .panel-footer {
@@ -660,7 +660,7 @@
                 Elaboración: <a href="https://populi.org.bo" target="_blank">Centro de Estudios POPULI</a>
               </span>
               <svg viewBox="0 0 310 130" xmlns="http://www.w3.org/2000/svg" class="watermark">
-                <text x="6" y="112" font-family="'Playfair Display', Georgia, serif" font-size="145" font-weight="700" fill="${isDark() ? '#C00000' : '#8B1A1A'}">P</text>
+                <text x="6" y="112" font-family="'Playfair Display', Georgia, serif" font-size="145" font-weight="700" fill="${isDark() ? '#E8706B' : '#C71E1D'}">P</text>
                 <text x="92" y="87" font-family="'Playfair Display', Georgia, serif" font-size="55" font-weight="400" font-style="italic" letter-spacing="1" fill="${isDark() ? '#F5EFE0' : '#3D2B1F'}">opuli</text>
               </svg>
             </div>
@@ -713,9 +713,9 @@
 
       // ── Series config ─────────────────────────────────────────
       const SERIES = [
-        { key:'c',    label:'TCO',   color:'#0D9488', dashed:false },
+        { key:'c',    label:'TCO',   color:'#0A9396', dashed:false },
         { key:'v',    label:'Venta', color:'#C71E1D', dashed:false },
-        { key:'usdt', label:'USDT',  color:'#D97706', dashed:true  },
+        { key:'usdt', label:'USDT',  color:'#EE9B00', dashed:true  },
       ];
       let active = new Set(SERIES.map(s => s.key));
 
@@ -790,8 +790,8 @@
 
         document.getElementById('panel-body').innerHTML = `
           <div class="panel-block">
-            <div class="panel-label" style="color:#0D9488; background:rgba(13,148,136,.08); border-left-color:#0D9488">${isTco ? 'Tipo de Cambio Oficial' : 'Compra (paralelo)'}</div>
-            <div class="panel-val" style="color:#0D9488">${fbs(p.c)}</div>
+            <div class="panel-label" style="color:#0A9396; background:rgba(13,148,136,.08); border-left-color:#0A9396">${isTco ? 'Tipo de Cambio Oficial' : 'Compra (paralelo)'}</div>
+            <div class="panel-val" style="color:#0A9396">${fbs(p.c)}</div>
             <p class="panel-desc">${isTco
               ? `Promedio ponderado de las <strong>compras de dólares de la banca</strong> el <strong>${fdate(p.sesion || p.f)}</strong>; rige como referencia el <strong>${fdate(p.f)}</strong>.${dC != null ? ` Variación de <span class="delta-tag dt-teal">${(dC >= 0 ? '+' : '') + dC.toFixed(2)} Bs</span> vs. la sesión anterior.` : ''}`
               : `Precio de <strong>compra</strong> del dólar en el mercado paralelo referencial.`}</p>
@@ -804,8 +804,8 @@
               : `Precio de <strong>venta</strong> del dólar en el mercado paralelo referencial.`}</p>
           </div>
           <div class="panel-block">
-            <div class="panel-label" style="color:#D97706; background:rgba(217,119,6,.08); border-left-color:#D97706">USDT Binance P2P</div>
-            <div class="panel-val" style="color:#D97706">${fbs(p.usdt)}</div>
+            <div class="panel-label" style="color:#EE9B00; background:rgba(217,119,6,.08); border-left-color:#EE9B00">USDT Binance P2P</div>
+            <div class="panel-val" style="color:#EE9B00">${fbs(p.usdt)}</div>
             <p class="panel-desc">${p.usdt == null ? 'Sin dato de USDT para esta fecha.' : (prima == null
               ? `Mediana del USDT/BOB en Binance P2P.`
               : `Mediana del USDT/BOB en Binance P2P — cotiza <span class="delta-tag dt-amber">${(prima >= 0 ? '+' : '') + prima.toFixed(2)} Bs</span> ${Math.abs(prima) < 0.15 ? 'prácticamente en línea con' : (prima >= 0 ? 'por encima de' : 'por debajo de')} la venta oficial.`)}</p>
@@ -847,18 +847,18 @@
           };
         }
 
-        if (active.has('c'))    seriesData.push(lineSeries('c', 'TCO', '#0D9488', 2.6, false, 'rgba(13,148,136,.12)'));
+        if (active.has('c'))    seriesData.push(lineSeries('c', 'TCO', '#0A9396', 2.6, false, 'rgba(13,148,136,.12)'));
         if (active.has('v'))    seriesData.push(lineSeries('v', 'Venta oficial', '#C71E1D', 2, false, 'rgba(199,30,29,.10)'));
-        if (active.has('usdt')) seriesData.push(lineSeries('usdt', 'USDT', '#D97706', 2, true, null));
+        if (active.has('usdt')) seriesData.push(lineSeries('usdt', 'USDT', '#EE9B00', 2, true, null));
 
         // Línea de referencia del tipo fijo 6,96 + marca del cambio de régimen
         seriesData.push({
           name: 'Oficial (6,96)', type: 'line', data: dates.map(() => BCB_OFICIAL), symbol: 'none',
-          lineStyle: { width: 1.5, color: '#6366F1', type: [5, 4] }, itemStyle: { color: '#6366F1' }, z: 1,
+          lineStyle: { width: 1.5, color: '#005F73', type: [5, 4] }, itemStyle: { color: '#005F73' }, z: 1,
           markLine: REGIME_TCO ? {
             silent: true, symbol: 'none',
-            lineStyle: { color: dk ? '#818CF8' : '#6366F1', type: 'dashed', width: 1.2 },
-            label: { show: true, formatter: 'Cambio de régimen · TCO', position: 'insideEndTop', fontSize: 9, color: dk ? '#818CF8' : '#6366F1' },
+            lineStyle: { color: dk ? '#94D2BD' : '#005F73', type: 'dashed', width: 1.2 },
+            label: { show: true, formatter: 'Cambio de régimen · TCO', position: 'insideEndTop', fontSize: 9, color: dk ? '#94D2BD' : '#005F73' },
             data: [{ xAxis: REGIME_TCO }]
           } : undefined
         });
@@ -882,7 +882,7 @@
               let html = `<div style="font-weight:700; margin-bottom:6px; color:#E9D8A6; font-size:12px">${fdate(dates[idx])}</div>`;
               params.forEach(p => {
                 if (p.value == null) return;
-                const c = p.seriesName === 'Oficial (6,96)' ? '#6366F1' : p.color;
+                const c = p.seriesName === 'Oficial (6,96)' ? '#005F73' : p.color;
                 html += `<div style="display:flex; align-items:center; gap:8px; margin:3px 0">
                   <span style="width:8px;height:8px;border-radius:50%;background:${c};display:inline-block"></span>
                   <span style="flex:1;font-size:11px;color:rgba(255,255,255,.7)">${p.seriesName}</span>
