@@ -47,7 +47,7 @@
       --bg:          #080808;
       --card:        #141414;
       --text:        #E2E8F0;
-      --text2:       #94A3B8;
+      --text2:       #64748B;
       --muted:       #64748B;
       --border:      #2A3A50;
       --light-gray:  #1A1A1A;
@@ -169,10 +169,10 @@
       margin-top: 5px;
     }
     .kpi-delta.up { background: rgba(199,30,29,.08); color: #C71E1D; }
-    .kpi-delta.down { background: rgba(5,150,105,.08); color: #0A9396; }
+    .kpi-delta.down { background: rgba(10,147,150,.08); color: #0A9396; }
     .kpi-delta.flat { background: rgba(100,116,139,.08); color: #64748B; }
     [data-theme="dark"] .kpi-delta.up { background: rgba(199,30,29,.15); }
-    [data-theme="dark"] .kpi-delta.down { background: rgba(5,150,105,.15); }
+    [data-theme="dark"] .kpi-delta.down { background: rgba(10,147,150,.15); }
 
     /* ── Main Grid: Chart + Panel ────────────────────────────────── */
     .main-grid {
@@ -252,7 +252,7 @@
       color: var(--muted);
       transition: all .2s;
     }
-    [data-theme="dark"] .range-btn { border-color: var(--dark-border); color: #94A3B8; }
+    [data-theme="dark"] .range-btn { border-color: var(--dark-border); color: #64748B; }
     .range-btn:hover, .range-btn.active {
       border-color: var(--populi);
       color: var(--populi);
@@ -373,9 +373,9 @@
       white-space: nowrap;
     }
     .dt-red { background: rgba(199,30,29,.08); color: #C71E1D; }
-    .dt-teal { background: rgba(13,148,136,.08); color: #0A9396; }
-    .dt-amber { background: rgba(217,119,6,.08); color: #EE9B00; }
-    .dt-indigo { background: rgba(99,102,241,.08); color: #005F73; }
+    .dt-teal { background: rgba(10,147,150,.08); color: #0A9396; }
+    .dt-amber { background: rgba(238,155,0,.08); color: #EE9B00; }
+    .dt-indigo { background: rgba(0,95,115,.08); color: #005F73; }
 
     /* ── Edu Boxes ────────────────────────────────────────────────── */
     .edu-box {
@@ -421,7 +421,7 @@
       margin-bottom: 6px;
     }
     .edu-box-content p:last-child { margin-bottom: 0; }
-    [data-theme="dark"] .edu-box-content p { color: #94A3B8; }
+    [data-theme="dark"] .edu-box-content p { color: #64748B; }
     .edu-box-content p strong { color: var(--navy); }
     [data-theme="dark"] .edu-box-content p strong { color: #E2E8F0; }
     .edu-box-content .highlight {
@@ -433,9 +433,9 @@
       border-radius: 3px;
     }
     .hl-red { background: rgba(199,30,29,.08); color: #C71E1D; }
-    .hl-teal { background: rgba(13,148,136,.08); color: #0A9396; }
-    .hl-amber { background: rgba(217,119,6,.08); color: #EE9B00; }
-    .hl-indigo { background: rgba(99,102,241,.08); color: #005F73; }
+    .hl-teal { background: rgba(10,147,150,.08); color: #0A9396; }
+    .hl-amber { background: rgba(238,155,0,.08); color: #EE9B00; }
+    .hl-indigo { background: rgba(0,95,115,.08); color: #005F73; }
 
     /* ── Ampliar Button ──────────────────────────────────────────── */
     .panel-footer {
@@ -457,22 +457,22 @@
       letter-spacing: 0.04em;
       text-transform: uppercase;
       color: var(--populi);
-      background: rgba(139,26,26,.06);
-      border: 1.5px solid rgba(139,26,26,.15);
+      background: rgba(199,30,29,.06);
+      border: 1.5px solid rgba(199,30,29,.15);
       transition: all .2s;
       text-decoration: none;
       cursor: pointer;
     }
     [data-theme="dark"] .ampliar-btn {
-      background: rgba(192,0,0,.08);
-      border-color: rgba(192,0,0,.2);
+      background: rgba(232,112,107,.08);
+      border-color: rgba(232,112,107,.2);
       color: var(--populi-light);
     }
     .ampliar-btn:hover {
-      background: rgba(139,26,26,.12);
-      border-color: rgba(139,26,26,.3);
+      background: rgba(199,30,29,.12);
+      border-color: rgba(199,30,29,.3);
       transform: translateY(-1px);
-      box-shadow: 0 2px 8px rgba(139,26,26,.1);
+      box-shadow: 0 2px 8px rgba(199,30,29,.1);
       text-decoration: none;
     }
     .ampliar-btn svg {
@@ -493,7 +493,7 @@
       line-height: 1.55;
       color: var(--slate-light);
     }
-    [data-theme="dark"] .ctx-box p { color: #94A3B8; }
+    [data-theme="dark"] .ctx-box p { color: #64748B; }
     .ctx-box p strong { color: var(--navy); }
     [data-theme="dark"] .ctx-box p strong { color: #E2E8F0; }
 
@@ -790,7 +790,7 @@
 
         document.getElementById('panel-body').innerHTML = `
           <div class="panel-block">
-            <div class="panel-label" style="color:#0A9396; background:rgba(13,148,136,.08); border-left-color:#0A9396">${isTco ? 'Tipo de Cambio Oficial' : 'Compra (paralelo)'}</div>
+            <div class="panel-label" style="color:#0A9396; background:rgba(10,147,150,.08); border-left-color:#0A9396">${isTco ? 'Tipo de Cambio Oficial' : 'Compra (paralelo)'}</div>
             <div class="panel-val" style="color:#0A9396">${fbs(p.c)}</div>
             <p class="panel-desc">${isTco
               ? `Promedio ponderado de las <strong>compras de dólares de la banca</strong> el <strong>${fdate(p.sesion || p.f)}</strong>; rige como referencia el <strong>${fdate(p.f)}</strong>.${dC != null ? ` Variación de <span class="delta-tag dt-teal">${(dC >= 0 ? '+' : '') + dC.toFixed(2)} Bs</span> vs. la sesión anterior.` : ''}`
@@ -804,7 +804,7 @@
               : `Precio de <strong>venta</strong> del dólar en el mercado paralelo referencial.`}</p>
           </div>
           <div class="panel-block">
-            <div class="panel-label" style="color:#EE9B00; background:rgba(217,119,6,.08); border-left-color:#EE9B00">USDT Binance P2P</div>
+            <div class="panel-label" style="color:#EE9B00; background:rgba(238,155,0,.08); border-left-color:#EE9B00">USDT Binance P2P</div>
             <div class="panel-val" style="color:#EE9B00">${fbs(p.usdt)}</div>
             <p class="panel-desc">${p.usdt == null ? 'Sin dato de USDT para esta fecha.' : (prima == null
               ? `Mediana del USDT/BOB en Binance P2P.`
@@ -847,7 +847,7 @@
           };
         }
 
-        if (active.has('c'))    seriesData.push(lineSeries('c', 'TCO', '#0A9396', 2.6, false, 'rgba(13,148,136,.12)'));
+        if (active.has('c'))    seriesData.push(lineSeries('c', 'TCO', '#0A9396', 2.6, false, 'rgba(10,147,150,.12)'));
         if (active.has('v'))    seriesData.push(lineSeries('v', 'Venta oficial', '#C71E1D', 2, false, 'rgba(199,30,29,.10)'));
         if (active.has('usdt')) seriesData.push(lineSeries('usdt', 'USDT', '#EE9B00', 2, true, null));
 
@@ -897,7 +897,7 @@
             axisLine: { lineStyle: { color: dk ? '#2A3A50' : '#E2DDD3' } },
             axisTick: { show: false },
             axisLabel: {
-              fontFamily: 'Inter', fontSize: 10, fontWeight: 500, color: dk ? '#64748B' : '#94A3B8',
+              fontFamily: 'Inter', fontSize: 10, fontWeight: 500, color: dk ? '#64748B' : '#64748B',
               formatter: function(v, idx) {
                 const d = new Date(v + 'T00:00:00');
                 const total = dates.length;
@@ -916,9 +916,9 @@
           yAxis: {
             type: 'value',
             min: function(v) { return Math.floor((Math.min(v.min, BCB_OFICIAL) - 0.3) * 2) / 2; },
-            splitLine: { lineStyle: { color: dk ? '#1E1E1E' : '#F1F5F9', type: 'dashed' } },
+            splitLine: { lineStyle: { color: dk ? '#141414' : '#F1F5F9', type: 'dashed' } },
             axisLine: { show: false }, axisTick: { show: false },
-            axisLabel: { fontFamily: 'JetBrains Mono', fontSize: 11, color: dk ? '#64748B' : '#94A3B8', formatter: '{value} Bs' }
+            axisLabel: { fontFamily: 'JetBrains Mono', fontSize: 11, color: dk ? '#64748B' : '#64748B', formatter: '{value} Bs' }
           },
           series: seriesData
         };

@@ -78,7 +78,7 @@
       --shadow-xs:  0 1px 4px rgba(0,0,0,.5);
 
       --ct-axis:    #909090;
-      --ct-grid:    #1E1E1E;
+      --ct-grid:    #141414;
       --ct-legend:  #909090;
       --ct-tip-bg:  #080808;
       --ct-tip-bd:  #242424;
@@ -108,7 +108,7 @@
     [data-theme="dark"] .hero h1 em     { color: rgba(255,255,255,.5); }
     [data-theme="dark"] .hero-desc      { color: rgba(255,255,255,.68); }
     [data-theme="dark"] .hero-watermark { color: rgba(255,255,255,.022); }
-    [data-theme="dark"] .info-strip { background: #0A0A0A; border-bottom-color: #1A1A1A; }
+    [data-theme="dark"] .info-strip { background: #080808; border-bottom-color: #1A1A1A; }
     [data-theme="dark"] thead tr { background: #080808; }
     [data-theme="dark"] .alert-banner {
       background: linear-gradient(90deg, rgba(199,30,29,.12), rgba(199,30,29,.02));
@@ -498,7 +498,7 @@
       transition: background var(--transition);
     }
     table { width: 100%; border-collapse: collapse; }
-    thead tr { background: #0A0A0A; }
+    thead tr { background: #080808; }
     [data-theme="dark"] thead tr { background: #050505; }
     thead th {
       padding: 11px 16px; text-align: left;
@@ -1005,7 +1005,7 @@
   <!-- Guía · Tres tipos de cambio -->
   <section class="section">
     <div class="section-header">
-      <span class="section-num" style="color:var(--indigo);border-color:rgba(99,102,241,.3)">GUÍA</span>
+      <span class="section-num" style="color:var(--indigo);border-color:rgba(0,95,115,.3)">GUÍA</span>
       <div class="section-titles">
         <h2>Cómo leer estos datos · Tres tipos de cambio</h2>
         <p>En Bolivia conviven tres referencias distintas para el dólar. No son lo mismo, y confundirlas lleva a conclusiones erróneas.</p>
@@ -2242,7 +2242,7 @@ function renderBrecha(serie) {
     backgroundColor: 'transparent',
     tooltip: {
       trigger:'axis',
-      axisPointer:{ lineStyle:{ color:'rgba(99,102,241,.3)', width:1.5, type:'dashed' } },
+      axisPointer:{ lineStyle:{ color:'rgba(0,95,115,.3)', width:1.5, type:'dashed' } },
       ...tipBase(),
       formatter(params) {
         if (!params.length) return '';
@@ -2296,7 +2296,7 @@ function renderBrecha(serie) {
       itemStyle:{ color:'#001219' },
       lineStyle:{ width:2, color:'#001219' },
       areaStyle:{ color:{ type:'linear', x:0, y:0, x2:0, y2:1,
-        colorStops:[{offset:0,color:'rgba(99,102,241,.22)'},{offset:1,color:'rgba(99,102,241,0)'}] } },
+        colorStops:[{offset:0,color:'rgba(0,95,115,.22)'},{offset:1,color:'rgba(0,95,115,0)'}] } },
       symbol:'none', smooth:0.4,
       markLine:{
         data:[{ yAxis:0 }],
