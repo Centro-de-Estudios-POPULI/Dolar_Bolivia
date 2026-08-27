@@ -26,7 +26,8 @@ entidad) y la distribución por nivel de precio. Persistimos TODO:
 Disposición BCB: el precio de VENTA oficial = TCO + 0,10 Bs (margen de 10 ctvs).
 
 Fuente:
-  https://www.bcb.gob.bo/tco_tcreferencial_descargar_csv.php?desde=<ini>&hasta=<fin>
+  https://www.bcb.gob.bo/bcb_tco_publico_descargar_csv.php?desde=<ini>&hasta=<fin>
+  (antes `tco_tcreferencial_descargar_csv.php`, congelado por el BCB el 2026-08-20)
   (CSV oficial de la "serie de tiempo"; separador ';', decimal coma, BOM; cabecera
    con 'Fecha de corte' + 'Fecha de vigencia' y bloques N°/Monto por banco.)
 """
@@ -46,7 +47,33 @@ from bs4 import BeautifulSoup
 from scrape_dolar import request_bcb, parse_num, alias_banco
 
 # ── Config ─────────────────────────────────────────────────────────────────────
-TCO_CSV_URL = "https://www.bcb.gob.bo/tco_tcreferencial_descargar_csv.php"
+# ⚠️⚠️ EL BCB MUDÓ EL REPORTE (2026-08-27). Los endpoints `tco_*` dejaron de
+#   avanzar: desde el 21-ago responden 200, con datos, pero su ventana se quedó
+#   clavada en el 2026-08-20 —el CSV devuelve «Rango de fecha de corte;…;
+#   2026-08-20», la página declara `max="2026-08-20"` y el Excel tira 500 «No
+#   existen datos de detalle»—. La serie siguió publicándose todo ese tiempo en
+#   `bcb_tco_publico_*`, la ruta nueva, que el 27-ago traía 41 sesiones contra
+#   las 37 de la vieja.
+#
+#   ⇒ NO FUE UNA CAÍDA: fue una MUDANZA, y por eso no la vio nadie. Un 404 se
+#     nota; una URL que sigue contestando 200 con el último dato bueno se lee
+#     como «hoy no hubo sesión». Seis días hábiles perdidos en verde.
+#
+#   Se prueban las dos rutas EN ORDEN y se usa la que traiga la serie más larga
+#   (`elegir_fuente`), así que el día que el BCB vuelva a mudar —o revierta— el
+#   scraper se acomoda solo en vez de congelarse otros seis días. Y para que un
+#   silencio así no vuelva a pasar callado, `main()` revisa además la ANTIGÜEDAD
+#   de la última sesión y pone la corrida en rojo si se estanca (ver `alerta_estancada`).
+TCO_FUENTES = [
+    # (nombre, URL del CSV de la serie, URL de la página de detalle)
+    ("bcb_tco_publico",
+     "https://www.bcb.gob.bo/bcb_tco_publico_descargar_csv.php",
+     "https://www.bcb.gob.bo/bcb_tco_publico_detalle_historico.php"),
+    ("tco_tcreferencial",
+     "https://www.bcb.gob.bo/tco_tcreferencial_descargar_csv.php",
+     "https://www.bcb.gob.bo/tco_reporte_detalle_historico.php"),
+]
+TCO_CSV_URL = TCO_FUENTES[0][1]      # se reasigna en elegir_fuente()
 # Primera sesión del TCO tras el cambio de régimen (fecha de corte). Pedimos desde
 # aquí para reconstruir/mantener toda la serie en cada corrida.
 REGIME_START = "2026-06-26"
@@ -236,7 +263,78 @@ def fetch_csv() -> bytes:
 
 # ── Página interactiva (fuente fresca; el CSV se atrasa los fines de semana) ─────
 
-DETALLE_URL = "https://www.bcb.gob.bo/tco_reporte_detalle_historico.php"
+DETALLE_URL = TCO_FUENTES[0][2]      # se reasigna en elegir_fuente()
+
+
+def _fechas_de_corte(crudo: bytes) -> set[str]:
+    """Las fechas de corte de un CSV, sin parsearlo entero: alcanza para comparar
+    dos fuentes y quedarse con la que llega más lejos."""
+    txt = crudo.decode("utf-8-sig", errors="replace")
+    return set(re.findall(r'(?m)^"?(\d{4}-\d{2}-\d{2})"?;', txt))
+
+
+def elegir_fuente() -> bytes:
+    """Baja la serie de cada ruta conocida y se queda con la que llega MÁS LEJOS.
+
+    ⚠️ NO alcanza con «la primera que responda 200»: eso es exactamente lo que
+       falló el 2026-08-27. La ruta vieja seguía respondiendo 200, con una serie
+       válida y bien formada, sólo que congelada en el 2026-08-20, mientras la
+       nueva ya iba por el 26. Entre una fuente viva y una muerta el código de
+       estado no distingue nada — la única señal es HASTA DÓNDE LLEGA.
+
+    Si la primera fuente ya viene fresca no se molesta a la segunda: son ~190 KB
+    por pedido y cada uno es una tirada más contra el WAF del BCB.
+    """
+    global TCO_CSV_URL, DETALLE_URL
+    hoy = datetime.now(BOT).date()
+    mejor = None
+    for nombre, csv_url, det_url in TCO_FUENTES:
+        TCO_CSV_URL = csv_url
+        try:
+            crudo = fetch_csv()
+        except requests.RequestException as e:
+            print(f"[WARN] fuente «{nombre}» no respondió: {e}", file=sys.stderr)
+            continue
+        fechas = _fechas_de_corte(crudo)
+        if not fechas:
+            print(f"[WARN] fuente «{nombre}»: 200 pero sin fechas de corte",
+                  file=sys.stderr)
+            continue
+        ultima = max(fechas)
+        print(f"[INFO] fuente «{nombre}»: {len(fechas)} sesiones, hasta {ultima}")
+        if mejor is None or ultima > mejor[3]:
+            mejor = (nombre, crudo, det_url, ultima)
+        # fresca = como mucho el finde de atraso; no hace falta probar la otra
+        if (hoy - date.fromisoformat(ultima)).days <= 3:
+            break
+    if mejor is None:
+        # ninguna respondió: es el modo WAF/red, que `main` trata como benigno
+        raise requests.RequestException(
+            "ninguna ruta del BCB devolvió una serie usable")
+    nombre, crudo, det_url, ultima = mejor
+    TCO_CSV_URL = next(x[1] for x in TCO_FUENTES if x[0] == nombre)
+    DETALLE_URL = det_url
+    if nombre != TCO_FUENTES[0][0]:
+        print(f"[INFO] se usa la ruta de respaldo «{nombre}» (llega hasta {ultima})")
+    return crudo
+
+
+def dias_habiles_entre(desde_iso: str, hasta: date) -> int:
+    """Días hábiles transcurridos, sin contar el de partida. No sabe de feriados
+    bolivianos a propósito: el umbral de la alerta ya deja margen para uno."""
+    d, n = date.fromisoformat(desde_iso), 0
+    while d < hasta:
+        d += timedelta(days=1)
+        if d.weekday() < 5:
+            n += 1
+    return n
+
+
+# Cuántos días hábiles puede quedarse quieta la serie antes de gritar. El TCO se
+# publica al cierre (~20:00 BOT), así que durante todo un día hábil lo normal es
+# tener la sesión de AYER: 1 no es anomalía y 2 tampoco (un feriado suelto). A
+# partir de 3 ya no hay explicación inocente.
+MAX_DIAS_QUIETA = 3
 
 
 def _decode_bcb(raw: bytes) -> str:
@@ -697,7 +795,7 @@ def main() -> None:
     reporte: dict[str, dict] = {}
     crudo = b""
     try:
-        crudo = fetch_csv()
+        crudo = elegir_fuente()
     except requests.RequestException as e:
         print(f"[WARN] TCO no disponible (WAF/red; se conserva último dato): {e}",
               file=sys.stderr)
@@ -745,6 +843,26 @@ def main() -> None:
         recon = ()
 
     exportar_json(global_rows, bancos_rows, dist_hoy, recon, dist_fechas)
+
+    # ★ LA SERIE TIENE QUE AVANZAR, Y SI NO AVANZA HAY QUE ENTERARSE.
+    #   Las guardas de arriba cubren «no parsea» y «no trae sesiones»; ninguna
+    #   cubre el modo que de verdad pasó: el BCB mudó la URL, la vieja siguió
+    #   devolviendo 200 con una serie perfecta —sólo que congelada— y el
+    #   scraper reportó «sin datos nuevos» en verde durante seis días hábiles.
+    #   Para el runner eso es indistinguible de un feriado largo; la única
+    #   diferencia está en el CALENDARIO, así que la medimos acá.
+    #   Va al final y después de exportar: el JSON se publica igual —vale más un
+    #   sitio con el último dato bueno que uno vacío—, pero la corrida termina en
+    #   rojo y manda notificación.
+    ultima = max((r["fecha"] for r in global_rows if r.get("fecha")), default=None)
+    if ultima:
+        quieta = dias_habiles_entre(ultima, datetime.now(BOT).date())
+        if quieta > MAX_DIAS_QUIETA:
+            print(f"::error::TCO estancado: la última sesión es del {ultima}, "
+                  f"hace {quieta} días hábiles. El CSV responde pero no avanza — "
+                  f"revisar si el BCB volvió a mudar el reporte (ver TCO_FUENTES).")
+            sys.exit(1)
+        print(f"[OK] última sesión {ultima} · {quieta} día(s) hábil(es) de atraso")
 
 
 if __name__ == "__main__":
