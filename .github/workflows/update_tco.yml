@@ -10,16 +10,17 @@ on:
     # ⚠ LA HORA DE PUBLICACIÓN CAMBIÓ (medido en los logs de 70 corridas y con una
     # sonda cada 4 min el 29-sep-2026). Hasta la sesión del 24-sep el BCB publicaba
     # antes de las ~21:30 BOT; desde la del 25-sep —el mismo día en que el TCO pasó
-    # a ser la mediana— la sesión NO está a las 21:38 ni a las 22:40 y aparece entre
-    # las ~22:45 y la 01:30 BOT. Los disparos se corrieron a esa franja y queda uno
-    # a las 20:38 por si el BCB vuelve al horario viejo.
+    # a ser la mediana— publica hacia las 23:30 BOT: la sesión del 29-sep apareció
+    # entre las 23:26 y las 23:30, en la página y en el CSV a la vez. Los disparos
+    # se corrieron detrás de esa hora y queda uno a las 20:38 por si el BCB vuelve
+    # al horario viejo.
     #
     # Minutos NO redondos a propósito: las horas en punto (sobre todo 00:00 UTC)
     # son las más congestionadas de Actions y GitHub las atrasa 1–2 h o las
     # descarta. Los tiempos reales llegan con ~30–90 min de atraso igual.
     # ── Noche · captura la sesión del día apenas se publica ──
     - cron: "38 0 * * *"   # 20:38 BOT (por si vuelve el horario viejo)
-    - cron: "53 2 * * *"   # 22:53 BOT
+    - cron: "47 3 * * *"   # 23:47 BOT (el BCB publica ~23:30)
     - cron: "37 4 * * *"   # 00:37 BOT
     - cron: "43 5 * * *"   # 01:43 BOT
     - cron: "13 7 * * *"   # 03:13 BOT (red de seguridad nocturna)
