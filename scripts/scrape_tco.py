@@ -3,8 +3,10 @@ Scraper diario del Tipo de Cambio Oficial (TCO) del dólar en Bolivia.
 
 Contexto: tras el cambio de política monetaria (junio 2026), el BCB dejó de
 publicar el "valor referencial" y pasó a publicar el TCO en una plataforma
-propia. El TCO es el promedio ponderado de las operaciones de COMPRA de divisas
-de la banca. Desde jul-2026 el reporte "serie de tiempo" del BCB acepta rango
+propia. El TCO resume las operaciones de COMPRA de divisas de la banca: fue la
+MEDIA ponderada por monto hasta la sesión del 24-sep-2026 y es la MEDIANA
+ponderada por monto desde la del 25-sep (ver `METODO_MEDIANA_DESDE`).
+Desde jul-2026 el reporte "serie de tiempo" del BCB acepta rango
 `?desde=&hasta=` y devuelve TODA la serie desde el cambio de régimen: en cada
 corrida bajamos el histórico completo (upsert idempotente) y cualquier día que
 se haya perdido se AUTO-RECUPERA. Aun así persistimos nuestra propia copia
@@ -20,10 +22,12 @@ entidad) y la distribución por nivel de precio. Persistimos TODO:
                              nivel de precio que aún no exponemos en tidy)
   data/tco_dist/<fecha>.json — caja y bigotes por banco de CADA sesión (el
                              dashboard deja elegir qué día ver en el boxplot)
-  data/tco.json           — dashboard: serie global + venta (+0,10) + USDT +
-                             detalle por banco del día
+  data/tco.json           — dashboard: serie global + venta (+0,10, mientras
+                             existió) + USDT + detalle por banco del día
 
-Disposición BCB: el precio de VENTA oficial = TCO + 0,10 Bs (margen de 10 ctvs).
+Hasta sep-2026 el precio de VENTA oficial era TCO + 0,10 Bs por disposición del
+BCB; desde la R.D. 142/2026 cada banco fija el suyo (ver `MARGEN_VENTA_HASTA` y
+`scrape_bancos_tc.py`).
 
 Fuente:
   https://www.bcb.gob.bo/bcb_tco_publico_descargar_csv.php?desde=<ini>&hasta=<fin>
@@ -79,6 +83,13 @@ TCO_CSV_URL = TCO_FUENTES[0][1]      # se reasigna en elegir_fuente()
 REGIME_START = "2026-06-26"
 BOT = timezone(timedelta(hours=-4))  # hora Bolivia (para acotar 'hasta')
 MARGEN_VENTA = 0.10  # disposición BCB: venta oficial = TCO + 10 ctvs
+# ★ HASTA CUÁNDO EXISTIÓ ESA «VENTA OFICIAL». Con la R.D. 142/2026 (24-sep-2026)
+#   el BCB dejó de fijar el precio de venta: cada banco fija y publica el suyo
+#   (lo captura `scrape_bancos_tc.py`). Se toma como última sesión con venta
+#   oficial la del 24-sep, la última calculada con las reglas viejas (desde la
+#   del 25-sep el TCO ya es la mediana). Después de esa sesión `tco_venta` va
+#   vacío: el precio de venta de hoy está en data/bancos_tc.json, no se inventa.
+MARGEN_VENTA_HASTA = "2026-09-24"
 
 
 def tco_url() -> str:
@@ -106,11 +117,49 @@ TCO_DIST   = DATA_DIR / "tco_dist"
 TCO_JSON   = DATA_DIR / "tco.json"
 DOLAR_CSV  = DATA_DIR / "dolar.csv"          # para cruzar el USDT por fecha
 
-CSV_FIELDS    = ["fecha", "tco", "vol_usd", "tx", "timestamp_utc"]
+# Las columnas nuevas van al final (antes del timestamp) para no mover las que
+# ya leía cualquiera que baje el CSV. vig_desde/vig_hasta = el tramo de vigencia
+# que declara el BCB; metodo = qué estadístico es el TCO de esa sesión;
+# media_pond/mediana_pond = los dos, recalculados de la distribución.
+CSV_FIELDS    = ["fecha", "tco", "vol_usd", "tx", "vig_desde", "vig_hasta",
+                 "metodo", "media_pond", "mediana_pond", "timestamp_utc"]
 BANCOS_FIELDS = ["fecha", "banco", "tco", "tx", "monto_usd", "timestamp_utc"]
 
 
 # ── Descarga + parseo del CSV oficial ──────────────────────────────────────────
+
+def _celdas(linea: str) -> list[str]:
+    # ⚠️ Desde el 2026-09-26 el BCB escribe cada número como fórmula de texto de
+    #    Excel —en el archivo, comilla-igual-comilla-comilla-1.765-comilla x3—,
+    #    que un lector CSV entrega como `="1.765"` (así Excel no lo convierte en
+    #    fecha ni le come los ceros). El viejo `c.strip().strip('"')` dejaba
+    #    `=""1.765`, que ya no es un número, y el volumen y las transacciones de
+    #    TODA la serie quedaron vacíos en una sola corrida, en verde. Se usa el
+    #    lector CSV de verdad (respeta las comillas) y se quita el envoltorio
+    #    `="…"`; con el formato viejo da lo mismo que antes.
+    """Separa una línea del CSV del BCB en celdas limpias."""
+    fila = next(csv.reader([linea], delimiter=";"), [])
+    out = []
+    for c in fila:
+        c = c.strip()
+        if c.startswith("="):
+            c = c[1:].strip()
+        out.append(c.strip('"').strip())
+    return out
+
+
+def _parse_vigencia(texto: str) -> tuple[str | None, str | None]:
+    """'2026-09-29' → (29, 29); '2026-09-26 al 2026-09-28' → (26, 28).
+
+    El BCB declara el tramo de vigencia de cada sesión: un día suelto entre
+    semana, o un rango cuando la sesión cubre un fin de semana o un feriado
+    (el viernes 25-sep rige del sábado 26 al lunes 28). Es lo que el BCB
+    DECLARA, así que manda sobre cualquier regla que calculemos nosotros."""
+    fechas = re.findall(r"\d{4}-\d{2}-\d{2}", texto or "")
+    if not fechas:
+        return None, None
+    return fechas[0], fechas[-1]
+
 
 def _es_cabecera(cols: list[str]) -> list[tuple[int, str]]:
     """Si `cols` es la fila de cabecera de bancos, devuelve [(idx, nombre)] de cada
@@ -133,11 +182,19 @@ def _find_header(lineas: list[str]) -> tuple[list[tuple[int, str]], int | None]:
     2 sub-columnas (N°, Monto).
     """
     for linea in lineas:
-        cols = [c.strip().strip('"') for c in linea.split(";")]
-        ents = _es_cabecera(cols)
+        ents = _es_cabecera(_celdas(linea))
         if ents:
             return ents, ents[0][0] - 1
     return [], None
+
+
+def _col_vigencia(lineas: list[str]) -> int | None:
+    """Índice de la columna 'Vigencia' en la cabecera (None si el reporte no la trae)."""
+    for linea in lineas:
+        cols = _celdas(linea)
+        if _es_cabecera(cols):
+            return next((i for i, c in enumerate(cols) if "VIGENCIA" in c.upper()), None)
+    return None
 
 
 def _es_total(nombre: str) -> bool:
@@ -161,16 +218,21 @@ def parse_reporte(texto: str) -> dict[str, dict]:
     orden, tc_col = _find_header(lineas)
     if not orden or tc_col is None:
         raise ValueError("No se encontró la cabecera de bancos en el CSV del BCB")
+    vig_col = _col_vigencia(lineas)
 
     fechas: dict[str, dict] = {}
     for linea in lineas:
-        cols = [c.strip().strip('"') for c in linea.split(";")]
+        cols = _celdas(linea)
         if len(cols) <= tc_col:
             continue
         fecha = cols[0]
         if len(fecha) != 10 or fecha[4] != "-" or not fecha[:4].isdigit():
             continue
         g = fechas.setdefault(fecha, {"bancos": {}, "dist": {}})
+        if vig_col is not None and "vig" not in g and vig_col < len(cols):
+            desde, hasta = _parse_vigencia(cols[vig_col])
+            if desde:
+                g["vig"], g["vig_hasta"] = desde, hasta
         etiqueta = cols[tc_col].upper()
 
         if etiqueta == "TCO":
@@ -253,7 +315,81 @@ def parse_reporte(texto: str) -> dict[str, dict]:
             if txs:
                 g["tx"] = sum(txs)
 
+        # Los dos estadísticos, recalculados de la distribución: la MEDIA y la
+        # MEDIANA ponderadas por monto, del día y de cada banco. Uno de los dos es
+        # el TCO oficial según la fecha (ver METODO_MEDIANA_DESDE); el otro dice
+        # cuánto habría dado el otro método ese mismo día.
+        todos = [(p, m) for niveles in dist.values() for p, _, m in niveles if m]
+        g["media"], g["mediana"] = media_pond(todos), mediana_pond(todos)
+        for banco, niveles in dist.items():
+            pares = [(p, m) for p, _, m in niveles if m]
+            b = bancos.setdefault(banco, {})
+            b["media"], b["mediana"] = media_pond(pares), mediana_pond(pares)
+
     return {f: g for f, g in fechas.items() if g.get("tco") is not None}
+
+
+# ── Método de cálculo del TCO ───────────────────────────────────────────────────
+#
+# ★ DESDE LA SESIÓN DEL VIERNES 25-SEP-2026 EL TCO ES LA MEDIANA PONDERADA POR
+#   MONTO, no la media. La nota metodológica de la página del BCB lo dice así:
+#   «TCO: Corresponde a la mediana ponderada por monto de los tipos de cambio de
+#   las operaciones de compra de dólares realizadas por los Bancos Múltiples,
+#   Bancos PyME, Banco Público con sus clientes y el Banco Central de Bolivia».
+#
+#   La FECHA no la dice la nota; sale de los datos. Recalculando cada sesión de
+#   la serie completa (26-jun → 28-sep) desde su distribución por nivel de
+#   precio: hasta el 24-sep el TCO publicado es EXACTAMENTE la media ponderada
+#   (64 de 64 sesiones, y cada banco su propia media); desde el 25-sep es
+#   EXACTAMENTE la mediana (el total y 13/13 y 14/14 bancos), y la media ya no
+#   coincide. Ej.: 28-sep → mediana 12,02 (= oficial) · media 11,97.
+#
+#   Se DECLARA la fecha (no se infiere en cada corrida) y cada corrida la
+#   VERIFICA: si el TCO publicado deja de coincidir con el estadístico declarado,
+#   el método cambió otra vez y hay que enterarse (ver `verificar_metodo`).
+METODO_MEDIANA_DESDE = "2026-09-25"
+
+
+def metodo_de(fecha: str) -> str:
+    return "mediana" if fecha >= METODO_MEDIANA_DESDE else "media"
+
+
+def media_pond(pares: list[tuple[float, float]]) -> float | None:
+    """Media de los precios ponderada por monto."""
+    peso = sum(m for _, m in pares)
+    return round(sum(p * m for p, m in pares) / peso, 4) if peso else None
+
+
+def mediana_pond(pares: list[tuple[float, float]]) -> float | None:
+    """Mediana ponderada por monto: el primer precio (de menor a mayor) en el que
+    el monto acumulado alcanza la mitad del total. Es la variante que reproduce
+    el TCO publicado por el BCB en todas las sesiones desde el 25-sep."""
+    pares = sorted(pares)
+    peso = sum(m for _, m in pares)
+    if not peso:
+        return None
+    acum = 0
+    for p, m in pares:
+        acum += m
+        if acum >= peso / 2:
+            return round(p, 4)
+    return round(pares[-1][0], 4)
+
+
+def verificar_metodo(reporte: dict[str, dict]) -> list[str]:
+    """Sesiones cuyo TCO publicado NO coincide con el estadístico declarado.
+
+    Tolerancia de medio centavo: el BCB publica con dos decimales y la media se
+    recalcula sobre montos ya redondeados."""
+    malas = []
+    for f, g in sorted(reporte.items()):
+        esperado = g.get(metodo_de(f))
+        if esperado is None or g.get("tco") is None:
+            continue
+        if abs(g["tco"] - esperado) > 0.006:
+            malas.append(f"{f}: publicado {g['tco']} · {metodo_de(f)} recalculada "
+                         f"{esperado} · la otra {g.get('media' if metodo_de(f) == 'mediana' else 'mediana')}")
+    return malas
 
 
 def fetch_csv() -> bytes:
@@ -344,6 +480,39 @@ def _decode_bcb(raw: bytes) -> str:
     return u if "�" not in u else raw.decode("cp1252", errors="replace")
 
 
+_MESES = {m: i for i, m in enumerate(
+    ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
+     "septiembre", "octubre", "noviembre", "diciembre"], 1)}
+
+
+def _vigencia_de_pagina(html: str, corte: str) -> str:
+    """El tramo de vigencia que la página escribe en castellano («Vigencia:
+    martes 29 de septiembre de 2026», o un rango si cubre un fin de semana),
+    como 'AAAA-MM-DD al AAAA-MM-DD' para que lo lea `_parse_vigencia`. Si no se
+    entiende, el día calendario siguiente al corte: el CSV trae después el
+    tramo oficial y el upsert lo completa."""
+    txt = re.sub(r"<[^>]+>", " ", html)
+    i = txt.find("Vigencia:")
+    if i >= 0:
+        frag = txt[i:i + 160].lower()
+        completas = re.findall(r"(\d{1,2}) de ([a-záéíóú]+) de (\d{4})", frag)
+        fechas = []
+        for d, mes, a in completas:
+            if mes in _MESES:
+                fechas.append(date(int(a), _MESES[mes], int(d)))
+        if fechas:
+            hasta = fechas[-1]
+            desde = fechas[0]
+            if len(fechas) == 1:     # «sábado 26 al lunes 28 de septiembre de 2026»
+                sueltos = re.findall(r"(\d{1,2})\s+al\s", frag)
+                if sueltos:
+                    d = int(sueltos[0])
+                    desde = hasta.replace(day=d) if d <= hasta.day else \
+                        (hasta.replace(day=1) - timedelta(days=1)).replace(day=d)
+            return f"{desde.isoformat()} al {hasta.isoformat()}"
+    return dia_siguiente(corte)
+
+
 def fetch_detalle_page(hdr_line: str):
     """
     Raspa la PÁGINA interactiva del TCO para capturar la sesión más reciente que el
@@ -359,11 +528,15 @@ def fetch_detalle_page(hdr_line: str):
     try:
         raw = request_bcb(DETALLE_URL, timeout=30).content
         html = _decode_bcb(raw)
+        # La sesión que muestra la página es el `value` del selector de fecha;
+        # la fecha más alta del HTML queda de respaldo (la página también lista
+        # en `data-fechas` todas las sesiones disponibles).
+        m = re.search(r'id="fecha"[^>]*value="(\d{4}-\d{2}-\d{2})"', html)
         fechas = re.findall(r"\d{4}-\d{2}-\d{2}", html)
-        if not fechas:
+        if not m and not fechas:
             return {}, b""
-        corte = max(fechas)
-        vig = dia_siguiente(corte)
+        corte = m.group(1) if m else max(fechas)
+        vig = _vigencia_de_pagina(html, corte)
         tabla = BeautifulSoup(html, "html.parser").find("table")
         if tabla is None:
             return {}, b""
@@ -396,8 +569,7 @@ def guardar_raw_serie(crudo: bytes) -> None:
     el BCB algún día recorte la ventana. Idempotente (no reescribe si no cambió).
     """
     lineas = crudo.decode("utf-8-sig", errors="replace").splitlines()
-    cab_idx = next((i for i, l in enumerate(lineas)
-                    if _es_cabecera([c.strip().strip('"') for c in l.split(";")])), None)
+    cab_idx = next((i for i, l in enumerate(lineas) if _es_cabecera(_celdas(l))), None)
     if cab_idx is None:
         return
     cabecera = lineas[:cab_idx + 1]
@@ -430,14 +602,27 @@ def _canon(v) -> str:
     return "" if v is None else str(v)
 
 
+# Celdas que una corrida quiso VACIAR y la guarda conservó (ver `upsert_csv`).
+# `main` las cuenta al final: si hay alguna, la corrida termina en rojo.
+VACIADOS: list[str] = []
+
+
 def upsert_csv(path: Path, fields: list[str], key_fields: list[str],
                nuevos: list[dict], ts: str) -> tuple[list[dict], int]:
     """
     Upsert idempotente sobre un CSV. `nuevos` = filas con valores tipados (sin
     timestamp). Inserta claves nuevas y REEMPLAZA filas cuyos valores cambian
-    (comparando todo menos timestamp_utc) — así el cierre de las 20:00 refresca
-    la captura parcial intradía. No reescribe si nada cambió (evita commits de
+    (comparando todo menos timestamp_utc) — así la sesión que se publica tarde
+    refresca una captura parcial. No reescribe si nada cambió (evita commits de
     ruido). Devuelve (filas_resultantes, n_cambios).
+
+    ★ UN DATO QUE YA TENÍAMOS NO SE BORRA PORQUE HOY NO SE PUDO LEER.
+      El 2026-09-26 el BCB empezó a escribir los números como `="1.765"`; el
+      parser no los entendió, devolvió vacío, y este upsert —que reemplazaba la
+      fila entera— dejó sin volumen ni transacciones las 64 sesiones de la serie
+      y los 896 banco-día, en una corrida que terminó en verde. Ahora un valor
+      vacío nunca pisa uno lleno: se conserva el guardado y se anota en
+      `VACIADOS`, y la corrida termina en rojo para que alguien mire el formato.
     """
     existentes = leer_csv(path)
     by_key = {tuple(r[k] for k in key_fields): r for r in existentes}
@@ -448,7 +633,12 @@ def upsert_csv(path: Path, fields: list[str], key_fields: list[str],
         row = {**{f: _canon(nv.get(f)) for f in fields if f != "timestamp_utc"},
                "timestamp_utc": ts}
         prev = by_key.get(key)
-        if prev is None or any(prev.get(f, "") != row[f] for f in val_fields):
+        if prev is not None:
+            for f in val_fields:
+                if row[f] == "" and (prev.get(f) or "") != "":
+                    row[f] = prev[f]
+                    VACIADOS.append(f"{path.name} {'/'.join(key)} {f}")
+        if prev is None or any((prev.get(f) or "") != row[f] for f in val_fields):
             by_key[key] = row
             cambios += 1
     if cambios:
@@ -464,7 +654,10 @@ def upsert_csv(path: Path, fields: list[str], key_fields: list[str],
 def agregar_global_csv(reporte: dict[str, dict], ts: str) -> list[dict]:
     """Upsert del tco.csv global (refresca con el cierre). Devuelve el CSV completo."""
     nuevos = [
-        {"fecha": f, "tco": g["tco"], "vol_usd": g.get("vol_usd"), "tx": g.get("tx")}
+        {"fecha": f, "tco": g["tco"], "vol_usd": g.get("vol_usd"), "tx": g.get("tx"),
+         "vig_desde": g.get("vig"), "vig_hasta": g.get("vig_hasta"),
+         "metodo": metodo_de(f), "media_pond": g.get("media"),
+         "mediana_pond": g.get("mediana")}
         for f, g in sorted(reporte.items())
     ]
     filas, cambios = upsert_csv(TCO_CSV, CSV_FIELDS, ["fecha"], nuevos, ts)
@@ -509,8 +702,10 @@ def _wquantile(pairs: list[tuple[float, int]], q: float) -> float:
 def boxplot_stats(pairs: list[tuple[float, int]]) -> dict:
     """
     Estadísticas de caja y bigotes ponderadas por MONTO (USD) — igual que el BCB
-    calcula el TCO — a partir de pares (precio, monto). Así la media coincide con
-    el TCO oficial del banco. Bigotes a 1,5·IQR; outliers = precios fuera del rango.
+    calcula el TCO — a partir de pares (precio, monto). La media coincide con el
+    TCO oficial del banco hasta el 24-sep y la mediana (q2, misma regla que
+    `mediana_pond`) desde el 25-sep. Bigotes a 1,5·IQR; outliers = precios fuera
+    del rango.
     """
     pairs = sorted(pairs, key=lambda x: x[0])
     q1, q2, q3 = _wquantile(pairs, .25), _wquantile(pairs, .50), _wquantile(pairs, .75)
@@ -535,19 +730,23 @@ def construir_dist(reporte: dict[str, dict], fecha: str) -> dict | None:
     g = reporte.get(fecha)
     if not g:
         return None
+    metodo = metodo_de(fecha)
     bancos_box = []
     for banco, niveles in g.get("dist", {}).items():
-        # Ponderar por MONTO (USD), igual que el BCB: así la media (triángulo)
-        # coincide con el TCO oficial del banco y el TCO global queda coherente.
+        # Ponderar por MONTO (USD), igual que el BCB: hasta el 24-sep la media
+        # (triángulo) es el TCO oficial del banco; desde el 25-sep lo es la
+        # mediana (la línea dentro de la caja). `metodo` le dice al front cuál.
         pares = [(p, m) for (p, n, m) in niveles if p is not None and m]
         if not pares:
             continue
         b = g["bancos"].get(banco, {})
         bancos_box.append({"banco": banco, "tco": b.get("tco"), "tx": b.get("tx"),
                            **boxplot_stats(pares)})
-    # Orden ascendente por la media mostrada (triángulo / número azul).
-    bancos_box.sort(key=lambda x: x["mean"])
-    return {"fecha": fecha, "vig": dia_siguiente(fecha),
+    # Orden ascendente por el TCO oficial de cada banco (número azul).
+    oficial = "q2" if metodo == "mediana" else "mean"
+    bancos_box.sort(key=lambda x: x["tco"] if x["tco"] is not None else x[oficial])
+    return {"fecha": fecha, "vig": g.get("vig") or dia_siguiente(fecha),
+            "vig_hasta": g.get("vig_hasta"), "metodo": metodo,
             "tco_oficial": g.get("tco"), "vol_usd": g.get("vol_usd"),
             "tx": g.get("tx"), "bancos": bancos_box}
 
@@ -658,11 +857,20 @@ def exportar_json(global_rows: list[dict], bancos_rows: list[dict],
             vol = sb["vol"]
         if tx is None and sb and sb["tx"]:
             tx = sb["tx"]
+        def _f(v):
+            return float(v) if v not in (None, "") else None
         item = {
             "f": r["fecha"],
-            "vig": dia_siguiente(r["fecha"]),   # día calendario desde el que rige este TCO
+            # tramo en que rige: el que declara el BCB (día calendario siguiente
+            # a la sesión, y hasta el lunes si cae viernes o antes de feriado)
+            "vig": r.get("vig_desde") or dia_siguiente(r["fecha"]),
+            "vig_hasta": r.get("vig_hasta") or None,
             "tco": tco,
-            "tco_venta": round(tco + MARGEN_VENTA, 2),
+            "metodo": r.get("metodo") or metodo_de(r["fecha"]),
+            "media": _f(r.get("media_pond")),
+            "mediana": _f(r.get("mediana_pond")),
+            "tco_venta": (round(tco + MARGEN_VENTA, 2)
+                          if r["fecha"] <= MARGEN_VENTA_HASTA else None),
             "usdt": usdt.get(r["fecha"]),
             "vol": vol,
             "tx":  tx,
@@ -718,6 +926,10 @@ def exportar_json(global_rows: list[dict], bancos_rows: list[dict],
     out = {
         "actualizado": datetime.now(timezone.utc).isoformat(),
         "margen_venta": MARGEN_VENTA,
+        # última sesión con «venta oficial = TCO + 0,10»; después, cada banco fija la suya
+        "margen_venta_hasta": MARGEN_VENTA_HASTA,
+        # desde qué sesión el TCO es la mediana ponderada (antes, la media)
+        "metodo_mediana_desde": METODO_MEDIANA_DESDE,
         "hoy": hoy,
         "serie": serie,
         "fecha_hoy": fecha_hoy,
@@ -817,7 +1029,7 @@ def main() -> None:
         # los fines de semana): tomamos de ahí la(s) sesión(es) que el CSV aún no
         # trae (p.ej. la del viernes por la noche y durante todo el finde).
         hdr_line = next((l for l in crudo.decode("utf-8-sig").splitlines()
-                         if _es_cabecera([c.strip().strip('"') for c in l.split(";")])), None)
+                         if _es_cabecera(_celdas(l))), None)
         if hdr_line:
             rep_page, pseudo_page = fetch_detalle_page(hdr_line)
             nuevas = sorted(f for f in rep_page if f not in reporte)
@@ -844,6 +1056,34 @@ def main() -> None:
 
     exportar_json(global_rows, bancos_rows, dist_hoy, recon, dist_fechas)
 
+    # Todo lo que sigue va DESPUÉS de exportar: el sitio queda con el mejor dato
+    # disponible y recién entonces la corrida se pone en rojo si algo no cierra.
+    fallas = []
+
+    # ★ Un dato guardado que esta corrida no supo leer (ver `upsert_csv`): es la
+    #   huella de un cambio de formato del BCB, como el `="…"` del 26-sep.
+    if VACIADOS:
+        print(f"::error::El BCB devolvió vacías {len(VACIADOS)} celda(s) que ya "
+              f"teníamos con dato; se conservaron las guardadas. ¿Cambió el formato "
+              f"del CSV? Primeras: {VACIADOS[:5]}")
+        fallas.append("vaciados")
+
+    # ★ El TCO publicado tiene que ser el estadístico que declaramos. Si deja de
+    #   serlo, el BCB cambió el método otra vez y el dashboard lo estaría
+    #   describiendo mal.
+    malas = verificar_metodo(reporte)
+    if malas:
+        ultima_sesion = max(reporte)
+        grave = any(x.startswith(ultima_sesion) for x in malas)
+        print(("::error::" if grave else "::warning::")
+              + f"TCO: {len(malas)} sesión(es) no coinciden con el método declarado "
+              f"(mediana desde {METODO_MEDIANA_DESDE}): {malas[-3:]}")
+        if grave:
+            fallas.append("metodo")
+    elif reporte:
+        print(f"[OK] método verificado en {len(reporte)} sesiones "
+              f"(media hasta {METODO_MEDIANA_DESDE}, mediana desde entonces)")
+
     # ★ LA SERIE TIENE QUE AVANZAR, Y SI NO AVANZA HAY QUE ENTERARSE.
     #   Las guardas de arriba cubren «no parsea» y «no trae sesiones»; ninguna
     #   cubre el modo que de verdad pasó: el BCB mudó la URL, la vieja siguió
@@ -861,8 +1101,11 @@ def main() -> None:
             print(f"::error::TCO estancado: la última sesión es del {ultima}, "
                   f"hace {quieta} días hábiles. El CSV responde pero no avanza — "
                   f"revisar si el BCB volvió a mudar el reporte (ver TCO_FUENTES).")
-            sys.exit(1)
-        print(f"[OK] última sesión {ultima} · {quieta} día(s) hábil(es) de atraso")
+            fallas.append("estancado")
+        else:
+            print(f"[OK] última sesión {ultima} · {quieta} día(s) hábil(es) de atraso")
+    if fallas:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

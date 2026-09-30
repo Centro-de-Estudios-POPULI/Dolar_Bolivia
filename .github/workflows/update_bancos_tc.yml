@@ -1,0 +1,62 @@
+name: "Actualizar compra y venta de los bancos"
+
+on:
+  schedule:
+    # Desde sep-2026 cada banco fija y publica su propia compra y venta del
+    # dólar. Lo cambian cuando entra a regir el TCO nuevo (a primera hora) y a
+    # veces durante el día, así que se captura cuatro veces. Minutos no redondos
+    # a propósito: las horas en punto son las más congestionadas de Actions y
+    # GitHub las atrasa o las descarta.
+    - cron: "47 11 * * *"  # 07:47 BOT · la pizarra del día recién publicada
+    - cron: "13 14 * * *"  # 10:13 BOT
+    - cron: "13 18 * * *"  # 14:13 BOT
+    - cron: "13 22 * * *"  # 18:13 BOT · cierre del día
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-bancos:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Capturar compra y venta de cada banco
+        run: python scripts/scrape_bancos_tc.py
+
+      # Corre aunque la captura termine en rojo (ningún banco respondió): el
+      # JSON se exporta antes de fallar y conserva la última cotización válida.
+      - name: Commit y push si hay datos nuevos
+        if: ${{ !cancelled() }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Sólo se commitea cuando cambian las observaciones; el JSON (que lleva
+          # la hora de la corrida) se adjunta únicamente en ese caso.
+          git add data/bancos_tc.csv
+          if git diff --cached --quiet; then
+            echo "Sin cotizaciones nuevas de los bancos."
+          else
+            git add data/bancos_tc.json
+            git commit -m "datos: bancos TC $(date -u +%Y-%m-%d)"
+            # Los workflows del TCO y del dólar pueden pushear a la vez: rebase y reintento.
+            for i in 1 2 3 4 5; do
+              if git push; then ok=1; break; fi
+              echo "push rechazado (intento $i); rebase y reintento..."
+              git pull --rebase origin main || git rebase --abort
+              sleep 3
+            done
+            [ "${ok:-0}" = 1 ] || { echo "push falló tras reintentos"; exit 1; }
+          fi

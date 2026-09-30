@@ -363,6 +363,16 @@ def rellenar_usdt_calendario(csv_rows: list[dict]) -> list[dict]:
     posterior a la última fecha del CSV y hasta hoy (BOT) que no tenga fila propia,
     agrega una fila SOLO-USDT (campos BCB vacíos) con la mediana diaria de
     mauforonda. Backfillea huecos (p.ej. fines de semana): el P2P opera 24/7.
+
+    ★ Y RECALCULA LOS DÍAS QUE YA ESTABAN. Cada fila se escribía una sola vez, en
+      la corrida que la creaba — y como GitHub atrasa el cron de las 20:30 BOT
+      hasta pasada la medianoche, esa corrida creaba el día NUEVO con apenas la
+      primera hora de snapshots, y nadie lo volvía a tocar. Medido el 2026-09-29:
+      124 de 233 días distintos del promedio del día completo, el peor el 18-sep
+      (11,58 guardado contra 11,92 real). Ahora cada corrida recalcula todos los
+      días con lo que tiene mauforonda: el día anterior queda cerrado con sus 24
+      horas, y el de hoy es «lo que va del día». Un valor que mauforonda ya no
+      trae nunca borra el guardado.
     """
     if not csv_rows:
         return csv_rows
@@ -376,6 +386,25 @@ def rellenar_usdt_calendario(csv_rows: list[dict]) -> list[dict]:
     except Exception as e:
         print(f"[WARN] mauforonda no disponible para continuidad USDT: {e}", file=sys.stderr)
         return csv_rows
+
+    corregidas = []
+    for r in csv_rows:
+        cambio = False
+        for campo, serie in (("usdt_venta", buy), ("usdt_compra", sell)):
+            nuevo = serie.get(r["fecha"])
+            if nuevo is None:
+                continue
+            viejo = r.get(campo)
+            if viejo in (None, "") or abs(float(viejo) - nuevo) > 0.00005:
+                r[campo] = nuevo
+                cambio = True
+        if cambio:
+            r["timestamp_utc"] = datetime.now(timezone.utc).isoformat()
+            corregidas.append(r["fecha"])
+    if corregidas:
+        reescribir_csv(csv_rows)
+        print(f"[OK] USDT recalculado con el día completo: {len(corregidas)} día(s) "
+              f"({corregidas[0]} … {corregidas[-1]})")
 
     nuevas = []
     for fecha in sorted(buy):
@@ -405,6 +434,15 @@ def leer_csv() -> list[dict]:
         return []
     with open(CSV_FILE, newline="", encoding="utf-8") as f:
         return list(csv.DictReader(f))
+
+
+def reescribir_csv(filas: list[dict]) -> None:
+    """Reescribe el CSV entero (para corregir filas ya guardadas), en orden de fecha."""
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=CSV_FIELDS, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(sorted(filas, key=lambda r: r["fecha"]))
 
 
 def guardar_fila_csv(fila: dict) -> None:
