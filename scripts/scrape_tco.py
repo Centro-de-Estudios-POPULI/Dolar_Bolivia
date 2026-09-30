@@ -83,12 +83,15 @@ TCO_CSV_URL = TCO_FUENTES[0][1]      # se reasigna en elegir_fuente()
 REGIME_START = "2026-06-26"
 BOT = timezone(timedelta(hours=-4))  # hora Bolivia (para acotar 'hasta')
 MARGEN_VENTA = 0.10  # disposición BCB: venta oficial = TCO + 10 ctvs
-# ★ HASTA CUÁNDO EXISTIÓ ESA «VENTA OFICIAL». Con la R.D. 142/2026 (24-sep-2026)
-#   el BCB dejó de fijar el precio de venta: cada banco fija y publica el suyo
-#   (lo captura `scrape_bancos_tc.py`). Se toma como última sesión con venta
-#   oficial la del 24-sep, la última calculada con las reglas viejas (desde la
-#   del 25-sep el TCO ya es la mediana). Después de esa sesión `tco_venta` va
-#   vacío: el precio de venta de hoy está en data/bancos_tc.json, no se inventa.
+# ★ HASTA CUÁNDO EXISTIÓ ESA «VENTA OFICIAL». La R.D. 88/2026, Art. 6, definía
+#   el «valor referencial de venta» = TCO + 0,10 como TOPE: «Las Entidades
+#   Financieras no podrán vender USD por encima del valor referencial de venta».
+#   La R.D. 142/2026 (fechada el 24-sep, publicada el 25-sep) derogó la R.D. 88
+#   entera y no fija ningún tope; la Circular ASFI/983/2026 (29-sep) abrogó el
+#   control de la venta y obliga a cada banco a publicar su compra y su venta
+#   (las captura `scrape_bancos_tc.py`). Última sesión con tope: la del 24-sep,
+#   la última calculada con la R.D. 88. Después `tco_venta` va vacío: el precio
+#   de venta de hoy está en data/bancos_tc.json, no se inventa.
 MARGEN_VENTA_HASTA = "2026-09-24"
 
 
@@ -332,7 +335,10 @@ def parse_reporte(texto: str) -> dict[str, dict]:
 # ── Método de cálculo del TCO ───────────────────────────────────────────────────
 #
 # ★ DESDE LA SESIÓN DEL VIERNES 25-SEP-2026 EL TCO ES LA MEDIANA PONDERADA POR
-#   MONTO, no la media. La nota metodológica de la página del BCB lo dice así:
+#   MONTO, no la media: R.D. 142/2026, Art. 5.I (publicada el 25-sep), que además
+#   fija la publicación «a horas 23:30» (Art. 5.IV) y la ventana de operaciones
+#   de 17:01 del día hábil anterior a 17:00. La nota metodológica de la página
+#   del BCB lo dice así:
 #   «TCO: Corresponde a la mediana ponderada por monto de los tipos de cambio de
 #   las operaciones de compra de dólares realizadas por los Bancos Múltiples,
 #   Bancos PyME, Banco Público con sus clientes y el Banco Central de Bolivia».

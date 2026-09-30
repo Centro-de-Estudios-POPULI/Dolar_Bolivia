@@ -815,7 +815,7 @@
             <p class="panel-desc">${!isTco
               ? `Precio de <strong>venta</strong> del dólar en el mercado paralelo referencial.`
               : (p.v != null
-                  ? `Precio de <strong>venta al público</strong> dispuesto por el BCB hasta sep-2026: TCO + <strong>0,10 Bs</strong> de margen.`
+                  ? `Tope de <strong>venta al público</strong> fijado por el BCB hasta el 24-sep-2026 (valor referencial de venta): TCO + <strong>0,10 Bs</strong>.`
                   : `Desde fines de sep-2026 cada banco fija y publica su propio precio de venta. Mediana de lo publicado hoy${ventasB.length ? ` por ${ventasB.length} bancos (entre ${fbs(ventasB[0])} y ${fbs(ventasB[ventasB.length - 1])})` : ''}.`)}</p>
           </div>
           <div class="panel-block">
@@ -951,8 +951,8 @@
       const eduData = [
         {
           title: '¿Qué es el Tipo de Cambio Oficial (TCO)?',
-          content: `<p>Desde el <strong>27 de junio de 2026</strong>, el <strong>Banco Central de Bolivia (BCB)</strong> reemplazó el tipo de cambio fijo por el <strong>Tipo de Cambio Oficial (TCO)</strong>, que resume las <strong>operaciones de compra de dólares de la banca</strong>: desde la sesión del 25 de septiembre es su <strong>mediana ponderada por monto</strong> (antes, el promedio ponderado). El BCB lo publica por la noche y rige como referencia desde el día siguiente.</p>
-          <p>Hasta septiembre de 2026 la <strong>venta oficial</strong> era el TCO más <span class="highlight hl-red">0,10 Bs</span>; desde entonces cada banco fija y publica su propia venta. Hoy el TCO rige en <span class="highlight hl-teal">${fbs(current.c)}</span>${ventaBancos != null ? ` y la venta que publican los bancos tiene una mediana de <span class="highlight hl-red">${fbs(ventaBancos)}</span>` : ''}.</p>`
+          content: `<p>Desde el <strong>27 de junio de 2026</strong>, el <strong>Banco Central de Bolivia (BCB)</strong> reemplazó el tipo de cambio fijo por el <strong>Tipo de Cambio Oficial (TCO)</strong>, que resume las <strong>operaciones de compra de dólares de la banca</strong>: desde la sesión del 25 de septiembre es su <strong>mediana ponderada por monto</strong> (antes, el promedio ponderado). El BCB lo publica a las 23:30 y rige como referencia desde el día siguiente (R.D. 142/2026).</p>
+          <p>Hasta el 24 de septiembre la venta tenía un <strong>tope oficial</strong> de TCO más <span class="highlight hl-red">0,10 Bs</span>; la R.D. 142/2026 lo eliminó y desde entonces cada banco fija y publica su propia venta. Hoy el TCO rige en <span class="highlight hl-teal">${fbs(current.c)}</span>${ventaBancos != null ? ` y la venta que publican los bancos tiene una mediana de <span class="highlight hl-red">${fbs(ventaBancos)}</span>` : ''}.</p>`
         },
         {
           title: 'El fin del tipo fijo de Bs 6,96',

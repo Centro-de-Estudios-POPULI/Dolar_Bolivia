@@ -914,8 +914,8 @@
   <div class="info-strip-inner">
     <span class="info-icon">ℹ</span>
     <span>
-      <b>TCO:</b> Tipo de Cambio Oficial = <em>mediana</em> ponderada por monto de las compras de dólares de la banca (hasta la sesión del 24-sep-2026, la media ponderada); el BCB lo publica por la noche y <em>rige desde el día siguiente</em>. &nbsp;|&nbsp;
-      <b>Venta:</b> desde fines de septiembre de 2026 cada banco fija y publica la suya; ya no es TCO + 0,10. &nbsp;|&nbsp;
+      <b>TCO:</b> Tipo de Cambio Oficial = <em>mediana</em> ponderada por monto de las compras de dólares de la banca (hasta la sesión del 24-sep-2026, la media ponderada); el BCB lo publica a las 23:30 y <em>rige desde el día siguiente</em> (R.D. 142/2026). &nbsp;|&nbsp;
+      <b>Venta:</b> desapareció el tope de TCO + 0,10: cada banco fija la suya y, desde el 29-sep, debe publicarla a diario (Circular ASFI/983/2026). &nbsp;|&nbsp;
       <b>Prima USDT:</b> diferencia entre el precio informal (Binance P2P) y el TCO.
       Datos actualizados automáticamente cada día: el TCO del BCB y el USDT (Binance P2P), en horario Bolivia.
     </span>
@@ -962,7 +962,7 @@
             <span class="kpi-delta" id="delta-manana"></span>
           </div>
         </div>
-        <div class="kpi-foot"><span class="kpi-sub" id="sub-manana">el BCB lo publica esta noche</span></div>
+        <div class="kpi-foot"><span class="kpi-sub" id="sub-manana">el BCB lo publica a las 23:30</span></div>
       </div>
       <div class="kpi-card spread">
         <div class="kpi-body">
@@ -1031,7 +1031,7 @@
       </div>
       <div class="rate-box referencial">
         <h4>Oficial de mercado · TCO <span class="rate-val" id="guia-tco">~Bs. 12</span></h4>
-        <p><strong>Mediana ponderada</strong> por monto de las compras de dólares de la banca (hasta el 24-sep-2026, la media ponderada). El BCB lo publica <strong>por la noche</strong> y <strong>rige desde el día siguiente</strong>; lo capturamos a diario en este panel.</p>
+        <p><strong>Mediana ponderada</strong> por monto de las compras de dólares de la banca (hasta el 24-sep-2026, la media ponderada). El BCB lo publica <strong>a las 23:30</strong> y <strong>rige desde el día siguiente</strong>; lo capturamos a diario en este panel.</p>
       </div>
       <div class="rate-box informal">
         <h4>Informal (USDT) <span class="rate-val">P2P</span></h4>
@@ -1081,7 +1081,7 @@
       <span class="section-num">03</span>
       <div class="section-titles">
         <h2>Tipo de Cambio Oficial (TCO) vs. USDT</h2>
-        <p>TCO del BCB frente al USDT Binance P2P y a la venta que publican los bancos. Hasta septiembre de 2026 la venta oficial era el TCO + 0,10 Bs; desde entonces cada banco fija la suya — Bs./$us</p>
+        <p>TCO del BCB frente al USDT Binance P2P y a la venta que publican los bancos. Hasta el 24-sep-2026 la venta tenía un tope oficial de TCO + 0,10 Bs; desde la R.D. 142/2026 cada banco fija la suya — Bs./$us</p>
       </div>
     </div>
     <div class="chart-card">
@@ -1099,7 +1099,7 @@
       <div id="chart-tco" class="chart"><div class="loading">Cargando…</div></div>
       <div class="chart-hint" style="margin-top:8px">
         <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-        La venta oficial (TCO + 0,10 Bs) rigió hasta septiembre de 2026; desde entonces la venta es la mediana de lo que publica cada banco (sección 04). Desde el cambio de método, la línea de puntos muestra cuánto habría dado la media ponderada (el método anterior) con las mismas operaciones.
+        El valor referencial de venta (TCO + 0,10 Bs), tope para la venta de los bancos, rigió hasta la sesión del 24-sep: lo derogó la R.D. 142/2026. Desde entonces se muestra la mediana de lo que publica cada banco (sección 04). Desde el cambio de método, la línea de puntos muestra cuánto habría dado la media ponderada (el método anterior) con las mismas operaciones.
       </div>
     </div>
   </section>
@@ -1110,7 +1110,7 @@
       <span class="section-num">04</span>
       <div class="section-titles">
         <h2>Compra y Venta en los Bancos</h2>
-        <p id="btc-sub">Desde septiembre de 2026 cada banco fija y publica su propio precio de compra y de venta del dólar. Aquí, lo que cada entidad publica en su sitio web, frente al TCO que rige hoy.</p>
+        <p id="btc-sub">Desde la R.D. 142/2026 (25-sep) no hay tope de venta: cada banco fija su compra y su venta, y la Circular ASFI/983/2026 (29-sep) le exige publicarlas a diario en su web. Aquí, lo que publica cada entidad, frente al TCO que rige hoy.</p>
       </div>
     </div>
     <div class="table-context" id="btc-context"></div>
@@ -1705,7 +1705,7 @@ function setKpiManana(manana, vigente, mode, mananaStr) {
   } else {
     // Día hábil antes del cierre: pendiente.
     val.textContent = '—';
-    sub.innerHTML = 'pendiente · el BCB lo publica esta noche';
+    sub.innerHTML = 'pendiente · el BCB lo publica a las <b>23:30</b>';
   }
 }
 
