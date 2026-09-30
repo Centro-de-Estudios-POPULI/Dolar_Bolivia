@@ -540,6 +540,7 @@
     const BASE = 'https://centro-de-estudios-populi.github.io/Dolar_Bolivia';
     const HIST_URL = BASE + '/data/historico.json';
     const TCO_URL  = BASE + '/data/tco.json';
+    const BTC_URL  = BASE + '/data/bancos_tc.json';   // compra y venta que publica cada banco
     const DASHBOARD_URL = BASE + '/';
 
     const params = new URLSearchParams(window.location.search);
@@ -562,7 +563,8 @@
 
     // Fusiona la serie referencial (historico.json) con el régimen TCO (tco.json), igual
     // que el dashboard: el TCO de una sesión rige su fecha de VIGENCIA (c = TCO/compra
-    // oficial, v = venta oficial = TCO + 0,10) y se rellenan los findes con carry-forward.
+    // oficial, v = venta oficial = TCO + 0,10 MIENTRAS EXISTIÓ: hasta sep-2026; después
+    // cada banco fija la suya y v queda vacío) y se rellenan los findes con carry-forward.
     // Antes del 27-jun-2026 la serie muestra el dólar paralelo referencial.
     function buildSerie(hist, tco) {
       const refSerie = hist.serie || [];
@@ -572,7 +574,7 @@
         const dv = t.vig || t.f;
         const ev = byDate.get(dv) || { f: dv };
         ev.c = t.tco; ev.v = t.tco_venta; ev.sesion = t.f;
-        ev.sesVol = t.vol; ev.sesTx = t.tx; ev.reg = 'tco';
+        ev.sesVol = t.vol; ev.sesTx = t.tx; ev.reg = 'tco'; ev.metodo = t.metodo;
         if (ev.usdt == null) ev.usdt = t.usdt;
         byDate.set(dv, ev);
         const es = byDate.get(t.f) || { f: t.f };
@@ -590,7 +592,7 @@
           if (!ult) continue;
           const ev = e || { f: d };
           ev.c = ult.c; ev.v = ult.v; ev.reg = 'tco'; ev.carried = true;
-          ev.sesion = ult.sesion; ev.sesVol = ult.sesVol; ev.sesTx = ult.sesTx;
+          ev.sesion = ult.sesion; ev.sesVol = ult.sesVol; ev.sesTx = ult.sesTx; ev.metodo = ult.metodo;
           byDate.set(d, ev);
         }
       }
@@ -608,11 +610,12 @@
     }
 
     async function init() {
-      let hist, tco;
+      let hist, tco, btc = null;
       try {
-        const [rh, rt] = await Promise.all([ fetch(HIST_URL), fetch(TCO_URL) ]);
+        const [rh, rt, rb] = await Promise.all([ fetch(HIST_URL), fetch(TCO_URL), fetch(BTC_URL).catch(() => null) ]);
         hist = await rh.json();
         tco  = await rt.json().catch(() => null);
+        btc  = rb && rb.ok ? await rb.json().catch(() => null) : null;
       } catch (e) {
         document.getElementById('loader').innerHTML =
           '<span class="loading-text" style="color:var(--ct-venta)">Error al cargar datos. Intente recargar.</span>';
@@ -629,6 +632,14 @@
 
       const REGIME_TCO = regimeTco;
       const dev     = current.c != null ? (current.c / BCB_OFICIAL - 1) * 100 : null;      // devaluación vs 6,96
+      // Venta que publican los bancos hoy (mediana entre bancos): reemplaza a la
+      // venta oficial TCO + 0,10, que dejó de existir en sep-2026.
+      const ventasB = ((btc && btc.bancos) || []).map(b => b.venta).filter(v => v != null).sort((a, b) => a - b);
+      const ventaBancos = ventasB.length
+        ? (ventasB.length % 2 ? ventasB[(ventasB.length - 1) / 2] : (ventasB[ventasB.length / 2 - 1] + ventasB[ventasB.length / 2]) / 2)
+        : null;
+      // Referencia oficial contra la que se mide el USDT: el TCO en el régimen nuevo.
+      const refDe = p => p ? (p.reg === 'tco' ? p.c : p.v) : null;
       const devPrev = currentPrev && currentPrev.c != null ? (currentPrev.c / BCB_OFICIAL - 1) * 100 : null;
 
       const app = document.getElementById('app');
@@ -639,7 +650,7 @@
             <span class="accent-bar"></span>
             Tipo de Cambio Oficial y USDT
           </h2>
-          <p class="section-subtitle">Tipo de Cambio Oficial (TCO) del BCB, venta oficial (+0,10 Bs) y USDT Binance P2P · Serie diaria</p>
+          <p class="section-subtitle">Tipo de Cambio Oficial (TCO) del BCB, venta en bancos y USDT Binance P2P · Serie diaria</p>
         </div>
 
         <!-- KPIs -->
@@ -694,7 +705,9 @@
       const pr0 = currentPrev || {};
       const kpis = [
         { s:'c', label:'TCO · rige hoy',      value: current.c,    prev: pr0.c,    color:'var(--ct-compra)' },
-        { s:'v', label:'Venta oficial',       value: current.v,    prev: pr0.v,    color:'var(--ct-venta)' },
+        current.v != null
+          ? { s:'v', label:'Venta oficial',             value: current.v,   prev: pr0.v, color:'var(--ct-venta)' }
+          : { s:'v', label:'Venta en bancos · mediana', value: ventaBancos, prev: null,  color:'var(--ct-venta)' },
         { s:'u', label:'USDT Binance',        value: current.usdt, prev: pr0.usdt, color:'var(--ct-usdt)' },
         { s:'b', label:'Devaluación vs 6,96', value: dev,          prev: devPrev,  color:'var(--ct-oficial)', isPct:true },
       ];
@@ -772,7 +785,7 @@
         const pr = idx > 0 ? serie[idx - 1] : p;
         const isTco = p.reg === 'tco';
         const devPt = p.c != null ? (p.c / BCB_OFICIAL - 1) * 100 : null;
-        const prima = (p.usdt != null && p.v != null) ? p.usdt - p.v : null;   // USDT sobre venta oficial
+        const prima = (p.usdt != null && refDe(p) != null) ? p.usdt - refDe(p) : null;   // USDT sobre el TCO (antes del 26-jun, sobre la venta referencial)
         const dC = (p.c != null && pr.c != null) ? p.c - pr.c : null;
 
         document.getElementById('panel-date').textContent = fdate(p.f) + (p.carried ? ' · vigente' : '');
@@ -793,22 +806,24 @@
             <div class="panel-label" style="color:#0A9396; background:rgba(10,147,150,.08); border-left-color:#0A9396">${isTco ? 'Tipo de Cambio Oficial' : 'Compra (paralelo)'}</div>
             <div class="panel-val" style="color:#0A9396">${fbs(p.c)}</div>
             <p class="panel-desc">${isTco
-              ? `Promedio ponderado de las <strong>compras de dólares de la banca</strong> el <strong>${fdate(p.sesion || p.f)}</strong>; rige como referencia el <strong>${fdate(p.f)}</strong>.${dC != null ? ` Variación de <span class="delta-tag dt-teal">${(dC >= 0 ? '+' : '') + dC.toFixed(2)} Bs</span> vs. la sesión anterior.` : ''}`
+              ? `${p.metodo === 'mediana' ? 'Mediana ponderada' : 'Promedio ponderado'} por monto de las <strong>compras de dólares de la banca</strong> el <strong>${fdate(p.sesion || p.f)}</strong>; rige como referencia el <strong>${fdate(p.f)}</strong>.${dC != null ? ` Variación de <span class="delta-tag dt-teal">${(dC >= 0 ? '+' : '') + dC.toFixed(2)} Bs</span> vs. la sesión anterior.` : ''}`
               : `Precio de <strong>compra</strong> del dólar en el mercado paralelo referencial.`}</p>
           </div>
           <div class="panel-block">
-            <div class="panel-label" style="color:#C71E1D; background:rgba(199,30,29,.08); border-left-color:#C71E1D">${isTco ? 'Venta oficial' : 'Venta (paralelo)'}</div>
-            <div class="panel-val" style="color:#C71E1D">${fbs(p.v)}</div>
-            <p class="panel-desc">${isTco
-              ? `Precio de <strong>venta al público</strong> dispuesto por el BCB: TCO + <strong>0,10 Bs</strong> de margen.`
-              : `Precio de <strong>venta</strong> del dólar en el mercado paralelo referencial.`}</p>
+            <div class="panel-label" style="color:#C71E1D; background:rgba(199,30,29,.08); border-left-color:#C71E1D">${!isTco ? 'Venta (paralelo)' : (p.v != null ? 'Venta oficial' : 'Venta en bancos')}</div>
+            <div class="panel-val" style="color:#C71E1D">${fbs(isTco && p.v == null ? ventaBancos : p.v)}</div>
+            <p class="panel-desc">${!isTco
+              ? `Precio de <strong>venta</strong> del dólar en el mercado paralelo referencial.`
+              : (p.v != null
+                  ? `Precio de <strong>venta al público</strong> dispuesto por el BCB hasta sep-2026: TCO + <strong>0,10 Bs</strong> de margen.`
+                  : `Desde fines de sep-2026 cada banco fija y publica su propio precio de venta. Mediana de lo publicado hoy${ventasB.length ? ` por ${ventasB.length} bancos (entre ${fbs(ventasB[0])} y ${fbs(ventasB[ventasB.length - 1])})` : ''}.`)}</p>
           </div>
           <div class="panel-block">
             <div class="panel-label" style="color:#EE9B00; background:rgba(238,155,0,.08); border-left-color:#EE9B00">USDT Binance P2P</div>
             <div class="panel-val" style="color:#EE9B00">${fbs(p.usdt)}</div>
             <p class="panel-desc">${p.usdt == null ? 'Sin dato de USDT para esta fecha.' : (prima == null
               ? `Mediana del USDT/BOB en Binance P2P.`
-              : `Mediana del USDT/BOB en Binance P2P — cotiza <span class="delta-tag dt-amber">${(prima >= 0 ? '+' : '') + prima.toFixed(2)} Bs</span> ${Math.abs(prima) < 0.15 ? 'prácticamente en línea con' : (prima >= 0 ? 'por encima de' : 'por debajo de')} la venta oficial.`)}</p>
+              : `Mediana del USDT/BOB en Binance P2P — cotiza <span class="delta-tag dt-amber">${(prima >= 0 ? '+' : '') + prima.toFixed(2)} Bs</span> ${Math.abs(prima) < 0.15 ? 'prácticamente en línea con' : (prima >= 0 ? 'por encima de' : 'por debajo de')} ${isTco ? 'el TCO' : 'la venta referencial'}.`)}</p>
           </div>
           <div class="ctx-box"><p>${analysis}</p></div>
         `;
@@ -848,7 +863,7 @@
         }
 
         if (active.has('c'))    seriesData.push(lineSeries('c', 'TCO', '#0A9396', 2.6, false, 'rgba(10,147,150,.12)'));
-        if (active.has('v'))    seriesData.push(lineSeries('v', 'Venta oficial', '#C71E1D', 2, false, 'rgba(199,30,29,.10)'));
+        if (active.has('v'))    seriesData.push(lineSeries('v', 'Venta oficial (hasta sep-2026)', '#C71E1D', 2, false, 'rgba(199,30,29,.10)'));
         if (active.has('usdt')) seriesData.push(lineSeries('usdt', 'USDT', '#EE9B00', 2, true, null));
 
         // Línea de referencia del tipo fijo 6,96 + marca del cambio de régimen
@@ -932,12 +947,12 @@
         .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
       // ── Educational Boxes ─────────────────────────────────────
-      const primaHoy = (current.usdt != null && current.v != null) ? current.usdt - current.v : null;
+      const primaHoy = (current.usdt != null && current.c != null) ? current.usdt - current.c : null;   // USDT sobre el TCO
       const eduData = [
         {
           title: '¿Qué es el Tipo de Cambio Oficial (TCO)?',
-          content: `<p>Desde el <strong>27 de junio de 2026</strong>, el <strong>Banco Central de Bolivia (BCB)</strong> reemplazó el tipo de cambio fijo por el <strong>Tipo de Cambio Oficial (TCO)</strong>: un <strong>promedio ponderado de las operaciones de compra de dólares de la banca</strong>. Se publica al cierre de cada jornada (~20:00) y rige como referencia el día siguiente.</p>
-          <p>La <strong>venta oficial al público</strong> equivale al TCO más un margen de <span class="highlight hl-red">0,10 Bs</span>. Hoy el TCO rige en <span class="highlight hl-teal">${fbs(current.c)}</span> y la venta oficial en <span class="highlight hl-red">${fbs(current.v)}</span>.</p>`
+          content: `<p>Desde el <strong>27 de junio de 2026</strong>, el <strong>Banco Central de Bolivia (BCB)</strong> reemplazó el tipo de cambio fijo por el <strong>Tipo de Cambio Oficial (TCO)</strong>, que resume las <strong>operaciones de compra de dólares de la banca</strong>: desde la sesión del 25 de septiembre es su <strong>mediana ponderada por monto</strong> (antes, el promedio ponderado). El BCB lo publica por la noche y rige como referencia desde el día siguiente.</p>
+          <p>Hasta septiembre de 2026 la <strong>venta oficial</strong> era el TCO más <span class="highlight hl-red">0,10 Bs</span>; desde entonces cada banco fija y publica su propia venta. Hoy el TCO rige en <span class="highlight hl-teal">${fbs(current.c)}</span>${ventaBancos != null ? ` y la venta que publican los bancos tiene una mediana de <span class="highlight hl-red">${fbs(ventaBancos)}</span>` : ''}.</p>`
         },
         {
           title: 'El fin del tipo fijo de Bs 6,96',
@@ -947,7 +962,7 @@
         {
           title: '¿Qué es el USDT y por qué importa?',
           content: `<p>El <strong>USDT (Tether)</strong> es una criptomoneda estable vinculada 1:1 al dólar. En Bolivia se negocia en <strong>Binance P2P</strong> y funciona como un <strong>"dólar digital"</strong> cuyo precio refleja la demanda real de divisas.</p>
-          <p>Hoy cotiza en <span class="highlight hl-amber">${fbs(current.usdt)}</span>, ${primaHoy == null ? 'sin comparación disponible con la venta oficial.' : (Math.abs(primaHoy) < 0.15 ? 'prácticamente en línea con la venta oficial — ambos mercados convergen.' : primaHoy >= 0 ? `<strong>${primaHoy.toFixed(2)} Bs por encima</strong> de la venta oficial, señal de que aún hay presión de demanda.` : `<strong>${Math.abs(primaHoy).toFixed(2)} Bs por debajo</strong> de la venta oficial.`)}</p>`
+          <p>Hoy cotiza en <span class="highlight hl-amber">${fbs(current.usdt)}</span>, ${primaHoy == null ? 'sin comparación disponible con el TCO.' : (Math.abs(primaHoy) < 0.15 ? 'prácticamente en línea con el TCO — ambos mercados convergen.' : primaHoy >= 0 ? `<strong>${primaHoy.toFixed(2)} Bs por encima</strong> del TCO, señal de que aún hay presión de demanda.` : `<strong>${Math.abs(primaHoy).toFixed(2)} Bs por debajo</strong> del TCO.`)}</p>`
         },
         {
           title: '¿Por qué se disparó el precio del dólar?',

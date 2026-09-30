@@ -597,6 +597,15 @@
       .ctx-stat-value { font-size: 17px; }
     }
 
+    /* ── Compra y venta publicada por cada banco (sección 04) ─────────── */
+    .btc-tbl th:not(:first-child), .btc-tbl td:not(:first-child) { text-align: right; }
+    .btc-tbl td.num { font-family: var(--font-mono); font-size: 13px; white-space: nowrap; }
+    .btc-tbl td.sub { font-size: 11px; color: var(--muted); white-space: nowrap; }
+    .btc-tbl tr.sin-dato td { color: var(--muted); }
+    .btc-tbl .pos { color: var(--red); }
+    .btc-tbl .neg { color: var(--teal); }
+    .btc-tbl a { color: inherit; text-decoration: none; border-bottom: 1px dotted var(--muted2); }
+
     /* ── Report Button ────────────────────────────────────────────────── */
     .report-btn {
       display: inline-flex; align-items: center; gap: 8px;
@@ -900,9 +909,9 @@
   <div class="info-strip-inner">
     <span class="info-icon">ℹ</span>
     <span>
-      <b>TCO:</b> Tipo de Cambio Oficial = promedio <em>ponderado</em> de las operaciones de compra de la banca; el cierre de cada sesión (20:00) fija el TCO que <em>rige el día hábil siguiente</em>. &nbsp;|&nbsp;
-      <b>Venta oficial:</b> TCO + 0,10 Bs. &nbsp;|&nbsp;
-      <b>Prima USDT:</b> diferencia entre el precio informal (Binance P2P) y la venta oficial.
+      <b>TCO:</b> Tipo de Cambio Oficial = <em>mediana</em> ponderada por monto de las compras de dólares de la banca (hasta la sesión del 24-sep-2026, la media ponderada); el BCB lo publica por la noche y <em>rige desde el día siguiente</em>. &nbsp;|&nbsp;
+      <b>Venta:</b> desde fines de septiembre de 2026 cada banco fija y publica la suya; ya no es TCO + 0,10. &nbsp;|&nbsp;
+      <b>Prima USDT:</b> diferencia entre el precio informal (Binance P2P) y el TCO.
       Datos actualizados automáticamente cada día: el TCO del BCB y el USDT (Binance P2P), en horario Bolivia.
     </span>
   </div>
@@ -938,7 +947,7 @@
             <span class="kpi-delta" id="delta-tco"></span>
           </div>
         </div>
-        <div class="kpi-foot"><span class="kpi-sub">tipo de cambio oficial · promedio ponderado de compra</span></div>
+        <div class="kpi-foot"><span class="kpi-sub" id="sub-tco">tipo de cambio oficial · mediana ponderada de las compras</span></div>
       </div>
       <div class="kpi-card brecha">
         <div class="kpi-body">
@@ -948,18 +957,17 @@
             <span class="kpi-delta" id="delta-manana"></span>
           </div>
         </div>
-        <div class="kpi-foot"><span class="kpi-sub" id="sub-manana">se fija al cierre de la sesión de hoy (20:00)</span></div>
+        <div class="kpi-foot"><span class="kpi-sub" id="sub-manana">el BCB lo publica esta noche</span></div>
       </div>
       <div class="kpi-card spread">
-        <span class="kpi-hover-badge">historial</span>
         <div class="kpi-body">
-          <span class="kpi-label">Venta oficial</span>
+          <span class="kpi-label" id="label-vofic">Venta en bancos</span>
           <div class="kpi-row">
             <span class="kpi-value"><span id="kpi-vofic">—</span><span class="kpi-unit">Bs.</span></span>
             <span class="kpi-delta" id="delta-vofic"></span>
           </div>
         </div>
-        <div class="kpi-foot"><span class="kpi-sub">TCO + 0,10 Bs · disposición del BCB</span></div>
+        <div class="kpi-foot"><span class="kpi-sub" id="sub-vofic">mediana de lo que publica cada banco</span></div>
       </div>
       <div class="kpi-card usdt">
         <span class="kpi-hover-badge">historial</span>
@@ -981,7 +989,7 @@
             <span class="kpi-delta" id="delta-prima"></span>
           </div>
         </div>
-        <div class="kpi-foot"><span class="kpi-sub">USDT − venta oficial · informal vs. oficial</span></div>
+        <div class="kpi-foot"><span class="kpi-sub">USDT − TCO · informal vs. oficial</span></div>
       </div>
       <div class="kpi-card compra">
         <span class="kpi-hover-badge">historial</span>
@@ -1017,8 +1025,8 @@
         <p>Tipo de cambio que el <strong>BCB</strong> fija por norma desde 2011. Es un <strong>ancla nominal</strong>: no se mueve. Sigue vigente de jure, pero ya no es el precio al que se opera.</p>
       </div>
       <div class="rate-box referencial">
-        <h4>Oficial de mercado · TCO <span class="rate-val">~Bs. 9–10</span></h4>
-        <p>Promedio <strong>ponderado</strong> de las operaciones de compra de divisas de la banca. Cada sesión cierra a las <strong>20:00</strong> y fija el TCO que <strong>rige el día hábil siguiente</strong>; lo capturamos a diario en este panel.</p>
+        <h4>Oficial de mercado · TCO <span class="rate-val" id="guia-tco">~Bs. 12</span></h4>
+        <p><strong>Mediana ponderada</strong> por monto de las compras de dólares de la banca (hasta el 24-sep-2026, la media ponderada). El BCB lo publica <strong>por la noche</strong> y <strong>rige desde el día siguiente</strong>; lo capturamos a diario en este panel.</p>
       </div>
       <div class="rate-box informal">
         <h4>Informal (USDT) <span class="rate-val">P2P</span></h4>
@@ -1027,7 +1035,7 @@
     </div>
     <div class="rates-formula">
       <b>Dos diferencias clave:</b>&nbsp;
-      <span class="rf-garnet">Prima USDT</span> = informal − venta oficial&nbsp; ·&nbsp;
+      <span class="rf-garnet">Prima USDT</span> = informal − TCO&nbsp; ·&nbsp;
       <span class="rf-indigo">Brecha cambiaria</span> = TCO − oficial fijo.
     </div>
   </section>
@@ -1068,14 +1076,14 @@
       <span class="section-num">03</span>
       <div class="section-titles">
         <h2>Tipo de Cambio Oficial (TCO) vs. USDT</h2>
-        <p>Nuevo TCO del BCB (promedio ponderado de compra) y su precio de venta (+0,10 Bs) frente al USDT Binance P2P — Bs./$us</p>
+        <p>TCO del BCB frente al USDT Binance P2P y a la venta que publican los bancos. Hasta septiembre de 2026 la venta oficial era el TCO + 0,10 Bs; desde entonces cada banco fija la suya — Bs./$us</p>
       </div>
     </div>
     <div class="chart-card">
       <div class="chart-card-top">
         <div class="chart-card-meta">
-          <span class="chart-card-title">TCO oficial · Venta (+0,10) · USDT P2P</span>
-          <span class="chart-card-sub">Serie construida a diario desde el cambio de política monetaria</span>
+          <span class="chart-card-title">TCO oficial · Venta en bancos · USDT P2P</span>
+          <span class="chart-card-sub">Serie construida a diario desde el cambio de política monetaria · línea violeta = el TCO pasa a ser la mediana</span>
         </div>
         <div class="range-btns" id="rb-tco">
           <button class="rbtn" data-dias="30">1M</button>
@@ -1086,15 +1094,72 @@
       <div id="chart-tco" class="chart"><div class="loading">Cargando…</div></div>
       <div class="chart-hint" style="margin-top:8px">
         <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-        Por disposición del BCB, el precio de venta oficial es el TCO + 0,10 Bs. La distancia del USDT sobre la venta oficial mide la presión del mercado informal.
+        La venta oficial (TCO + 0,10 Bs) rigió hasta septiembre de 2026; desde entonces la venta es la mediana de lo que publica cada banco (sección 04). Desde el cambio de método, la línea punteada violeta muestra cuánto habría dado la media ponderada con las mismas operaciones.
       </div>
     </div>
   </section>
 
-  <!-- 04 · Variación diaria -->
-  <section class="section">
+  <!-- 04 · Compra y venta que publica cada banco -->
+  <section class="section" id="sec-btc">
     <div class="section-header">
       <span class="section-num">04</span>
+      <div class="section-titles">
+        <h2>Compra y Venta en los Bancos</h2>
+        <p id="btc-sub">Desde septiembre de 2026 cada banco fija y publica su propio precio de compra y de venta del dólar. Aquí, lo que cada entidad publica en su sitio web, frente al TCO que rige hoy.</p>
+      </div>
+    </div>
+    <div class="table-context" id="btc-context"></div>
+    <div class="chart-card">
+      <div class="chart-card-top">
+        <div class="chart-card-meta">
+          <span class="chart-card-title">Compra ● —— ● Venta · cotización publicada por cada banco</span>
+          <span class="chart-card-sub" id="btc-chart-sub">Bolivianos por dólar · línea punteada = TCO que rige hoy · ordenados por precio de venta</span>
+        </div>
+      </div>
+      <div class="box-scroll">
+        <div id="chart-btc" class="chart chart-tall"><div class="loading">Cargando…</div></div>
+      </div>
+      <div class="chart-hint" style="margin-top:8px">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        <span>Compra = lo que el banco paga por cada dólar que le venden; venta = lo que cobra por cada dólar que entrega. El tramo entre los dos puntos es su diferencial. Precios de ventanilla publicados por cada entidad; pueden diferir en banca digital o para montos grandes.</span>
+      </div>
+    </div>
+    <div class="chart-card" id="btc-hist-card" style="margin-top:14px" hidden>
+      <div class="chart-card-top">
+        <div class="chart-card-meta">
+          <span class="chart-card-title">Mediana de compra y venta en los bancos vs. TCO</span>
+          <span class="chart-card-sub">Serie que se construye a diario desde el 29-sep-2026 · banda = rango entre bancos</span>
+        </div>
+      </div>
+      <div id="chart-btc-hist" class="chart chart-med"><div class="loading">Cargando…</div></div>
+    </div>
+    <div class="table-wrap btc-wrap" style="margin-top:14px">
+      <table class="btc-tbl">
+        <thead>
+          <tr>
+            <th>Entidad</th>
+            <th>Compra</th>
+            <th>Venta</th>
+            <th>Diferencial</th>
+            <th>Venta − TCO</th>
+            <th title="Mediana ponderada de lo que el banco compró de verdad en la última sesión, según el BCB">Compra efectiva¹</th>
+            <th>Capturado</th>
+          </tr>
+        </thead>
+        <tbody id="btc-body">
+          <tr><td colspan="7" style="text-align:center;padding:28px;color:var(--muted)">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="chart-hint btc-nota" id="btc-nota" style="display:block;line-height:1.5">
+      ¹ <b>Lo publicado no es lo transado.</b> La compra que cada banco anuncia en su web (su «pizarra») suele quedar por debajo de lo que efectivamente pagó en sus operaciones de compra del día anterior, según el reporte del BCB (mediana ponderada por monto, que es el TCO de ese banco).
+    </p>
+  </section>
+
+  <!-- 05 · Variación diaria -->
+  <section class="section">
+    <div class="section-header">
+      <span class="section-num">05</span>
       <div class="section-titles">
         <h2>Variación Diaria del Tipo de Cambio</h2>
         <p>Cuánto se movió el tipo de cambio en cada sesión respecto de la sesión anterior, medido en centavos de boliviano. Desde el cambio de régimen se compara el TCO; antes, el valor referencial de compra del BCB.</p>
@@ -1122,24 +1187,24 @@
       <div class="table-context var-stats" id="var-stats"></div>
       <div class="chart-hint" style="margin-top:10px">
         <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-        100 centavos = Bs. 1. La sesión cierra a las 20:00 y el TCO que fija rige el día siguiente: cada barra está fechada en el día en que rige. La línea punteada es la media móvil de 5 sesiones. Las tarjetas se recalculan con el rango elegido.
+        100 centavos = Bs. 1. El BCB publica el TCO de cada sesión por la noche y rige desde el día siguiente: cada barra está fechada en el día en que rige. La línea punteada es la media móvil de 5 sesiones. Las tarjetas se recalculan con el rango elegido.
       </div>
     </div>
   </section>
 
-  <!-- 05 · Prima USDT -->
+  <!-- 06 · Prima USDT -->
   <section class="section">
     <div class="section-header">
-      <span class="section-num">05</span>
+      <span class="section-num">06</span>
       <div class="section-titles">
         <h2>Prima USDT sobre el Tipo de Cambio Oficial</h2>
-        <p>Diferencia diaria entre el precio informal (Binance P2P) y la venta oficial del BCB. Antes del cambio de régimen (26-jun) se calculaba sobre el valor referencial</p>
+        <p>Diferencia diaria entre el precio informal (Binance P2P) y el TCO del BCB. Antes del cambio de régimen (26-jun) se calculaba sobre el valor referencial de venta</p>
       </div>
     </div>
     <div class="chart-card">
       <div class="chart-card-top">
         <div class="chart-card-meta">
-          <span class="chart-card-title">Brecha mercado informal vs. venta oficial</span>
+          <span class="chart-card-title">Brecha mercado informal vs. tipo de cambio oficial</span>
           <span class="chart-card-sub">Valores positivos = USDT cotiza por encima del oficial · línea punteada = cambio de régimen</span>
         </div>
         <div class="range-btns" id="rb-prima">
@@ -1152,10 +1217,10 @@
     </div>
   </section>
 
-  <!-- 06 · Brecha Cambiaria -->
+  <!-- 07 · Brecha Cambiaria -->
   <section class="section">
     <div class="section-header">
-      <span class="section-num">06</span>
+      <span class="section-num">07</span>
       <div class="section-titles">
         <h2>Brecha Cambiaria · TCO vs. Oficial fijo (Bs. 6,96)</h2>
         <p>Cuánto se aleja el TCO del tipo de cambio oficial fijo de Bs. 6,96 — una medida de la devaluación implícita del régimen</p>
@@ -1181,20 +1246,20 @@
     </div>
   </section>
 
-  <!-- 07 · Volúmenes -->
+  <!-- 08 · Volúmenes -->
   <section class="section">
     <div class="section-header">
-      <span class="section-num">07</span>
+      <span class="section-num">08</span>
       <div class="section-titles">
         <h2>Volumen de Compra por Entidad Bancaria</h2>
-        <p>$us operados diariamente por banco. Línea = tasa de compra promedio ponderado, que continúa como TCO tras el cambio de régimen (eje der.). Datos desde ene. 2026.</p>
+        <p>$us operados diariamente por banco. Línea = tipo de cambio de compra de referencia del BCB (eje der.): el valor referencial hasta el 26-jun y el TCO desde entonces. Datos desde ene. 2026.</p>
       </div>
     </div>
     <div class="chart-card">
       <div class="chart-card-top">
         <div class="chart-card-meta">
           <span class="chart-card-title">Operaciones diarias por banco + Tasa promedio</span>
-          <span class="chart-card-sub">Volúmenes en $us · Eje derecho: Bs./$us — Fuente: BCB v2</span>
+          <span class="chart-card-sub">Volúmenes en $us · Eje derecho: Bs./$us — Fuente: BCB (reporte del TCO)</span>
         </div>
         <div class="range-btns" id="rb-volumen">
           <button class="rbtn active" data-dias="30">1M</button>
@@ -1210,10 +1275,10 @@
     </div>
   </section>
 
-  <!-- 08 · Distribución de tipos de cambio por banco (boxplot) -->
+  <!-- 09 · Distribución de tipos de cambio por banco (boxplot) -->
   <section class="section">
     <div class="section-header">
-      <span class="section-num">08</span>
+      <span class="section-num">09</span>
       <div class="section-titles">
         <h2>Distribución de los Tipos de Cambio por Banco</h2>
         <p id="box-fecha-sub">Cada banco compra divisas a múltiples precios dentro de la sesión. Las cajas muestran esa dispersión, ponderada por monto operado (igual que el TCO del BCB).</p>
@@ -1246,15 +1311,15 @@
       </div>
       <div class="chart-hint" style="margin-top:8px">
         <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-        Ponderado por monto operado (USD), igual que el TCO del BCB. Caja = rango intercuartílico (50% central) · línea interna = mediana · ▲ media = TCO oficial del banco · ● atípicos · bigotes a 1,5×IQR. Bajo cada banco: TCO del banco (azul) y (nº de transacciones). Ordenados de menor a mayor TCO.
+        <span id="box-hint-txt">Ponderado por monto operado (USD), igual que el TCO del BCB. Caja = rango intercuartílico (50% central) · línea interna y ○ = mediana · ▲ media · ● atípicos · bigotes a 1,5×IQR. Bajo cada banco: su TCO (azul) y (nº de transacciones). Ordenados de menor a mayor TCO.</span>
       </div>
     </div>
   </section>
 
-  <!-- 09 · Heatmap Calendario -->
+  <!-- 10 · Heatmap Calendario -->
   <section class="section">
     <div class="section-header">
-      <span class="section-num">09</span>
+      <span class="section-num">10</span>
       <div class="section-titles">
         <h2>Mapa de Actividad Diaria</h2>
         <p>Volumen total de operaciones por día — intensidad del color proporcional al monto</p>
@@ -1278,10 +1343,10 @@
     </div>
   </section>
 
-  <!-- 10 · Tabla -->
+  <!-- 11 · Tabla -->
   <section class="section">
     <div class="section-header">
-      <span class="section-num">10</span>
+      <span class="section-num">11</span>
       <div class="section-titles">
         <h2>Detalle por Entidad — Hoy</h2>
         <p id="tabla-fecha-sub">TCO, montos y transacciones declarados al BCB por cada EIF</p>
@@ -1355,6 +1420,7 @@ let g_var = [], g_varUnit = 'ctvs', g_varDias = 30;   // variación por sesión:
 let g_current = {}, g_currentPrev = null;   // punto "vigente hoy" para los KPIs (no-hover)
 let g_vigente = null, g_manana = null;      // puntos "rige hoy" / "regirá mañana"
 let g_mananaMode = 'pend', g_mananaStr = null;  // estado del KPI mañana: 'pub'|'finde'|'pend' + fecha de mañana
+let g_hoyPendiente = false;                   // el TCO que rige hoy aún no se publicó (se muestra el último)
 let g_lastSig = '';                          // firma de datos (para re-dibujar solo si cambian)
 let REGIME_TCO = null;   // primera fecha del régimen TCO (marca del cambio de régimen)
 
@@ -1444,37 +1510,65 @@ function updateDeltaPct(id, curr, prev) {
 }
 
 /* ── KPIs ───────────────────────────────────────────────────────────────── */
+// Referencia oficial contra la que se mide el USDT: el TCO en el régimen nuevo
+// (la «venta oficial» TCO + 0,10 dejó de existir en sep-2026) y la venta
+// referencial del BCB antes del 26-jun.
+const refDe = p => p ? (p.reg === 'tco' ? p.c : p.v) : null;
 function updateKPIs(p, hover, prevP) {
-  const prima = p.usdt != null && p.v != null ? p.usdt - p.v : null;
+  const ref = refDe(p);
+  const prima = p.usdt != null && ref != null ? p.usdt - ref : null;
   const vol = p.sesVol ?? p.vol;          // volumen de la sesión que fijó el TCO vigente
   const tx  = p.sesTx ?? p.tx;
   document.getElementById('kpi-tco').textContent     = fmt2(p.c);
-  document.getElementById('kpi-vofic').textContent   = fmt2(p.v);
   document.getElementById('kpi-usdt').textContent    = p.usdt != null ? fmt2(p.usdt) : 'N/D';
   document.getElementById('kpi-prima').textContent   = prima != null ? fmt2(prima) : 'N/D';
   document.getElementById('kpi-volumen').textContent = vol != null ? fmtM(vol) : 'N/D';
-  document.getElementById('label-tco').textContent   = hover ? `TCO · ${fmtMes(p.f)}` : 'TCO · rige hoy';
+  document.getElementById('label-tco').textContent   = hover ? `TCO · ${fmtMes(p.f)}`
+    : (g_hoyPendiente ? 'TCO · último publicado' : 'TCO · rige hoy');
+  const st = document.getElementById('sub-tco');
+  if (st) st.textContent = !hover && g_hoyPendiente
+    ? `el de hoy aún no se publica · este rigió hasta el ${fmtDate(g_vigente.vigHasta)}`
+    : `tipo de cambio oficial · ${(p.metodo || metodoDe(p.sesion || p.f)) === 'mediana' ? 'mediana' : 'media'} ponderada de las compras`;
   const sv = document.getElementById('sub-volumen');
   if (sv) sv.textContent = tx != null
     ? `${tx.toLocaleString('es-BO')} transacciones en la sesión`
     : 'monto negociado en la sesión';
   document.getElementById('kpi-fecha').innerHTML = hover
     ? `Datos al ${fmtDate(p.f)}`
-    : `Rige hoy · ${fmtDate(p.f)}${p.sesion ? ` · sesión del ${fmtDate(p.sesion)}` : ''} · <em>Interactúa con el gráfico para ver histórico</em>`;
+    : (g_hoyPendiente
+        ? `Hoy ${fmtDate(p.f)} · el BCB aún no publica el TCO que rige hoy · último: sesión del ${fmtDate(p.sesion)} · <em>Interactúa con el gráfico para ver histórico</em>`
+        : `Rige hoy · ${fmtDate(p.f)}${p.sesion ? ` · sesión del ${fmtDate(p.sesion)}` : ''} · <em>Interactúa con el gráfico para ver histórico</em>`);
   document.getElementById('kpi-grid').classList.toggle('kpis-hovering', hover);
 
   // Comparar solo dentro del mismo régimen: al cruzar referencial → TCO los
   // deltas no son comparables (p.ej. la prima saltaría +1150%).
   const ep = (prevP && (p.reg || '') === (prevP.reg || '')) ? prevP : null;
   updateDelta('delta-tco', p.c, ep?.c);
-  updateDelta('delta-vofic', p.v, ep?.v);
   updateDelta('delta-usdt', p.usdt, ep?.usdt);
-  const prevPrima = ep && ep.usdt != null && ep.v != null ? ep.usdt - ep.v : null;
+  const prevRef = refDe(ep);
+  const prevPrima = ep && ep.usdt != null && prevRef != null ? ep.usdt - prevRef : null;
   updateDelta('delta-prima', prima, prevPrima);
   updateDeltaPct('delta-volumen', vol, ep ? (ep.sesVol ?? ep.vol) : undefined);
 }
 
-/* Tarjeta "Regirá mañana": el TCO de la sesión de HOY (cierre 20:00) rige el
+/* Tarjeta "Venta en bancos": mediana de la venta que publica cada banco en su
+   web (data/bancos_tc.json). Es de HOY: no cambia al explorar el histórico. */
+function setKpiVentaBancos(d) {
+  const val = document.getElementById('kpi-vofic');
+  const sub = document.getElementById('sub-vofic');
+  const del = document.getElementById('delta-vofic');
+  if (!val) return;
+  del.innerHTML = '';
+  const vs = ((d && d.bancos) || []).map(b => b.venta).filter(v => v != null);
+  if (!vs.length) { val.textContent = '—'; sub.textContent = 'sin cotizaciones de los bancos'; return; }
+  const m = mediana(vs);
+  val.textContent = fmt2(m);
+  const tco = g_current && g_current.c;
+  sub.textContent = `mediana de ${vs.length} bancos · rango ${fmtBs2(Math.min(...vs))}–${fmtBs2(Math.max(...vs))}`
+    + (tco != null ? ` · ${fmtCt(m - tco)} s/ TCO` : '');
+}
+
+/* Tarjeta "Regirá mañana": el TCO de la sesión de HOY (publicada por la noche) rige el
    próximo día hábil. Se fija una sola vez; no cambia al explorar el histórico. */
 function setKpiManana(manana, vigente, mode, mananaStr) {
   const val = document.getElementById('kpi-manana');
@@ -1494,7 +1588,7 @@ function setKpiManana(manana, vigente, mode, mananaStr) {
   } else {
     // Día hábil antes del cierre: pendiente.
     val.textContent = '—';
-    sub.innerHTML = 'pendiente · se fija al cierre de hoy (<b>20:00</b>)';
+    sub.innerHTML = 'pendiente · el BCB lo publica esta noche';
   }
 }
 
@@ -1502,22 +1596,20 @@ function setKpiManana(manana, vigente, mode, mananaStr) {
 function updateAlert(serie, hoy) {
   const banner = document.getElementById('alert-banner');
   const text = document.getElementById('alert-text');
-  if (!hoy.usdt || !hoy.v) { banner.classList.remove('visible'); return; }
-  const prima = hoy.usdt - hoy.v;
+  const ref = refDe(hoy);
+  if (!hoy.usdt || !ref) { banner.classList.remove('visible'); return; }
+  const prima = hoy.usdt - ref;
   const msgs = [];
   if (prima > 0.5) {
-    const pct = ((prima / hoy.v) * 100).toFixed(1);
-    msgs.push(`La prima USDT es de <b>Bs. ${prima.toFixed(2)}</b> — el dólar informal cotiza ${pct}% por encima de la venta oficial.`);
+    const pct = ((prima / ref) * 100).toFixed(1);
+    msgs.push(`La prima USDT es de <b>Bs. ${prima.toFixed(2)}</b> — el dólar informal cotiza ${pct}% por encima del TCO.`);
   }
-  if (hoy.v >= 10) {
-    msgs.push(`El tipo de cambio de venta alcanzó <b>Bs. ${hoy.v.toFixed(2)}</b>.`);
-  }
-  const recent = serie.slice(-30).filter(p => p.v != null);
+  const recent = serie.slice(-30).map(refDe).filter(v => v != null);
   if (recent.length >= 5) {
-    const avg30 = recent.reduce((s, p) => s + p.v, 0) / recent.length;
-    const change = ((hoy.v - avg30) / avg30 * 100);
+    const avg30 = recent.reduce((s, v) => s + v, 0) / recent.length;
+    const change = ((ref - avg30) / avg30 * 100);
     if (Math.abs(change) >= 5) {
-      msgs.push(`La venta oficial está <b>${Math.abs(change).toFixed(1)}%</b> ${change > 0 ? 'por encima' : 'por debajo'} del promedio de 30 días.`);
+      msgs.push(`El TCO está <b>${Math.abs(change).toFixed(1)}%</b> ${change > 0 ? 'por encima' : 'por debajo'} de su promedio de 30 días.`);
     }
   }
   if (msgs.length) {
@@ -1561,6 +1653,17 @@ function regimeMarkLineItem() {
 function regimeMarkLine() {
   const it = regimeMarkLineItem();
   return it ? { symbol:'none', silent:true, animation:false, data:[it] } : undefined;
+}
+// Cambio de método del TCO (media → mediana ponderada): primer día en que rige
+// un TCO calculado como mediana (la sesión del 25-sep rige desde el 26).
+let METODO_VIG = null;
+function metodoMarkLineItem() {
+  return METODO_VIG ? {
+    xAxis: METODO_VIG,
+    label:{ formatter:'TCO = mediana ponderada', color:'#6B3F8C', fontSize:10,
+            fontFamily:'Inter', position:'insideEndTop', rotate:90, padding:[0,0,6,0] },
+    lineStyle:{ color:'#6B3F8C', width:1.3, type:'dotted' },
+  } : null;
 }
 
 // Volumen por banco unificado: referencial (bancos.json) + TCO (tco.json).
@@ -1663,8 +1766,9 @@ function renderPrecios(serie) {
             <b style="font-family:'IBM Plex Mono',monospace;font-size:12px">Bs. ${(pv.value[1]-pc.value[1]).toFixed(2)}</b>
           </div>`;
         }
-        if (pu?.value[1] && pv?.value[1]) {
-          const prima = pu.value[1]-pv.value[1];
+        const pt = g_serie.find(x => x.f === params[0].value[0]);
+        if (pu?.value[1] && refDe(pt) != null) {
+          const prima = pu.value[1] - refDe(pt);   // sobre el TCO (antes del 26-jun, sobre la venta referencial)
           o += `<div style="display:flex;justify-content:space-between;gap:18px;margin-top:2px">
             <span style="color:#A07080;font-size:12px">● Prima USDT</span>
             <b style="font-family:'IBM Plex Mono',monospace;font-size:12px">Bs. ${prima.toFixed(2)}</b>
@@ -1750,12 +1854,16 @@ function renderPrecios(serie) {
 function renderTco(serie) {
   // Consume la serie unificada (g_serie): los puntos del régimen TCO ya están
   // fechados por VIGENCIA (el día que rige), así que el TCO aparece en su día.
-  const tco = [], venta = [], usdt = [];
+  const tco = [], venta = [], usdt = [], media = [];
   for (const p of serie) {
     if (p.reg !== 'tco') continue;
     if (p.c != null) tco.push(  [p.f, p.c]);
     if (p.v != null) venta.push([p.f, p.v]);
     if (p.usdt != null) usdt.push([p.f, p.usdt]);
+    // Desde el cambio de método: cuánto habría dado la media ponderada (el
+    // método anterior) con las mismas operaciones. Responde «¿cuánto movió el
+    // TCO el cambio de método?», día por día.
+    if (p.metodo === 'mediana' && p.media != null) media.push([p.f, p.media]);
   }
   if (!tco.length) return;
   const few = tco.length <= 12;   // con pocos puntos, mostrar símbolos para que se vean
@@ -1783,13 +1891,13 @@ function renderTco(serie) {
             <b style="font-family:'IBM Plex Mono',monospace">Bs. ${Number(p.value[1]).toFixed(2)}</b>
           </div>`;
         }
-        const pvta = params.find(p => p.seriesName === 'Venta oficial (+0,10)');
+        const ptco = params.find(p => p.seriesName === 'TCO oficial');
         const pu   = params.find(p => p.seriesName === 'USDT P2P');
-        if (pu?.value[1] && pvta?.value[1]) {
-          const d = pu.value[1] - pvta.value[1];
+        if (pu?.value[1] && ptco?.value[1]) {
+          const d = pu.value[1] - ptco.value[1];
           o += `<div style="margin-top:7px;padding-top:7px;border-top:1px solid rgba(255,255,255,.08);
             display:flex;justify-content:space-between;gap:18px">
-            <span style="color:#EE9B00;font-size:12px">● USDT s/ venta oficial</span>
+            <span style="color:#EE9B00;font-size:12px">● USDT s/ TCO</span>
             <b style="font-family:'IBM Plex Mono',monospace;font-size:12px">${d >= 0 ? '+' : ''}Bs. ${d.toFixed(2)}</b>
           </div>`;
         }
@@ -1797,7 +1905,7 @@ function renderTco(serie) {
       }
     },
     legend:{
-      data:['TCO oficial','Venta oficial (+0,10)','USDT P2P'],
+      data:['TCO oficial','Venta en bancos (mediana)','Venta oficial (TCO + 0,10)','USDT P2P','Media pond. (método anterior)'],
       textStyle:{ color:c.leg, fontSize: mob() ? 10.5 : 12, fontFamily:'Inter' },
       icon:'roundRect', itemWidth:10, itemHeight:4, itemGap: mob() ? 10 : 18, top:2, right:4,
     },
@@ -1823,9 +1931,24 @@ function renderTco(serie) {
         areaStyle:{ color:{ type:'linear',x:0,y:0,x2:0,y2:1,
           colorStops:[{offset:0,color:'rgba(199,30,29,.15)'},{offset:1,color:'rgba(199,30,29,0)'}] } },
         symbol:'circle', symbolSize:5, showSymbol:few, smooth:0.4, z:4,
+        markLine: metodoMarkLineItem() ? { symbol:'none', silent:true, animation:false,
+          data:[metodoMarkLineItem()] } : undefined,
       },
       {
-        name:'Venta oficial (+0,10)', type:'line', data:venta,
+        name:'Media pond. (método anterior)', type:'line', data:media,
+        itemStyle:{ color:'#6B3F8C' }, lineStyle:{ width:1.4, color:'#6B3F8C', type:'dotted' },
+        symbol:'circle', symbolSize:4, showSymbol:true, smooth:0.4, z:3,
+      },
+      {
+        // La venta que publica cada banco (mediana del día): la serie arranca el
+        // 29-sep-2026, cuando empezó la captura de data/bancos_tc.json.
+        name:'Venta en bancos (mediana)', type:'line',
+        data:((g_btc && g_btc.serie) || []).filter(s => s.venta_med != null).map(s => [s.f, s.venta_med]),
+        itemStyle:{ color:'#9B2226' }, lineStyle:{ width:1.8, color:'#9B2226' },
+        symbol:'circle', symbolSize:6, showSymbol:true, smooth:0.4, z:4,
+      },
+      {
+        name:'Venta oficial (TCO + 0,10)', type:'line', data:venta,
         itemStyle:{ color:'#E0635F' }, lineStyle:{ width:1.6, color:'#E0635F', type:'dashed' },
         symbol:'circle', symbolSize:4, showSymbol:few, smooth:0.4, z:3,
       },
@@ -1838,6 +1961,206 @@ function renderTco(serie) {
   });
 
   wireRange('rb-tco', () => tcoChart);
+}
+
+/* ── Compra y venta publicada por cada banco (sección 04) ──────────────────
+   Desde sep-2026 cada banco fija su propio precio de compra y de venta y lo
+   publica en su web (ya no hay un único «TCO + 0,10»). `scrape_bancos_tc.py`
+   lo captura varias veces al día en `data/bancos_tc.json`; acá se muestra la
+   última cotización de cada banco frente al TCO que rige hoy. Un banco sin
+   cotización capturada se lista sin número: nunca se inventa un valor. */
+let btcChart = null, btcHistChart = null, g_btc = null;
+const mediana = arr => {
+  const a = arr.filter(v => v != null).sort((x, y) => x - y);
+  if (!a.length) return null;
+  const k = Math.floor(a.length / 2);
+  return a.length % 2 ? a[k] : (a[k - 1] + a[k]) / 2;
+};
+const fmtBs2 = v => v == null ? '—' : Number(v).toFixed(2).replace('.', ',');
+const fmtCt = v => v == null ? '—' : `${v > 0 ? '+' : (v < 0 ? '−' : '')}${Math.abs(Math.round(v * 100))} ctvs`;
+
+function renderBancosTc(d) {
+  const el = document.getElementById('chart-btc');
+  const body = document.getElementById('btc-body');
+  const ctxEl = document.getElementById('btc-context');
+  if (!el || !body) return;
+  const tco = g_current && g_current.c != null ? g_current.c : null;   // TCO que rige hoy
+  const filas = (d && d.bancos) || [];
+  // Con dato = publica al menos la VENTA (Ganadero no publica compra propia).
+  const con = filas.filter(b => b.venta != null)
+                   .sort((a, z) => a.venta - z.venta || (a.compra ?? a.venta) - (z.compra ?? z.venta));
+  if (!con.length) {
+    if (btcChart) { btcChart.dispose(); btcChart = null; }
+    el.innerHTML = '<div class="loading">Todavía no hay cotizaciones de los bancos capturadas.</div>';
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:28px;color:var(--muted)">Sin cotizaciones capturadas.</td></tr>';
+    if (ctxEl) ctxEl.innerHTML = '';
+    return;
+  }
+  const conCompra = con.filter(b => b.compra != null);
+  const sesion = d.sesion_bcb ? fmtDate(d.sesion_bcb) : 'la última sesión';
+
+  // ── Tarjetas: medianas entre bancos, rango y diferencial ──
+  const vMed = mediana(con.map(b => b.venta)), cMed = mediana(conCompra.map(b => b.compra));
+  const dMed = mediana(conCompra.map(b => b.venta - b.compra));
+  const vMin = Math.min(...con.map(b => b.venta)), vMax = Math.max(...con.map(b => b.venta));
+  const cs = conCompra.map(b => b.compra);
+  const cMin = cs.length ? Math.min(...cs) : null, cMax = cs.length ? Math.max(...cs) : null;
+  const cuando = d.fecha ? fmtDate(d.fecha) : '';
+  if (ctxEl) ctxEl.innerHTML = `
+    <div class="ctx-stat up">
+      <div class="ctx-stat-label">Venta en bancos · mediana</div>
+      <div class="ctx-stat-value">${fmtBs2(vMed)}<span class="u">Bs.</span></div>
+      <div class="ctx-stat-sub">rango ${fmtBs2(vMin)} – ${fmtBs2(vMax)} · ${con.length} banco${con.length === 1 ? '' : 's'}${cuando ? ` · al ${cuando}` : ''}</div>
+    </div>
+    <div class="ctx-stat down">
+      <div class="ctx-stat-label">Compra en bancos · mediana</div>
+      <div class="ctx-stat-value">${fmtBs2(cMed)}<span class="u">Bs.</span></div>
+      <div class="ctx-stat-sub">rango ${fmtBs2(cMin)} – ${fmtBs2(cMax)} · lo que anuncian en su web</div>
+    </div>
+    <div class="ctx-stat neutral">
+      <div class="ctx-stat-label">Diferencial mediano</div>
+      <div class="ctx-stat-value">${dMed != null ? Math.round(dMed * 100) : '—'}<span class="u">ctvs</span></div>
+      <div class="ctx-stat-sub">venta − compra · hasta sep-2026 eran 10 ctvs fijos</div>
+    </div>
+    <div class="ctx-stat neutral">
+      <div class="ctx-stat-label">TCO que rige hoy</div>
+      <div class="ctx-stat-value">${fmtBs2(tco)}<span class="u">Bs.</span></div>
+      <div class="ctx-stat-sub">${vMed != null && tco != null ? `la venta mediana está ${fmtCt(vMed - tco)} por encima` : 'referencia del BCB'}</div>
+    </div>`;
+
+  // ── Gráfico de pesas: un segmento compra→venta por banco ──
+  if (btcChart) btcChart.dispose();
+  el.innerHTML = '';
+  el.style.minWidth = window.innerWidth <= 680 ? '520px' : '';
+  btcChart = echarts.init(el, null, { renderer:'canvas' });
+  const c = ct();
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const colTco = dark ? '#94D2BD' : '#001219';
+  const cats = con.map(b => b.banco);
+  const todos = con.flatMap(b => [b.compra, b.venta, b.compra_efectiva]).filter(v => v != null)
+                   .concat(tco != null ? [tco] : []);
+  let xmin = Math.min(...todos), xmax = Math.max(...todos);
+  const pad = Math.max((xmax - xmin) * 0.06, 0.05);
+  xmin = +(xmin - pad).toFixed(2); xmax = +(xmax + pad).toFixed(2);
+  btcChart.setOption({
+    backgroundColor:'transparent',
+    legend:{ data:['Compra (pizarra)','Venta (pizarra)','Compra efectiva (BCB)'], top:0, left:0,
+      textStyle:{ color:c.leg, fontSize: mob() ? 10 : 11.5, fontFamily:'Inter' }, itemGap: mob() ? 8 : 16 },
+    tooltip:{
+      trigger:'axis', axisPointer:{ type:'shadow' }, ...tipBase(),
+      formatter(params) {
+        const b = con[params?.[0]?.dataIndex];
+        if (!b) return '';
+        const row = (lbl, val, col) => `<div style="display:flex;justify-content:space-between;gap:20px;margin:2px 0">
+          <span style="color:${col || c.axis}">${lbl}</span><b style="font-family:'IBM Plex Mono',monospace">${val}</b></div>`;
+        let o = `<div style="font-weight:700;margin-bottom:6px;font-size:12px;color:#7AA8C0">${b.nombre || b.banco}</div>`;
+        o += row('Venta', 'Bs. ' + fmtBs2(b.venta), '#E0635F');
+        o += row('Compra', b.compra != null ? 'Bs. ' + fmtBs2(b.compra) : 'no la publica', '#3FB8BA');
+        if (b.compra != null) o += row('Diferencial', `${Math.round((b.venta - b.compra) * 100)} ctvs`);
+        if (tco != null) o += row('Venta − TCO', fmtCt(b.venta - tco));
+        if (b.compra_efectiva != null)
+          o += row(`Compró de verdad (${sesion})`, 'Bs. ' + fmtBs2(b.compra_efectiva), '#EE9B00');
+        if (b.usdt_venta != null)
+          o += row('USDT compra / venta', `${fmtBs2(b.usdt_compra)} / ${fmtBs2(b.usdt_venta)}`);
+        if (b.oficial != null && tco != null && Math.abs(b.oficial - tco) > 0.004)
+          o += row('TCO que muestra el banco', 'Bs. ' + fmtBs2(b.oficial));
+        if (b.hora) o += `<div style="margin-top:6px;font-size:11px;color:${c.axis}">Capturado ${b.fecha ? fmtDate(b.fecha) + ' · ' : ''}${b.hora}</div>`;
+        return o;
+      }
+    },
+    grid:{ left:12, right:18, top:48, bottom:22, containLabel:true },
+    xAxis:{
+      type:'value', min:xmin, max:xmax, name:'Bs./$us', nameLocation:'end',
+      nameTextStyle:{ color:c.axis, fontSize:10, fontFamily:'Inter' },
+      axisLabel:{ formatter:v => v.toFixed(2), fontSize:11, color:c.axis, fontFamily:'IBM Plex Mono' },
+      splitLine:{ lineStyle:{ color:c.grid, type:'dashed' } },
+    },
+    yAxis:{
+      type:'category', data:cats, axisTick:{ show:false },
+      axisLine:{ lineStyle:{ color:c.grid } },
+      axisLabel:{ color:c.axis, fontFamily:'Inter', fontWeight:600, fontSize:10.5 },
+    },
+    series:[
+      {
+        name:'Diferencial', type:'custom', data:conCompra.map(b => [cats.indexOf(b.banco), b.compra, b.venta]),
+        encode:{ x:[1, 2], y:0 }, z:2, silent:true,
+        renderItem(params, api) {
+          const a = api.coord([api.value(1), api.value(0)]);
+          const z = api.coord([api.value(2), api.value(0)]);
+          return { type:'line', shape:{ x1:a[0], y1:a[1], x2:z[0], y2:z[1] },
+                   style:{ stroke: c.axis, lineWidth: 2.4, opacity: .55 } };
+        },
+        markLine: tco != null ? { symbol:'none', silent:true, animation:false,
+          data:[{ xAxis: tco, label:{ formatter:`TCO ${fmtBs2(tco)}`, position:'end', fontSize:10, color: colTco },
+                  lineStyle:{ color: colTco, type:'dashed', width:1.3 } }] } : undefined,
+      },
+      { name:'Compra efectiva (BCB)', type:'scatter', symbol:'diamond', symbolSize:9,
+        data:con.map((b, i) => b.compra_efectiva != null ? [b.compra_efectiva, i] : null).filter(Boolean),
+        itemStyle:{ color:'#EE9B00' }, z:3 },
+      { name:'Compra (pizarra)', type:'scatter', data:con.map((b, i) => b.compra != null ? [b.compra, i] : null).filter(Boolean),
+        symbolSize:10, itemStyle:{ color:'#0A9396' }, z:4 },
+      { name:'Venta (pizarra)', type:'scatter', data:con.map((b, i) => [b.venta, i]), symbolSize:10,
+        itemStyle:{ color:'#C71E1D' }, z:5 },
+    ],
+  });
+
+  // ── Tabla: todas las entidades, también las que no publicaron ──
+  const orden = [...con].reverse().concat(filas.filter(b => b.venta == null));
+  body.innerHTML = orden.map(b => {
+    const efec = b.compra_efectiva != null ? fmtBs2(b.compra_efectiva) : '—';
+    if (b.venta == null) return `<tr class="sin-dato">
+      <td><span class="banco-name">${b.nombre || b.banco}</span></td>
+      <td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>
+      <td class="num">${efec}</td>
+      <td class="sub">${b.motivo || 'sin cotización capturada'}</td></tr>`;
+    const dv = tco != null ? b.venta - tco : null;
+    const nombre = b.fuente ? `<a href="${b.fuente}" target="_blank" rel="noopener">${b.nombre || b.banco}</a>` : (b.nombre || b.banco);
+    return `<tr>
+      <td><span class="banco-name">${nombre}</span></td>
+      <td class="num">${b.compra != null ? fmtBs2(b.compra) : '<span title="El banco no publica un precio de compra propio">no publica</span>'}</td>
+      <td class="num">${fmtBs2(b.venta)}</td>
+      <td class="num">${b.compra != null ? Math.round((b.venta - b.compra) * 100) + ' ctvs' : '—'}</td>
+      <td class="num ${dv > 0.004 ? 'pos' : (dv < -0.004 ? 'neg' : '')}">${fmtCt(dv)}</td>
+      <td class="num">${efec}</td>
+      <td class="sub">${b.fecha ? fmtMes(b.fecha) : ''}${b.hora ? ' · ' + b.hora : ''}</td></tr>`;
+  }).join('');
+  const nota = document.getElementById('btc-nota');
+  if (nota && d.sesion_bcb) nota.innerHTML =
+    `¹ <b>Lo publicado no es lo transado.</b> La compra que cada banco anuncia en su web (su «pizarra») suele quedar por debajo de lo que efectivamente pagó en sus compras de la sesión del ${fmtDate(d.sesion_bcb)}, según el reporte del BCB (mediana ponderada por monto: el TCO de ese banco).`;
+
+  renderBancosTcHist(d);
+}
+
+// Serie diaria de las medianas entre bancos (aparece cuando hay ≥ 2 días).
+function renderBancosTcHist(d) {
+  const card = document.getElementById('btc-hist-card');
+  const el = document.getElementById('chart-btc-hist');
+  const serie = (d && d.serie) || [];
+  if (!card || !el) return;
+  if (serie.length < 2) { card.hidden = true; return; }
+  card.hidden = false;
+  if (btcHistChart) btcHistChart.dispose();
+  el.innerHTML = '';
+  btcHistChart = echarts.init(el, null, { renderer:'canvas' });
+  const c = ct();
+  const tcoDe = f => { const p = g_serie.find(x => x.f === f); return p && p.reg === 'tco' ? p.c : null; };
+  btcHistChart.setOption({
+    backgroundColor:'transparent',
+    tooltip:{ trigger:'axis', ...tipBase(), valueFormatter: v => v == null ? '—' : 'Bs. ' + fmtBs2(v) },
+    legend:{ data:['Venta (mediana)','Compra (mediana)','TCO'], top:2, right:4,
+      textStyle:{ color:c.leg, fontSize: mob() ? 10.5 : 12, fontFamily:'Inter' }, icon:'roundRect', itemWidth:10, itemHeight:4 },
+    grid:{ left:12, right:12, top:40, bottom:28, containLabel:true },
+    xAxis:{ type:'category', data:serie.map(s => fmtMes(s.f)), axisLine:{ lineStyle:{ color:c.grid } },
+      axisLabel:{ fontSize:11, color:c.axis, fontFamily:'Inter' } },
+    yAxis:{ type:'value', scale:true, axisLabel:{ formatter:v => v.toFixed(2), fontSize:11, color:c.axis, fontFamily:'IBM Plex Mono' },
+      splitLine:{ lineStyle:{ color:c.grid, type:'dashed' } } },
+    series:[
+      { name:'Venta (mediana)', type:'line', data:serie.map(s => s.venta_med), itemStyle:{ color:'#C71E1D' }, symbolSize:5 },
+      { name:'Compra (mediana)', type:'line', data:serie.map(s => s.compra_med), itemStyle:{ color:'#0A9396' }, symbolSize:5 },
+      { name:'TCO', type:'line', data:serie.map(s => tcoDe(s.f)), itemStyle:{ color:'#001219' },
+        lineStyle:{ type:'dashed', width:1.4 }, symbolSize:4 },
+    ],
+  });
 }
 
 /* ── Variación por sesión (Δ del tipo de cambio) ────────────────────────── */
@@ -2157,8 +2480,8 @@ function renderVarStats(items, dias) {
 /* ── Gráfico Prima USDT ────────────────────────────────────────────────── */
 function renderPrima(serie) {
   const data = serie
-    .filter(p => p.usdt != null && p.v != null)
-    .map(p => [p.f, +(p.usdt - p.v).toFixed(4)]);
+    .filter(p => p.usdt != null && refDe(p) != null)
+    .map(p => [p.f, +(p.usdt - refDe(p)).toFixed(4)]);
   if (!data.length) return;
 
   if (primaChart) primaChart.dispose();
@@ -2339,7 +2662,7 @@ function renderVolumen(bancos) {
   });
 
   const serieCompra = {
-    name:'Compra prom. pond.', type:'line', yAxisIndex:1,
+    name:'Compra BCB (ref./TCO)', type:'line', yAxisIndex:1,
     data: compraSerie.map((v,i)=>[fechas[i],v]),
     lineStyle:{ width:2, color:lineCompraColor },
     itemStyle:{ color:lineCompraColor },
@@ -2361,7 +2684,7 @@ function renderVolumen(bancos) {
         let total = 0;
         const bd = [];
         for (const p of params) {
-          if (p.seriesName === 'Compra prom. pond.') {
+          if (p.seriesName === 'Compra BCB (ref./TCO)') {
             o += `<div style="margin-bottom:6px">
               <span style="color:#94D2BD">● Compra prom.: </span>
               <b style="font-family:'IBM Plex Mono',monospace">Bs. ${Number(p.value[1]).toFixed(2)}</b>
@@ -2380,7 +2703,7 @@ function renderVolumen(bancos) {
       }
     },
     legend:{
-      data:[...bancosList,'Compra prom. pond.'],
+      data:[...bancosList,'Compra BCB (ref./TCO)'],
       textStyle:{ color:c.leg, fontSize: mob() ? 10 : 11.5, fontFamily:'Inter' },
       type:'scroll', bottom:0, itemGap: mob() ? 8 : 12,
       icon:'roundRect', itemWidth:12, itemHeight:5,
@@ -2424,8 +2747,14 @@ function renderVolumen(bancos) {
 
 /* ── Distribución de TC negociados por banco (cajas y bigotes) ─────────────
    Ponderado por MONTO operado (igual que el TCO del BCB). Caja = IQR, línea
-   interna + ○ = mediana, ▲ = media (= TCO oficial del banco), ● = atípicos,
-   línea roja = TCO oficial global de la sesión. */
+   interna + ○ = mediana, ▲ = media, ● = atípicos, línea roja = TCO oficial
+   global de la sesión. Cuál de los dos es el TCO oficial del banco depende de
+   la sesión: la MEDIA hasta el 24-sep-2026 y la MEDIANA desde el 25-sep
+   (`dist.metodo`, que declara el scraper y verifica contra lo publicado). */
+function metodoDe(fecha) {
+  const desde = g_tcoData && g_tcoData.metodo_mediana_desde;
+  return desde && fecha >= desde ? 'mediana' : 'media';
+}
 function renderBoxplot(dist) {
   const el = document.getElementById('chart-boxplot');
   if (!el) return;
@@ -2442,9 +2771,15 @@ function renderBoxplot(dist) {
     means.push([i, b.mean]);
     medians.push([i, b.q2]);
   });
+  const esMediana = (dist.metodo || metodoDe(dist.fecha)) === 'mediana';
+  const oficialDe = b => b.tco != null ? b.tco : (esMediana ? b.q2 : b.mean);
   const subEl = document.getElementById('box-fecha-sub');
   if (subEl && dist.fecha) subEl.textContent =
-    `Sesión del ${fmtDate(dist.fecha)}${dist.vig ? ` (rige el ${fmtDate(dist.vig)})` : ''} — cada banco compra divisas a múltiples precios; las cajas muestran esa dispersión, ponderada por monto operado (igual que el TCO del BCB).`;
+    `Sesión del ${fmtDate(dist.fecha)}${dist.vig ? ` (rige ${dist.vig_hasta && dist.vig_hasta !== dist.vig ? `del ${fmtDate(dist.vig)} al ${fmtDate(dist.vig_hasta)}` : `el ${fmtDate(dist.vig)}`})` : ''} — cada banco compra divisas a múltiples precios; las cajas muestran esa dispersión, ponderada por monto operado. El TCO de esa sesión es la ${esMediana ? 'mediana' : 'media'} ponderada.`;
+  const hintEl = document.getElementById('box-hint-txt');
+  if (hintEl) hintEl.innerHTML = esMediana
+    ? 'Ponderado por monto operado (USD). Caja = rango intercuartílico (50% central) · <b>línea interna y ○ = mediana = TCO oficial del banco</b> (método vigente desde la sesión del 25-sep) · ▲ media · ● atípicos · bigotes a 1,5×IQR. Bajo cada banco: su TCO (azul) y (nº de transacciones). Ordenados de menor a mayor TCO.'
+    : 'Ponderado por monto operado (USD). Caja = rango intercuartílico (50% central) · línea interna y ○ = mediana · <b>▲ media = TCO oficial del banco</b> (método vigente hasta la sesión del 24-sep) · ● atípicos · bigotes a 1,5×IQR. Bajo cada banco: su TCO (azul) y (nº de transacciones). Ordenados de menor a mayor TCO.';
 
   if (boxplotChart) boxplotChart.dispose();
   el.innerHTML = '';
@@ -2485,8 +2820,8 @@ function renderBoxplot(dist) {
           <span style="color:${col || c.axis}">${lbl}</span>
           <b style="font-family:'IBM Plex Mono',monospace">${val}</b></div>`;
         let o = `<div style="font-weight:700;margin-bottom:6px;font-size:12px;color:#7AA8C0">${name}</div>`;
-        o += row('Media (pond. monto)', 'Bs. ' + fmtBs(b.mean), meanColor);
-        o += row('Mediana', 'Bs. ' + fmtBs(b.q2), medColor);
+        o += row(esMediana ? 'Media (pond. monto)' : 'Media (pond. monto) · método del TCO', 'Bs. ' + fmtBs(b.mean), meanColor);
+        o += row(esMediana ? 'Mediana (pond. monto) · método del TCO' : 'Mediana (pond. monto)', 'Bs. ' + fmtBs(b.q2), medColor);
         o += row('Q1 – Q3', `${fmtBs(b.q1)} – ${fmtBs(b.q3)}`);
         o += row('Bigotes (mín – máx)', `${fmtBs(b.lo)} – ${fmtBs(b.hi)}`);
         if (b.tco != null) o += row('TCO oficial BCB', 'Bs. ' + fmtBs(b.tco), '#C71E1D');
@@ -2506,7 +2841,7 @@ function renderBoxplot(dist) {
         interval:0, lineHeight:13, color:c.axis,
         formatter(name) {
           const b = banks.find(x => x.banco === name);
-          return b ? `{n|${name}}\n{v|${fmtBs(b.mean)}}\n{t|(${b.tx || 0})}` : name;
+          return b ? `{n|${name}}\n{v|${fmtBs(oficialDe(b))}}\n{t|(${b.tx || 0})}` : name;
         },
         rich:{
           n:{ color:c.axis, fontFamily:'Inter', fontWeight:600, fontSize:10 },
@@ -2536,8 +2871,9 @@ function renderBoxplot(dist) {
       },
       { name:'Atípicos', type:'scatter', data:outliers, symbolSize:5,
         itemStyle:{ color: dark ? '#8AA0AE' : '#9AACBA', opacity:.85 }, z:3 },
-      { name:'Mediana', type:'scatter', data:medians, symbol:'circle', symbolSize:8,
-        itemStyle:{ color:'transparent', borderColor:medColor, borderWidth:1.6 }, z:5 },
+      // Con el método de la mediana, el círculo ES el TCO del banco: va relleno.
+      { name:'Mediana', type:'scatter', data:medians, symbol:'circle', symbolSize: esMediana ? 9 : 8,
+        itemStyle:{ color: esMediana ? medColor : 'transparent', borderColor:medColor, borderWidth:1.6 }, z:5 },
       { name:'Media', type:'scatter', data:means, symbol:'triangle', symbolSize:9,
         itemStyle:{ color:meanColor }, z:6 },
     ],
@@ -2885,11 +3221,13 @@ function renderTablaTco(tcoData, bancos) {
   const bh    = (tcoData.bancos_hoy || []).filter(r => r.monto != null || r.tco != null);
 
   const vig = (tcoData.hoy && tcoData.hoy.vig) || null;
+  const vigH = (tcoData.hoy && tcoData.hoy.vig_hasta) || null;
+  const rige = !vig ? '' : (vigH && vigH !== vig ? ` · rige del ${fmtDate(vig)} al ${fmtDate(vigH)}` : ` · rige el ${fmtDate(vig)}`);
   document.getElementById('tabla-fecha-sub').textContent =
-    `Operaciones del ${fmtDate(fecha)}${vig ? ` · rige el ${fmtDate(vig)}` : ''} · TCO, montos y transacciones declarados al BCB por cada entidad`;
+    `Operaciones del ${fmtDate(fecha)}${rige} · TCO, montos y transacciones declarados al BCB por cada entidad`;
 
-  // Historia unificada de volumen por banco (referencial + TCO): mismo mecanismo
-  // (promedio ponderado de compra), así comparamos contra la sesión anterior.
+  // Historia unificada de volumen por banco (referencial + TCO): el volumen es la
+  // misma magnitud en los dos regímenes, así comparamos contra la sesión anterior.
   const hist = buildBankVolHist(bancos || {}, tcoData);
   const prevVolOf = b => { const h = hist[b]; return h && h.length >= 2 ? h[h.length - 2].vol : null; };
   const avgVolOf  = b => {
@@ -2942,7 +3280,7 @@ function renderTablaTco(tcoData, bancos) {
         <div class="ctx-stat-sub">operaciones registradas por EIFs</div>
       </div>
       <div class="ctx-stat ${dirC}">
-        <div class="ctx-stat-label">TCO (prom. ponderado)</div>
+        <div class="ctx-stat-label">TCO (${(hoy.metodo || metodoDe(hoy.f)) === 'mediana' ? 'mediana' : 'media'} ponderada)</div>
         <div class="ctx-stat-value">Bs. ${hoy.tco != null ? Number(hoy.tco).toFixed(2) : '—'}</div>
         ${mkDelta(dTco, null, 'Bs. ', 2)}
         <div class="ctx-stat-sub">${prevTotal ? 'vs. sesión anterior' : 'tipo de cambio oficial del día'}</div>
@@ -3006,8 +3344,9 @@ function generateReport() {
   const hace7 = idx >= 7 ? serie[idx - 7] : null;
   const hace30 = idx >= 30 ? serie[idx - 30] : null;
 
-  const prima = hoy.usdt != null && hoy.v != null ? hoy.usdt - hoy.v : null;
-  const primaPct = prima != null && hoy.v ? (prima / hoy.v * 100) : null;
+  const refHoy = refDe(hoy);
+  const prima = hoy.usdt != null && refHoy != null ? hoy.usdt - refHoy : null;
+  const primaPct = prima != null && refHoy ? (prima / refHoy * 100) : null;
 
   const m = (v) => v != null ? `<span class="rpt-metric">Bs.&nbsp;${Number(v).toFixed(2)}</span>` : 'N/D';
   const mu = (v) => v != null ? `<span class="rpt-metric">$${(v/1e6).toFixed(2)}M</span>` : 'N/D';
@@ -3023,8 +3362,14 @@ function generateReport() {
   const vig = g_vigente || hoy;
   const ult = (g_tcoData && g_tcoData.hoy) || null;
   const dual = g_mananaMode === 'pub' && ult && vig && ult.f !== (vig.sesion || vig.f);
-  const notaFinde = vISO =>
-    (vISO && new Date(vISO + 'T00:00:00').getDay() === 6) ? ' Rige el sábado, domingo y hasta el lunes.' : '';
+  // El BCB declara el tramo de vigencia de cada sesión (vig → vig_hasta): un día
+  // suelto, o un rango si cubre un fin de semana o un feriado (el 5-ago rigió
+  // del 6 al 10). Se usa el declarado; la regla del sábado queda de respaldo.
+  const notaFinde = (vISO, hastaISO) => {
+    if (vISO && hastaISO && hastaISO > vISO)
+      return ` Rige del ${fmtDate(vISO)} al ${fmtDate(hastaISO)}.`;
+    return (vISO && new Date(vISO + 'T00:00:00').getDay() === 6) ? ' Rige el sábado, domingo y hasta el lunes.' : '';
+  };
 
   // Volumen + top banco de UNA sesión (mismo texto para el bloque vigente y el de la
   // próxima sesión), comparado contra el promedio móvil de 22 sesiones de la serie.
@@ -3147,8 +3492,16 @@ function generateReport() {
       tcPlain += `, ${dir(dc)} ${dc > 0 ? '+' : ''}${dc.toFixed(2)} respecto a la sesión anterior`;
     }
   }
-  tcText += `. La venta oficial (TCO + 0,10 Bs) se ubicó en ${m(vig.v)}`;
-  tcPlain += `. La venta oficial (TCO + 0,10 Bs) se ubicó en Bs. ${fmt2(vig.v)}`;
+  // Venta: hasta sep-2026 era la oficial (TCO + 0,10); desde entonces, la que
+  // publica cada banco (mediana y rango de data/bancos_tc.json).
+  const ventasB = ((g_btc && g_btc.bancos) || []).map(b => b.venta).filter(v => v != null);
+  if (vig.v != null) {
+    tcText += `. La venta oficial (TCO + 0,10 Bs) se ubicó en ${m(vig.v)}`;
+    tcPlain += `. La venta oficial (TCO + 0,10 Bs) se ubicó en Bs. ${fmt2(vig.v)}`;
+  } else if (ventasB.length) {
+    tcText += `. En los bancos, la venta publicada tiene una mediana de ${m(mediana(ventasB))} (entre ${m(Math.min(...ventasB))} y ${m(Math.max(...ventasB))})`;
+    tcPlain += `. En los bancos, la venta publicada tiene una mediana de Bs. ${fmt2(mediana(ventasB))} (entre Bs. ${fmt2(Math.min(...ventasB))} y Bs. ${fmt2(Math.max(...ventasB))})`;
+  }
   tcText += '.';
   tcPlain += '.';
   if (vig.c != null) {
@@ -3169,8 +3522,13 @@ function generateReport() {
       nt += `, ${dir(dcn)} ${arrow(dcn)} respecto a lo que rige hoy`;
       np += `, ${dir(dcn)} ${dcn > 0 ? '+' : ''}${dcn.toFixed(2)} respecto a lo que rige hoy`;
     }
-    nt += `. La venta oficial se ubicará en ${m(ult.tco_venta)}.` + notaFinde(ult.vig);
-    np += `. La venta oficial se ubicará en Bs. ${fmt2(ult.tco_venta)}.` + notaFinde(ult.vig);
+    if (ult.tco_venta != null) {
+      nt += `. La venta oficial se ubicará en ${m(ult.tco_venta)}.` + notaFinde(ult.vig, ult.vig_hasta);
+      np += `. La venta oficial se ubicará en Bs. ${fmt2(ult.tco_venta)}.` + notaFinde(ult.vig, ult.vig_hasta);
+    } else {
+      nt += '.' + notaFinde(ult.vig, ult.vig_hasta);
+      np += '.' + notaFinde(ult.vig, ult.vig_hasta);
+    }
     const { vt, vp } = bloqueVolumen(ult.vol, ult.tx, g_tcoData.bancos_hoy, ult.f);
     if (vt) { nt += ' ' + vt; np += ' ' + vp; }
     html += `<p>${nt}</p>`;
@@ -3189,8 +3547,8 @@ function generateReport() {
     if (prima != null) {
       const above = prima >= 0;
       const primaWord = above ? 'por encima' : 'por debajo';
-      usdtText += `, generando una prima de ${m(Math.abs(prima))} (${primaPct.toFixed(1)}%) ${primaWord} de la venta oficial`;
-      usdtPlain += `, generando una prima de Bs. ${Math.abs(prima).toFixed(2)} (${primaPct.toFixed(1)}%) ${primaWord} de la venta oficial`;
+      usdtText += `, ${m(Math.abs(prima))} (${Math.abs(primaPct).toFixed(1)}%) ${primaWord} del TCO`;
+      usdtPlain += `, Bs. ${Math.abs(prima).toFixed(2)} (${Math.abs(primaPct).toFixed(1)}%) ${primaWord} del TCO`;
     }
     usdtText += '.';
     usdtPlain += '.';
@@ -3203,11 +3561,11 @@ function generateReport() {
         usdtText += ' La brecha se mantiene moderada.';
         usdtPlain += ' La brecha se mantiene moderada.';
       } else if (prima >= -0.1) {
-        usdtText += ' El mercado informal se encuentra prácticamente alineado con la venta oficial.';
-        usdtPlain += ' El mercado informal se encuentra prácticamente alineado con la venta oficial.';
+        usdtText += ' El mercado informal se encuentra prácticamente alineado con el tipo de cambio oficial.';
+        usdtPlain += ' El mercado informal se encuentra prácticamente alineado con el tipo de cambio oficial.';
       } else {
-        usdtText += ' El tipo informal cotiza por debajo de la venta oficial, situación atípica.';
-        usdtPlain += ' El tipo informal cotiza por debajo de la venta oficial, situación atípica.';
+        usdtText += ' El tipo informal cotiza por debajo del tipo de cambio oficial.';
+        usdtPlain += ' El tipo informal cotiza por debajo del tipo de cambio oficial.';
       }
     }
   } else {
@@ -3221,27 +3579,29 @@ function generateReport() {
   html += `<h3>Tendencia</h3>`;
   let tendText = '';
   let tendPlain = 'TENDENCIA\n';
-  if (hace30 && hoy.v != null && hace30.v != null) {
-    const d30 = ((hoy.v - hace30.v) / hace30.v * 100);
+  const r30 = refDe(hace30), r7 = refDe(hace7);
+  // Sólo si los dos puntos son del mismo régimen (referencial y TCO no se comparan).
+  if (hace30 && refHoy != null && r30 != null && (hace30.reg || '') === (hoy.reg || '')) {
+    const d30 = ((refHoy - r30) / r30 * 100);
     const d30dir = d30 > 0 ? 'subido' : (d30 < 0 ? 'bajado' : 'mantenido');
-    tendText = `En los últimos 30 días, el dólar de venta ha ${d30dir} un <span class="rpt-metric ${d30 > 0 ? 'rpt-up' : 'rpt-down'}">${Math.abs(d30).toFixed(1)}%</span>, pasando de ${m(hace30.v)} a ${m(hoy.v)}.`;
-    tendPlain += `En los últimos 30 días, el dólar de venta ha ${d30dir} un ${Math.abs(d30).toFixed(1)}%, pasando de Bs. ${fmt2(hace30.v)} a Bs. ${fmt2(hoy.v)}.`;
+    tendText = `En los últimos 30 días, el tipo de cambio oficial ha ${d30dir} un <span class="rpt-metric ${d30 > 0 ? 'rpt-up' : 'rpt-down'}">${Math.abs(d30).toFixed(1)}%</span>, pasando de ${m(r30)} a ${m(refHoy)}.`;
+    tendPlain += `En los últimos 30 días, el tipo de cambio oficial ha ${d30dir} un ${Math.abs(d30).toFixed(1)}%, pasando de Bs. ${fmt2(r30)} a Bs. ${fmt2(refHoy)}.`;
   }
-  if (hace7 && hoy.v != null && hace7.v != null) {
-    const d7 = ((hoy.v - hace7.v) / hace7.v * 100);
+  if (hace7 && refHoy != null && r7 != null && (hace7.reg || '') === (hoy.reg || '')) {
+    const d7 = ((refHoy - r7) / r7 * 100);
     const d7dir = d7 > 0 ? 'sube' : (d7 < 0 ? 'baja' : 'se mantiene');
     tendText += ` En la última semana ${d7dir} <span class="rpt-metric">${Math.abs(d7).toFixed(1)}%</span>.`;
     tendPlain += ` En la última semana ${d7dir} ${Math.abs(d7).toFixed(1)}%.`;
   }
   // Media móvil 7d
-  const last7 = serie.slice(-7).filter(p => p.v != null);
+  const last7 = serie.slice(-7).map(refDe).filter(v => v != null);
   if (last7.length >= 3) {
-    const ma7 = last7.reduce((s,p) => s + p.v, 0) / last7.length;
+    const ma7 = last7.reduce((s, v) => s + v, 0) / last7.length;
     tendText += ` Media móvil 7 días: ${m(ma7)}.`;
     tendPlain += ` Media móvil 7 días: Bs. ${ma7.toFixed(2)}.`;
   }
   // Rango 30d
-  const last30v = serie.slice(-30).filter(p => p.v != null).map(p => p.v);
+  const last30v = serie.slice(-30).map(refDe).filter(v => v != null);
   if (last30v.length >= 5) {
     const min30 = Math.min(...last30v);
     const max30 = Math.max(...last30v);
@@ -3275,8 +3635,8 @@ function generateReport() {
   let evalPlain = 'EVALUACIÓN\n';
 
   // Nivel de referencia: el más reciente publicado (la última sesión si ya cerró).
-  const nivelEval = dual && ult && ult.tco_venta != null ? ult.tco_venta : hoy.v;
-  const last5v = serie.slice(-5).filter(p => p.v != null).map(p => p.v);
+  const nivelEval = dual && ult && ult.tco != null ? ult.tco : refHoy;
+  const last5v = serie.slice(-5).map(refDe).filter(v => v != null);
   const trending = last5v.length >= 3 && last5v[last5v.length-1] > last5v[0];
   const allUp = last5v.length >= 3 && last5v.every((v,i) => i === 0 || v >= last5v[i-1]);
 
@@ -3382,6 +3742,7 @@ function applyTheme(theme) {
     if (g_tco.length) renderTco(g_serie);
     renderVariacion(g_serie);
     if (g_distActual) renderBoxplot(g_distActual);   // la sesión que el usuario tenga elegida
+    if (g_btc) renderBancosTc(g_btc);
   }
 }
 document.getElementById('theme-btn').addEventListener('click', () => {
@@ -3411,6 +3772,7 @@ window.addEventListener('resize', () => {
       if (g_tco.length) renderTco(g_serie);
       renderVariacion(g_serie);
       if (g_distActual) renderBoxplot(g_distActual);
+      if (g_btc) renderBancosTc(g_btc);
     }
   }, 200);
 });
@@ -3421,21 +3783,23 @@ function fetchData() {
     fetch('./data/historico.json').then(r => r.json()),
     fetch('./data/bancos.json').then(r => r.json()),
     fetch('./data/tco.json').then(r => r.json()).catch(() => null),
+    fetch('./data/bancos_tc.json').then(r => r.ok ? r.json() : null).catch(() => null),
   ]);
 }
 
 // Firma de datos: cambia cuando el cron publica algo nuevo (otra fecha/timestamp).
 // Sirve para re-dibujar los gráficos solo cuando hace falta.
-function dataSig(hist, tco) {
+function dataSig(hist, tco, btc) {
   const last = g_serie.length ? g_serie[g_serie.length - 1].f : '';
-  return `${(hist && hist.actualizado) || ''}|${(tco && tco.actualizado) || ''}|${g_serie.length}|${last}`;
+  return `${(hist && hist.actualizado) || ''}|${(tco && tco.actualizado) || ''}|${(btc && btc.actualizado) || ''}|${g_serie.length}|${last}`;
 }
 
 // Reconstruye el estado (serie unificada + puntos de vigencia). Recalcula "rige
 // hoy"/"regirá mañana" contra la fecha ACTUAL, de modo que el flip de las 20:00 y
 // de medianoche se refleja aunque el dato no haya cambiado.
-function buildState(hist, bancos, tco) {
+function buildState(hist, bancos, tco, btc) {
   g_bancos = bancos;
+  g_btc = btc || null;
   g_tco    = tco?.serie || [];
   g_tcoData = tco || null;
 
@@ -3450,6 +3814,9 @@ function buildState(hist, bancos, tco) {
     const ev = byDate.get(dv) || { f: dv };            // PRECIO en la fecha que rige
     ev.c = t.tco; ev.v = t.tco_venta; ev.sesion = t.f;
     ev.sesVol = t.vol; ev.sesTx = t.tx; ev.reg = 'tco';
+    // qué estadístico es el TCO de esa sesión, y cuánto daban los dos
+    ev.metodo = t.metodo || metodoDe(t.f); ev.media = t.media; ev.mediana = t.mediana;
+    ev.vigHasta = t.vig_hasta || null;
     if (ev.usdt == null) ev.usdt = t.usdt;
     byDate.set(dv, ev);
     const es = byDate.get(t.f) || { f: t.f };           // ACTIVIDAD en la fecha de la sesión
@@ -3473,11 +3840,14 @@ function buildState(hist, bancos, tco) {
       const ev = e || { f: d };
       ev.c = ult.c; ev.v = ult.v; ev.reg = 'tco'; ev.carried = true;
       ev.sesion = ult.sesion; ev.sesVol = ult.sesVol; ev.sesTx = ult.sesTx;
+      ev.metodo = ult.metodo; ev.media = ult.media; ev.mediana = ult.mediana; ev.vigHasta = ult.vigHasta;
       byDate.set(d, ev);
     }
   }
   g_serie = [...byDate.values()].sort((a, b) => a.f < b.f ? -1 : (a.f > b.f ? 1 : 0));
   REGIME_TCO = g_tco.length ? (g_tco[0].vig || g_tco[0].f) : null;
+  const primMediana = g_tco.find(t => (t.metodo || metodoDe(t.f)) === 'mediana');
+  METODO_VIG = primMediana ? (primMediana.vig || primMediana.f) : null;
   g_bancosUni = buildUnifiedBancos(bancos, g_tcoData);
 
   // "Actualizado": timestamp más reciente de los datos (dólar o TCO), en hora de
@@ -3495,6 +3865,11 @@ function buildState(hist, bancos, tco) {
   for (let i = 0; i < tcoPts.length; i++) { if (tcoPts[i].f <= hoyStr) vigIdx = i; }
   g_vigente = vigIdx >= 0 ? tcoPts[vigIdx] : (tcoPts[tcoPts.length - 1] || hist.hoy);
   g_currentPrev = vigIdx > 0 ? tcoPts[vigIdx - 1] : null;
+  // ¿Ya se publicó el TCO que rige HOY? El BCB declara hasta cuándo rige cada
+  // sesión (vig_hasta). Si hoy ya pasó ese tramo, la sesión que fija el TCO de
+  // hoy todavía no salió —desde fines de sep-2026 se publica de noche, a veces
+  // pasada la medianoche— y el que se muestra es el último conocido, no el de hoy.
+  g_hoyPendiente = !!(g_vigente && g_vigente.reg === 'tco' && g_vigente.vigHasta && hoyStr > g_vigente.vigHasta);
 
   // "Regirá mañana": qué TCO gobernará el día calendario siguiente. Un TCO rige
   // desde su vigencia (sesión + 1 día) hasta que se publica el próximo, INCLUIDOS
@@ -3527,6 +3902,7 @@ function buildState(hist, bancos, tco) {
 function paintKpis() {
   updateKPIs(g_current, false, g_currentPrev);
   setKpiManana(g_manana, g_vigente, g_mananaMode, g_mananaStr);
+  setKpiVentaBancos(g_btc);
   updateAlert(g_serie, g_hoy);
 }
 
@@ -3534,6 +3910,7 @@ function paintKpis() {
 function paintCharts() {
   try { renderPrecios(g_serie); } catch(e) { console.error('Precios:', e); }
   try { if (g_tco.length) renderTco(g_serie); } catch(e) { console.error('TCO:', e); }
+  try { renderBancosTc(g_btc); } catch(e) { console.error('Bancos TC:', e); }
   try { renderVariacion(g_serie); } catch(e) { console.error('Variación:', e); }
   try { renderPrima(g_serie); } catch(e) { console.error('Prima:', e); }
   try { renderBrecha(g_serie); } catch(e) { console.error('Brecha:', e); }
@@ -3561,10 +3938,10 @@ async function autoRefresh() {
   if (document.hidden) return;
   if (document.getElementById('kpi-grid')?.classList.contains('kpis-hovering')) return;
   try {
-    const [hist, bancos, tco] = await fetchData();
-    buildState(hist, bancos, tco);
+    const [hist, bancos, tco, btc] = await fetchData();
+    buildState(hist, bancos, tco, btc);
     paintKpis();
-    const sig = dataSig(hist, tco);
+    const sig = dataSig(hist, tco, btc);
     if (sig !== g_lastSig) { paintCharts(); g_lastSig = sig; }
   } catch(e) { console.error('autoRefresh:', e); }
 }
@@ -3572,11 +3949,11 @@ async function autoRefresh() {
 /* ── Init ───────────────────────────────────────────────────────────────── */
 async function init() {
   try {
-    const [hist, bancos, tco] = await fetchData();
-    buildState(hist, bancos, tco);
+    const [hist, bancos, tco, btc] = await fetchData();
+    buildState(hist, bancos, tco, btc);
     paintKpis();
     paintCharts();
-    g_lastSig = dataSig(hist, tco);
+    g_lastSig = dataSig(hist, tco, btc);
     // Auto-refresh: cada 10 min y al volver a la pestaña (ver autoRefresh()).
     setInterval(autoRefresh, 10 * 60 * 1000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) autoRefresh(); });
