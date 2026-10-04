@@ -1,0 +1,301 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   POPULI · Molde de monitores v2.3 — estilo común de los gráficos incrustados.
+
+   FUENTE ÚNICA: populi-marca/monitor/monitor.css. Cada repo tiene una COPIA en
+   embed/comun/ que escribe `python populi-marca/monitor/sincronizar.py`: no se
+   edita la copia, se edita acá y se vuelve a sincronizar.
+
+   Lo que resuelve respecto del molde v1 (medido el 2026-10-04 en los 12 gráficos
+   del Monitor Monetario):
+   - En móvil el lienzo va de borde a borde: el v1 apilaba cinco marcos (sitio,
+     .wrap, borde y relleno de la tarjeta, margen del grid) y el trazado usaba el
+     56-62 % del ancho.
+   - El alto del lienzo es fijo y los botones NO se lo comen: en el v1 la fila
+     tenía alto fijo y en IPP/IPM el trazado quedaba en 66 px.
+   - El panel de lectura no estira la fila (contain:size): copia el alto del
+     gráfico y desplaza su propio contenido.
+   - Una pregunta abierta crece sola (align-items:start) y con transición.
+   - Grises fríos de la marca (decisión del 2026-09-25), radio en variable.
+   v2.3: minilínea de tendencia en cada cifra, descarga de imagen y datos.
+   v2.2: desvanecido del panel cuando desborda, párrafos en las respuestas, clave .ref de
+   umbrales y metas, filo en las claves cuadradas.
+   v2.1: botonera con indicador que se desliza, pastillas sutiles (tinte del color
+   de la serie), tooltip de vidrio con filete de acento, enlaces y preguntas con
+   estados de cursor y teclado.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* marca (populi-marca/paleta.json) */
+  --rojo: #C71E1D; --rojo-claro: #E8706B; --rojo-oscuro: #8B1A1A;
+  --tinta: #001219; --pizarra: #5C6B70; --gris: #8A9699; --tenue: #C9CDCE;
+  --grilla: #E2DDD3; --crema: #F5EFE0; --crema-2: #EFE5CF;
+  /* superficies */
+  --bg: #FAF8F3; --card: #FFFFFF; --text: #3D2B1F; --muted: var(--pizarra);
+  --border: var(--grilla); --suave: #F1EDE5;
+  --panel-hd: var(--rojo-oscuro); --panel-hd-fecha: var(--rojo-claro);
+  --sombra: 0 1px 2px rgba(0, 18, 25, .05);
+  /* lo fija cada gráfico en su <html style="--acento:…">: botones, barra del título, preguntas.
+     Tiene que sostener texto BLANCO a 3:1 o más (va de fondo del botón activo): el oro va en su
+     paso oscuro #A86E00. */
+  --acento: var(--rojo);
+  /* esquinas: la regla de marca es recta. Con 12px / 6px vuelve el aspecto del molde v1 */
+  --r: 0px; --r-s: 0px;
+  /* medidas y movimiento */
+  --g: 16px;               /* margen lateral */
+  --alto-graf: 440px;      /* alto del LIENZO, no de la tarjeta */
+  --curva: cubic-bezier(.22, .8, .24, 1);
+}
+[data-theme="dark"] {
+  --tinta: #E2E8F0; --pizarra: #8A9699; --gris: #6E7A7D; --tenue: #3A4549;
+  --grilla: #2A3A50; --crema: #242C30; --crema-2: #2C363B;
+  --bg: #080808; --card: #141414; --text: #E2E8F0; --muted: var(--pizarra);
+  --border: var(--grilla); --suave: #1A1A1A;
+  --panel-hd: #2A0A0A;
+  --sombra: none;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; }
+/* Cuando la página que lo incrusta confirma que ajusta el alto del iframe, el gráfico
+   no necesita barra propia (evita una barra de 1 px por redondeo). Sin esa confirmación
+   —incrustado en otro sitio con alto fijo— conserva el desplazamiento. */
+html.alto-auto, html.alto-auto body { overflow: hidden; }
+body {
+  font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text);
+  line-height: 1.6; -webkit-font-smoothing: antialiased; transition: background .25s, color .25s;
+}
+.wrap { max-width: 1200px; margin: 0 auto; padding: 20px var(--g) 18px; }
+button { font-family: inherit; }
+:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+/* ── Encabezado ─────────────────────────────────────────────────────────────── */
+.sec-hd { margin-bottom: 14px; }
+.sec-title {
+  font-family: 'Playfair Display', Georgia, serif; font-size: 1.55rem; font-weight: 700;
+  color: var(--tinta); display: flex; align-items: center; gap: 10px; line-height: 1.15;
+}
+.accent-bar { width: 4px; height: 26px; background: var(--acento); flex-shrink: 0; }
+.sec-sub { font-size: .78rem; color: var(--muted); padding-left: 14px; margin-top: 3px; line-height: 1.45; }
+
+/* ── Botoneras (Medida / Rango / Horizonte): el activo es un indicador que se desliza ── */
+.hz-bar { display: flex; align-items: center; gap: 10px 20px; margin-bottom: 14px; padding-left: 14px; flex-wrap: wrap; }
+.hz-item { display: flex; align-items: center; gap: 10px; }
+.hz-lbl { font-size: .6rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); white-space: nowrap; }
+.hz-grp {
+  position: relative; display: inline-flex; isolation: isolate; padding: 2px;
+  background: var(--suave); border: 1px solid var(--border); border-radius: var(--r-s);
+}
+.hz-thumb {
+  position: absolute; top: 2px; bottom: 2px; left: 0; width: 0; z-index: -1; pointer-events: none;
+  background: var(--acento); border-radius: var(--r-s); opacity: 0;
+  box-shadow: 0 1px 2px rgba(0, 18, 25, .2), 0 4px 12px -6px rgba(0, 18, 25, .45);
+  transition: transform .34s var(--curva), width .34s var(--curva), opacity .2s;
+}
+.hz-grp.listo .hz-thumb { opacity: 1; }
+.hz-grp.quieto .hz-thumb { transition: none; }
+.hz-btn {
+  position: relative; padding: 6px 13px; border: 0; background: transparent; border-radius: var(--r-s);
+  font: 600 .68rem/1.25 'Inter', sans-serif; letter-spacing: .01em; color: var(--muted);
+  cursor: pointer; white-space: nowrap; transition: color .2s;
+}
+.hz-btn:hover { color: var(--tinta); }
+.hz-btn.active { color: #fff; }
+.hz-grp:not(.listo) .hz-btn.active { background: var(--acento); }   /* antes de medir, el activo igual se ve */
+
+/* ── Cifras ─────────────────────────────────────────────────────────────────── */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.kpi {
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--r);
+  padding: 12px 14px 11px; position: relative; overflow: hidden; min-width: 0; box-shadow: var(--sombra);
+}
+.kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--kc, var(--acento)); }
+.kpi-lbl { font-size: .6rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: 4px; line-height: 1.35; }
+.kpi-val { font-family: 'JetBrains Mono', monospace; font-size: 1.2rem; font-weight: 700; line-height: 1.25; white-space: nowrap; letter-spacing: -.01em; }
+.kpi-d {
+  display: inline-flex; align-items: center; gap: 4px; font-family: 'JetBrains Mono', monospace;
+  font-size: .63rem; font-weight: 600; padding: 2px 7px; border-radius: var(--r-s); margin-top: 6px; line-height: 1.45;
+}
+/* Minilínea de tendencia: a la derecha de la cifra en tarjetas anchas; en las angostas (teléfono,
+   tableta) baja a una franja al pie. El trazo no se deforma al estirarse (non-scaling-stroke). */
+.kpi { container-type: inline-size; }
+.kpi-sp { position: absolute; right: 12px; top: 30px; width: 70px; height: 24px; overflow: visible; pointer-events: none; }
+.kpi-sp path { fill: none; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; }
+.kpi-sp .sp-a { stroke: none; }
+@container (max-width: 240px) {
+  .kpi-sp { position: static; display: block; width: 100%; height: 16px; margin-top: 8px; }
+}
+.kpi-d.bueno  { background: rgba(10, 147, 150, .10); color: #005F73; }
+.kpi-d.malo   { background: rgba(199, 30, 29, .08);  color: #C71E1D; }
+.kpi-d.neutro { background: rgba(92, 107, 112, .09); color: var(--pizarra); }
+[data-theme="dark"] .kpi-d.bueno  { background: rgba(10, 147, 150, .18); color: #94D2BD; }
+[data-theme="dark"] .kpi-d.malo   { background: rgba(199, 30, 29, .20);  color: #E8706B; }
+[data-theme="dark"] .kpi-d.neutro { background: rgba(138, 150, 153, .14); }
+
+/* ── Gráfico + panel de lectura ─────────────────────────────────────────────── */
+.main-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; align-items: stretch; }
+.chart-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--sombra);
+  padding: 14px 16px 8px; display: flex; flex-direction: column; min-width: 0;
+}
+.chart-ctrl { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+.tog-grp { display: flex; gap: 6px; flex-wrap: wrap; }
+.grafico { height: var(--alto-graf); width: 100%; min-width: 0; position: relative; }
+
+/* Pastilla de serie = leyenda que filtra. Encendida: tinte del color de la serie y texto en
+   tinta; apagada: sólo el contorno y la clave desvaída. El color vive en la clave, no en el texto. */
+.pill {
+  --pc: #8A9699; --pf: transparent; --pb: var(--border);
+  display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px 5px 8px;
+  border: 1px solid var(--border); border-radius: var(--r-s); background: transparent; cursor: pointer;
+  font: 600 .68rem/1.25 'Inter', sans-serif; color: var(--muted);
+  transition: background-color .2s, border-color .2s, color .2s;
+}
+.pill[aria-pressed="true"] { background: var(--pf); border-color: var(--pb); color: var(--tinta); }
+.pill:hover { border-color: var(--pb); }
+.pill[aria-pressed="false"]:hover { color: var(--tinta); }
+.lp { width: 14px; height: 0; border-top: 2.5px solid var(--pc); flex-shrink: 0; transition: opacity .2s; }
+.lp.dashed { border-top-style: dashed; }
+.lp.area { width: 10px; height: 10px; border-top: 0; background: var(--pc); box-shadow: inset 0 0 0 1px rgba(0, 18, 25, .14); }   /* la leyenda imita la marca; el filo deja ver los tonos muy claros */
+[data-theme="dark"] .lp.area { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14); }
+/* Clave fija de un umbral o una meta (no es una serie que se apague) */
+.ref { display: inline-flex; align-items: center; gap: 7px; padding: 5px 2px; font: 600 .66rem/1.25 'Inter', sans-serif; color: var(--muted); white-space: nowrap; }
+.ref .lp { --pc: var(--pizarra); }
+.pill[aria-pressed="false"] .lp { opacity: .32; }
+
+/* El panel copia el alto de la tarjeta del gráfico y desplaza lo suyo: contain:size hace
+   que su contenido no cuente para el alto de la fila. */
+.panel {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--sombra);
+  display: flex; flex-direction: column; min-width: 0; overflow: hidden; contain: size;
+}
+.panel-hd { background: var(--panel-hd); padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-shrink: 0; }
+.panel-hd-t { font-size: .56rem; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: rgba(255, 255, 255, .86); }
+.panel-hd-d {
+  font-family: 'JetBrains Mono', monospace; font-size: .58rem; font-weight: 600; color: var(--panel-hd-fecha);
+  background: rgba(199, 30, 29, .25); padding: 2px 8px; border-radius: var(--r-s); white-space: nowrap;
+}
+.panel-body { padding: 14px; flex: 1 1 0; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+/* Si lo que lee el panel no entra en el alto del gráfico, el borde inferior se desvanece: avisa
+   que hay más abajo (monitor.js pone y saca .desborda según el desplazamiento). */
+.panel-body.desborda { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 34px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 34px), transparent); }
+.panel-ft { padding: 10px 14px; border-top: 1px solid var(--border); flex-shrink: 0; }
+.pb { margin-bottom: 9px; padding-bottom: 9px; border-bottom: 1px solid var(--border); }
+.pb:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.pb-lbl {
+  display: inline-flex; align-items: center; gap: 4px; font-size: .58rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; margin-bottom: 2px; padding: 2px 9px 2px 6px; border-radius: var(--r-s); border-left: 3px solid;
+}
+.pb-val { font-family: 'JetBrains Mono', monospace; font-size: .95rem; font-weight: 700; margin-bottom: 2px; }
+.pb-desc { font-size: .7rem; line-height: 1.5; color: var(--muted); }
+.pb-desc strong, .ctx p strong { color: var(--tinta); }
+.ctx { background: var(--crema); border-radius: var(--r-s); padding: 9px 11px; border-left: 3px solid var(--acento); margin-top: 8px; }
+.ctx p { font-size: .7rem; line-height: 1.55; color: var(--muted); }
+.dt { font-family: 'JetBrains Mono', monospace; font-weight: 600; padding: 1px 5px; border-radius: var(--r-s); font-size: .82em; white-space: nowrap; }
+.amp {
+  display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 9px 0;
+  border: 1px solid var(--border); border-radius: var(--r-s); background: transparent;
+  font: 700 .64rem/1.3 'Inter', sans-serif; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--acento); text-decoration: none; cursor: pointer; transition: border-color .2s, background-color .2s;
+}
+.amp svg { flex-shrink: 0; transition: transform .25s var(--curva); }
+.amp:hover { border-color: var(--acento); background: rgba(0, 18, 25, .025); }
+.amp:hover svg { transform: translate(2px, -2px); }
+[data-theme="dark"] .amp { color: var(--tinta); }   /* el acento hondo (petróleo, granate) no se lee sobre la tarjeta oscura */
+[data-theme="dark"] .amp:hover { background: rgba(255, 255, 255, .03); }
+
+/* ── Preguntas ──────────────────────────────────────────────────────────────── */
+/* align-items:start: la pregunta abierta crece SOLA; sus vecinas de fila no se estiran. */
+.edu-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px; margin-top: 16px; align-items: start; }
+.edu { background: var(--crema); border-radius: var(--r); border-left: 3px solid var(--acento); transition: background-color .2s; }
+.edu:hover, .edu.open { background: var(--crema-2); }
+.edu-t {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; text-align: left;
+  padding: 11px 12px; background: none; border: 0; cursor: pointer; color: var(--tinta);
+  font: 700 .72rem/1.35 'Inter', sans-serif;
+}
+.edu-t svg { width: 14px; height: 14px; flex-shrink: 0; transition: transform .3s var(--curva); color: var(--muted); }
+.edu.open .edu-t svg { transform: rotate(180deg); }
+.edu-b { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .3s var(--curva); }
+.edu.open .edu-b { grid-template-rows: 1fr; }
+.edu-b > div { overflow: hidden; }
+.edu-body { font-size: .7rem; line-height: 1.6; color: var(--muted); margin: 0 12px 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+.edu-body strong { color: var(--tinta); }
+.edu-body p + p { margin-top: 6px; }
+
+/* ── Pie ────────────────────────────────────────────────────────────────────── */
+.source { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding: 0 2px; }
+.source-txt { font-size: .62rem; color: var(--muted); line-height: 1.5; }
+.source-txt a { color: var(--rojo); font-weight: 600; text-decoration: none; }
+[data-theme="dark"] .source-txt a { color: var(--rojo-claro); }
+.source-txt a:hover { text-decoration: underline; }
+/* Descargas (mismo lenguaje que los gráficos del blog): imagen armada al momento y datos en CSV */
+.dls { display: flex; gap: 6px; flex: none; }
+.dl {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid var(--border);
+  border-radius: var(--r-s); background: transparent; color: var(--muted); cursor: pointer;
+  font: 600 .62rem/1.2 'Inter', sans-serif; letter-spacing: .02em; white-space: nowrap; transition: background-color .2s, color .2s, border-color .2s;
+}
+.dl svg { width: 12px; height: 12px; flex: none; }
+.dl:hover { background: var(--tinta); border-color: var(--tinta); color: var(--bg); }
+.dl[aria-busy="true"] { opacity: .55; pointer-events: none; }
+/* Logo compacto oficial (el de la barra superior del sitio): rojo y café en claro, coral y papel en oscuro */
+.source .marca { height: 18px; width: auto; flex: none; opacity: .5; }
+.marca-p { fill: #C71E1D; } .marca-r { fill: #3D2B1F; }
+[data-theme="dark"] .marca-p { fill: #E8706B; } [data-theme="dark"] .marca-r { fill: #F5EFE0; }
+
+.loading { display: flex; align-items: center; justify-content: center; height: 100%; min-height: 240px; flex-direction: column; gap: 12px; color: var(--muted); font-size: .8rem; }
+.spinner { width: 26px; height: 26px; border: 2px solid var(--border); border-top-color: var(--acento); border-radius: 50%; animation: giro .7s linear infinite; }
+@keyframes giro { to { transform: rotate(360deg); } }
+
+/* ── Tooltip de ECharts (vive en el documento del gráfico: se estiliza por clase) ── */
+.tt { backdrop-filter: blur(8px) saturate(140%); -webkit-backdrop-filter: blur(8px) saturate(140%); }
+.tt, .tt span { border-radius: var(--r-s) !important; }            /* el radio de los marcadores viene EN LÍNEA */
+.tt-t { font: 700 10.5px/1.3 'Inter', sans-serif; letter-spacing: .07em; text-transform: uppercase; color: #E8706B; }
+.tt-s { font: 500 10.5px/1.35 'Inter', sans-serif; color: rgba(255, 255, 255, .56); margin-top: 2px; }
+.tt-hr { height: 1px; background: rgba(255, 255, 255, .1); margin: 7px 0 4px; }
+.tt-f { display: flex; align-items: center; gap: 8px; margin-top: 4px; white-space: nowrap; }
+.tt-k { flex-shrink: 0; display: inline-block; }
+.tt-n { flex: 1; font: 500 11.5px/1.3 'Inter', sans-serif; color: rgba(255, 255, 255, .8); }
+.tt-v { margin-left: 16px; font: 600 12px/1.3 'JetBrains Mono', monospace; }
+.tt-tot { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 7px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, .14); white-space: nowrap; }
+.tt-tot .tt-n { flex: none; color: #fff; font-weight: 600; }
+.tt-tot .tt-v { color: #fff; font-weight: 700; margin-left: 0; }
+.tt-pie { margin-top: 7px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, .12); font: 500 10.5px/1.45 'Inter', sans-serif; color: #C9CDCE; white-space: normal; max-width: 240px; }
+
+/* ── Anchos ─────────────────────────────────────────────────────────────────── */
+@media (min-width: 1100px) { :root { --alto-graf: 490px; } }
+@media (max-width: 900px) {
+  :root { --alto-graf: 400px; }
+  .main-grid { grid-template-columns: minmax(0, 1fr); }
+  .panel { contain: none; }
+  .panel-body { overflow: visible; flex: none; }   /* con flex-basis 0 y alto automático el cuerpo colapsa a 0 */
+}
+/* Teléfono: el gráfico va de borde a borde (la tarjeta pierde marco y relleno lateral;
+   el lienzo se extiende sobre el margen), las botoneras ocupan el ancho con tramos
+   iguales y el resto conserva su margen de 14 px. */
+@media (max-width: 640px) {
+  :root { --g: 14px; --alto-graf: clamp(300px, 88vw, 380px); }
+  .wrap { padding: 14px var(--g) 14px; }
+  .sec-title { font-size: 1.25rem; gap: 8px; }
+  .accent-bar { height: 22px; }
+  .sec-sub { font-size: .72rem; padding-left: 12px; }
+  .hz-bar { padding-left: 0; gap: 8px; margin-bottom: 12px; }
+  .hz-item { flex: 1 1 100%; }
+  .hz-lbl { min-width: 62px; }
+  .hz-grp { flex: 1; }
+  .hz-btn { flex: 1; padding: 6px 4px; font-size: .64rem; text-align: center; }
+  .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+  .kpi { padding: 9px 11px 10px; }
+  .kpi-val { font-size: 1.02rem; }
+  .chart-card { margin: 0 calc(-1 * var(--g)); border-left: 0; border-right: 0; border-radius: 0; box-shadow: none; padding: 12px var(--g) 4px; }
+  .grafico { margin: 0 calc(-1 * var(--g)); width: auto; }
+  .pill { padding: 4px 9px 4px 7px; font-size: .64rem; gap: 6px; }
+  .edu-grid { gap: 8px; margin-top: 14px; }
+  .source { flex-wrap: wrap; }
+  .dl-t { display: none; }
+  .tt-n { font-size: 11px; }
+  .tt-v { font-size: 11.5px; margin-left: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hz-thumb, .edu-b, .edu-t svg, .amp svg { transition: none; }
+}

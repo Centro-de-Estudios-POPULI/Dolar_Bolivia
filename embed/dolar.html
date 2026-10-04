@@ -1,564 +1,84 @@
 <!DOCTYPE html>
-<html lang="es" data-theme="light">
+<html lang="es" data-theme="light" style="--acento:#A86E00">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tipo de Cambio y USDT · Populi</title>
+  <title>Tipo de Cambio Oficial y USDT · Populi</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="comun/monitor.css" />
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
-  <style>
-    /* ── Variables — Tema Claro (Populi Website) ─────────────────── */
-    :root {
-      --populi:       #C71E1D;
-      --populi-dark:  #6B0300;
-      --populi-light: #E8706B;
-      --populi-gold:  #EE9B00;
-      --cream:        #F5EFE0;
-      --brown:        #5C3D1E;
-      --brown-dark:   #3D2B1F;
-      --navy:         #0D1B2A;
-      --navy-light:   #1A2940;
-      --slate:        #475569;
-      --slate-light:  #64748B;
-      --warm-white:   #FAF8F3;
-      --light-gray:   #F1EDE5;
-      --border:       #E2DDD3;
-      --dark-border:  #2A3A50;
-
-      --bg:   var(--warm-white);
-      --card: #FFFFFF;
-      --text: var(--brown-dark);
-      --text2: var(--slate);
-      --muted: var(--slate-light);
-
-      --ct-venta:   #C71E1D;
-      --ct-compra:  #0A9396;
-      --ct-usdt:    #EE9B00;
-      --ct-oficial: #005F73;
-
-      --shadow: 0 1px 3px rgba(13,27,42,.04), 0 4px 16px rgba(13,27,42,.06);
-      --radius: 12px;
-    }
-
-    /* ── Variables — Tema Oscuro ──────────────────────────────────── */
-    [data-theme="dark"] {
-      --bg:          #080808;
-      --card:        #141414;
-      --text:        #E2E8F0;
-      --text2:       #64748B;
-      --muted:       #64748B;
-      --border:      #2A3A50;
-      --light-gray:  #1A1A1A;
-      --cream:       #1A2940;
-      --shadow: 0 2px 8px rgba(0,0,0,.5), 0 6px 24px rgba(0,0,0,.4);
-    }
-
-    /* ── Reset ────────────────────────────────────────────────────── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
-    body {
-      font-family: 'Inter', system-ui, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.6;
-      -webkit-font-smoothing: antialiased;
-      padding: 0;
-      margin: 0;
-      transition: background .25s ease, color .25s ease;
-    }
-
-    .embed-container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 20px 16px;
-    }
-
-    /* ── Section Header ──────────────────────────────────────────── */
-    .section-header {
-      margin-bottom: 16px;
-    }
-    .section-title {
-      font-family: 'Playfair Display', Georgia, serif;
-      font-size: 1.55rem;
-      font-weight: 700;
-      color: var(--navy);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      line-height: 1.15;
-    }
-    [data-theme="dark"] .section-title { color: #fff; }
-    .section-title .accent-bar {
-      width: 4px;
-      height: 26px;
-      background: var(--ct-usdt);
-      border-radius: 2px;
-      flex-shrink: 0;
-    }
-    .section-subtitle {
-      font-size: 0.78rem;
-      color: var(--muted);
-      padding-left: 14px;
-      margin-top: 2px;
-    }
-    [data-theme="dark"] .section-subtitle { color: rgba(255,255,255,.4); }
-
-    /* ── KPI Strip ───────────────────────────────────────────────── */
-    .kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-    @media (max-width: 700px) {
-      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
-    }
-    .kpi-card {
-      background: var(--warm-white);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 12px 14px;
-      position: relative;
-      overflow: hidden;
-      cursor: default;
-      transition: transform .2s, box-shadow .2s;
-    }
-    [data-theme="dark"] .kpi-card {
-      background: #141414;
-      border-color: var(--dark-border);
-    }
-    .kpi-card:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 16px rgba(0,0,0,.08);
-    }
-    .kpi-card::after {
-      content: '';
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 3px;
-    }
-    .kpi-card[data-s="v"]::after { background: var(--ct-venta); }
-    .kpi-card[data-s="c"]::after { background: var(--ct-compra); }
-    .kpi-card[data-s="u"]::after { background: var(--ct-usdt); }
-    .kpi-card[data-s="b"]::after { background: var(--ct-oficial); }
-    .kpi-label {
-      font-size: 0.62rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--muted);
-      margin-bottom: 4px;
-    }
-    [data-theme="dark"] .kpi-label { color: rgba(255,255,255,.4); }
-    .kpi-value {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 1.25rem;
-      font-weight: 700;
-    }
-    .kpi-delta {
-      display: inline-flex;
-      align-items: center;
-      gap: 3px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.68rem;
-      font-weight: 600;
-      padding: 1px 7px;
-      border-radius: 5px;
-      margin-top: 5px;
-    }
-    .kpi-delta.up { background: rgba(199,30,29,.08); color: #C71E1D; }
-    .kpi-delta.down { background: rgba(10,147,150,.08); color: #0A9396; }
-    .kpi-delta.flat { background: rgba(100,116,139,.08); color: #64748B; }
-    [data-theme="dark"] .kpi-delta.up { background: rgba(199,30,29,.15); }
-    [data-theme="dark"] .kpi-delta.down { background: rgba(10,147,150,.15); }
-
-    /* ── Main Grid: Chart + Panel ────────────────────────────────── */
-    .main-grid {
-      display: grid;
-      grid-template-columns: 3fr 2fr;
-      grid-template-rows: 540px;
-      gap: 16px;
-    }
-    @media (max-width: 900px) {
-      .main-grid { grid-template-columns: 1fr; grid-template-rows: 480px auto; }
-    }
-    @media (min-width: 1100px) {
-      .main-grid { grid-template-rows: 580px; }
-    }
-
-    /* ── Chart Card ──────────────────────────────────────────────── */
-    .chart-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-      overflow: hidden;
-    }
-    [data-theme="dark"] .chart-card {
-      background: #141414;
-      border-color: var(--dark-border);
-    }
-    .chart-controls {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 10px;
-    }
-    .toggle-group { display: flex; gap: 6px; flex-wrap: wrap; }
-
-    .toggle-pill {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      padding: 4px 12px;
-      border: 1.5px solid;
-      border-radius: 8px;
-      background: transparent;
-      cursor: pointer;
-      font-family: 'Inter', sans-serif;
-      font-size: 0.68rem;
-      font-weight: 600;
-      letter-spacing: 0.01em;
-      transition: all .2s;
-    }
-    .toggle-pill:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 2px 8px rgba(0,0,0,.08);
-    }
-    .toggle-pill .line-prev {
-      width: 16px; height: 0;
-      border-top: 2.5px solid;
-      border-radius: 1px;
-    }
-    .toggle-pill .line-prev.dashed { border-top-style: dashed; }
-
-    .range-group { display: flex; gap: 4px; }
-    .range-btn {
-      padding: 4px 10px;
-      border: 1.5px solid var(--border);
-      border-radius: 7px;
-      background: transparent;
-      cursor: pointer;
-      font-family: 'Inter', sans-serif;
-      font-size: 0.65rem;
-      font-weight: 600;
-      color: var(--muted);
-      transition: all .2s;
-    }
-    [data-theme="dark"] .range-btn { border-color: var(--dark-border); color: #64748B; }
-    .range-btn:hover, .range-btn.active {
-      border-color: var(--populi);
-      color: var(--populi);
-    }
-    [data-theme="dark"] .range-btn:hover, [data-theme="dark"] .range-btn.active {
-      border-color: var(--populi-light);
-      color: var(--populi-light);
-    }
-
-    .chart-area {
-      flex: 1;
-      min-height: 0;
-    }
-
-    .chart-source {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-top: 8px;
-      padding: 0 2px;
-    }
-    .chart-source-text {
-      font-size: 0.58rem;
-      color: var(--muted);
-      opacity: .6;
-    }
-    .chart-source-text a {
-      color: var(--populi);
-      font-weight: 600;
-      text-decoration: none;
-    }
-    .chart-source-text a:hover { text-decoration: underline; }
-
-    /* ── Panel ────────────────────────────────────────────────────── */
-    .panel {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-    }
-    [data-theme="dark"] .panel {
-      background: #141414;
-      border-color: var(--dark-border);
-    }
-    .panel-header {
-      background: var(--navy);
-      padding: 8px 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    [data-theme="dark"] .panel-header { background: var(--navy-light); }
-    .panel-header-title {
-      font-size: 0.56rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: rgba(255,255,255,.8);
-    }
-    .panel-header-date {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.56rem;
-      font-weight: 600;
-      color: var(--populi-light);
-      background: rgba(199,30,29,.15);
-      padding: 2px 8px;
-      border-radius: 5px;
-    }
-    .panel-body {
-      padding: 14px;
-      flex: 1;
-      overflow-y: auto;
-    }
-    .panel-block {
-      margin-bottom: 10px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid var(--border);
-    }
-    [data-theme="dark"] .panel-block { border-color: var(--dark-border); }
-    .panel-block:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-    .panel-label {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 0.58rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin-bottom: 2px;
-      padding: 2px 9px 2px 6px;
-      border-radius: 4px;
-      border-left: 3px solid;
-    }
-    .panel-val {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.92rem;
-      font-weight: 700;
-      margin-bottom: 3px;
-    }
-    .panel-desc {
-      font-size: 0.66rem;
-      line-height: 1.55;
-      color: var(--slate-light);
-    }
-    [data-theme="dark"] .panel-desc { color: rgba(255,255,255,.45); }
-    .panel-desc strong { color: var(--navy); }
-    [data-theme="dark"] .panel-desc strong { color: #E2E8F0; }
-
-    .delta-tag {
-      font-family: 'JetBrains Mono', monospace;
-      font-weight: 600;
-      padding: 1px 5px;
-      border-radius: 4px;
-      font-size: 0.82em;
-      white-space: nowrap;
-    }
-    .dt-red { background: rgba(199,30,29,.08); color: #C71E1D; }
-    .dt-teal { background: rgba(10,147,150,.08); color: #0A9396; }
-    .dt-amber { background: rgba(238,155,0,.08); color: #EE9B00; }
-    .dt-indigo { background: rgba(0,95,115,.08); color: #005F73; }
-
-    /* ── Edu Boxes ────────────────────────────────────────────────── */
-    .edu-box {
-      background: var(--cream);
-      border-radius: 8px;
-      padding: 10px 12px;
-      border-left: 3px solid var(--populi);
-      margin-top: 4px;
-      cursor: pointer;
-      transition: all .2s;
-    }
-    [data-theme="dark"] .edu-box { background: var(--navy-light); }
-    .edu-box:hover { transform: translateY(-1px); }
-    .edu-box-toggle {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-    .edu-box-title {
-      font-size: 0.62rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--populi);
-    }
-    [data-theme="dark"] .edu-box-title { color: var(--populi-light); }
-    .edu-box-arrow {
-      font-size: 0.6rem;
-      color: var(--muted);
-      transition: transform .2s;
-    }
-    .edu-box.open .edu-box-arrow { transform: rotate(180deg); }
-    .edu-box-content {
-      display: none;
-      margin-top: 8px;
-    }
-    .edu-box.open .edu-box-content { display: block; }
-    .edu-box-content p {
-      font-size: 0.66rem;
-      line-height: 1.6;
-      color: var(--slate-light);
-      margin-bottom: 6px;
-    }
-    .edu-box-content p:last-child { margin-bottom: 0; }
-    [data-theme="dark"] .edu-box-content p { color: #64748B; }
-    .edu-box-content p strong { color: var(--navy); }
-    [data-theme="dark"] .edu-box-content p strong { color: #E2E8F0; }
-    .edu-box-content .highlight {
-      display: inline;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.92em;
-      font-weight: 600;
-      padding: 0 4px;
-      border-radius: 3px;
-    }
-    .hl-red { background: rgba(199,30,29,.08); color: #C71E1D; }
-    .hl-teal { background: rgba(10,147,150,.08); color: #0A9396; }
-    .hl-amber { background: rgba(238,155,0,.08); color: #EE9B00; }
-    .hl-indigo { background: rgba(0,95,115,.08); color: #005F73; }
-
-    /* ── Ampliar Button ──────────────────────────────────────────── */
-    .panel-footer {
-      padding: 10px 14px;
-      border-top: 1px solid var(--border);
-    }
-    [data-theme="dark"] .panel-footer { border-color: var(--dark-border); }
-    .ampliar-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      width: 100%;
-      padding: 8px 0;
-      border-radius: 8px;
-      font-family: 'Inter', sans-serif;
-      font-size: 0.66rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: var(--populi);
-      background: rgba(199,30,29,.06);
-      border: 1.5px solid rgba(199,30,29,.15);
-      transition: all .2s;
-      text-decoration: none;
-      cursor: pointer;
-    }
-    [data-theme="dark"] .ampliar-btn {
-      background: rgba(232,112,107,.08);
-      border-color: rgba(232,112,107,.2);
-      color: var(--populi-light);
-    }
-    .ampliar-btn:hover {
-      background: rgba(199,30,29,.12);
-      border-color: rgba(199,30,29,.3);
-      transform: translateY(-1px);
-      box-shadow: 0 2px 8px rgba(199,30,29,.1);
-      text-decoration: none;
-    }
-    .ampliar-btn svg {
-      width: 13px; height: 13px;
-    }
-
-    /* ── Context Analysis ─────────────────────────────────────────── */
-    .ctx-box {
-      background: var(--cream);
-      border-radius: 6px;
-      padding: 8px 10px;
-      border-left: 3px solid var(--populi);
-      margin-top: 6px;
-    }
-    [data-theme="dark"] .ctx-box { background: var(--navy-light); }
-    .ctx-box p {
-      font-size: 0.66rem;
-      line-height: 1.55;
-      color: var(--slate-light);
-    }
-    [data-theme="dark"] .ctx-box p { color: #64748B; }
-    .ctx-box p strong { color: var(--navy); }
-    [data-theme="dark"] .ctx-box p strong { color: #E2E8F0; }
-
-    /* ── Watermark ────────────────────────────────────────────────── */
-    .watermark {
-      height: 15px;
-      width: auto;
-      opacity: .18;
-    }
-    [data-theme="dark"] .watermark { opacity: .10; }
-
-    /* ── Loading ──────────────────────────────────────────────────── */
-    .loading {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      min-height: 400px;
-      color: var(--muted);
-    }
-    .spinner {
-      width: 32px; height: 32px;
-      border: 3px solid var(--border);
-      border-top-color: var(--populi);
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .loading-text { font-size: 0.75rem; }
-  </style>
+  <script src="comun/monitor.js"></script>
 </head>
 <body>
-  <div class="embed-container" id="app">
-    <div class="loading" id="loader">
-      <div class="spinner"></div>
-      <span class="loading-text">Cargando datos de tipo de cambio...</span>
+  <div class="wrap">
+    <!-- Encabezado -->
+    <div class="sec-hd">
+      <h2 class="sec-title"><span class="accent-bar"></span>Tipo de Cambio Oficial y USDT</h2>
+      <p class="sec-sub">Tipo de Cambio Oficial (TCO) del BCB, venta en bancos y USDT Binance P2P · Serie diaria</p>
     </div>
+
+    <!-- Cifras -->
+    <div class="kpi-grid" id="kpis"></div>
+
+    <!-- Gráfico + panel -->
+    <div class="main-grid">
+      <div class="chart-card">
+        <div class="chart-ctrl">
+          <div class="tog-grp" id="pastillas"></div>
+          <div class="hz-grp" id="b-rango"></div>
+        </div>
+        <div class="grafico" id="chart"><div class="loading"><div class="spinner"></div><span>Cargando datos de tipo de cambio…</span></div></div>
+        <div class="source">
+          <span class="source-txt">Fuente: <a href="https://www.bcb.gob.bo" target="_blank" rel="noopener">BCB</a> · <a href="https://p2p.binance.com" target="_blank" rel="noopener">Binance P2P</a> · Elaboración: <a href="https://populi.org.bo" target="_blank" rel="noopener">Centro de Estudios POPULI</a></span>
+          <svg viewBox="0 0 310 130" xmlns="http://www.w3.org/2000/svg" style="height:16px;width:auto;opacity:.18;flex-shrink:0" aria-hidden="true">
+            <text x="6" y="112" font-family="'Playfair Display',Georgia,serif" font-size="145" font-weight="700" fill="#C71E1D">P</text>
+            <text x="92" y="87" font-family="'Playfair Display',Georgia,serif" font-size="55" font-weight="400" font-style="italic" letter-spacing="1" fill="currentColor">opuli</text>
+          </svg>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-hd"><span class="panel-hd-t">Lectura del indicador</span><span class="panel-hd-d" id="panel-fecha"></span></div>
+        <div class="panel-body" id="panel"></div>
+        <div class="panel-ft">
+          <a href="https://centro-de-estudios-populi.github.io/Dolar_Bolivia/" target="_blank" rel="noopener" class="amp">
+            <span>Ampliar análisis</span>
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Preguntas -->
+    <div class="edu-grid" id="preguntas"></div>
   </div>
 
   <script>
-  (function() {
-    const BCB_OFICIAL = 6.96;   // tipo de cambio oficial FIJO (Bs/$), nov-2011 → 26-jun-2026
-    const BASE = 'https://centro-de-estudios-populi.github.io/Dolar_Bolivia';
-    const HIST_URL = BASE + '/data/historico.json';
-    const TCO_URL  = BASE + '/data/tco.json';
-    const BTC_URL  = BASE + '/data/bancos_tc.json';   // compra y venta que publica cada banco
-    const DASHBOARD_URL = BASE + '/';
+  (function () {
+    var C = PM.C, NB = ' ';
+    var BCB_OFICIAL = 6.96;   // tipo de cambio oficial FIJO (Bs/$), nov-2011 → 26-jun-2026
+    // TCO turquesa, venta roja, USDT oro (punteada) y la referencia del 6,96 en petróleo, que en
+    // tema oscuro sube a menta. Validado con todos los pares: daltonismo ΔE ≥ 12,4 en claro y
+    // ≥ 15,4 en oscuro; visión normal ≥ 15,9 y ≥ 19,7.
+    var COL = { c: C.turquesa, v: C.rojo, usdt: C.oro, oficial: { claro: C.petroleo, oscuro: C.menta } };
+    // La referencia del 6,96 y la marca del cambio de régimen son umbrales: pizarra punteada (regla de la marca)
+    var PIZARRA = { claro: C.pizarra, oscuro: '#8A9699' };
+    var SERIES = [
+      { k: 'c', nombre: 'TCO', color: COL.c, forma: 'linea' },
+      { k: 'v', nombre: 'Venta', color: COL.v, forma: 'linea' },
+      { k: 'usdt', nombre: 'USDT', color: COL.usdt, forma: 'punteada' }
+    ];
+    var NOMBRE_VENTA = 'Venta oficial (hasta sep 2026)', NOMBRE_REF = 'Oficial (6,96)';
+    var CLAVE = {};                                   // nombre de la serie en el gráfico → color y forma
+    CLAVE.TCO = [COL.c, 'linea']; CLAVE[NOMBRE_VENTA] = [COL.v, 'linea']; CLAVE.USDT = [COL.usdt, 'punteada']; CLAVE[NOMBRE_REF] = [PIZARRA, 'punteada'];
 
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('theme') === 'dark') document.documentElement.dataset.theme = 'dark';
-    window.addEventListener('message', e => {
-      if (e.data && e.data.theme) document.documentElement.dataset.theme = e.data.theme;
-    });
-
-    function isDark() { return document.documentElement.dataset.theme === 'dark'; }
-    function fbs(v)  { return (v == null || isNaN(v)) ? '—' : v.toFixed(2) + ' Bs'; }
-    function fpct(v) { return (v == null || isNaN(v)) ? '—' : (v >= 0 ? '+' : '') + v.toFixed(1) + '%'; }
-    function fdate(f) {
-      const d = new Date(f + 'T00:00:00');
-      return d.toLocaleDateString('es-BO', { day: 'numeric', month: 'short', year: 'numeric' });
-    }
+    function fbs(v) { return (v == null || isNaN(v)) ? '—' : PM.num(v, 2) + NB + 'Bs'; }
+    function fpct(v) { return (v == null || isNaN(v)) ? '—' : PM.pct(v, 1, true); }
     function localDateStr(d) {
-      const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), da = String(d.getDate()).padStart(2, '0');
-      return `${y}-${m}-${da}`;
+      var y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), da = String(d.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + da;
     }
 
     // Fusiona la serie referencial (historico.json) con el régimen TCO (tco.json), igual
@@ -567,421 +87,241 @@
     // cada banco fija la suya y v queda vacío) y se rellenan los findes con carry-forward.
     // Antes del 27-jun-2026 la serie muestra el dólar paralelo referencial.
     function buildSerie(hist, tco) {
-      const refSerie = hist.serie || [];
-      const gtco = (tco && tco.serie) || [];
-      const byDate = new Map(refSerie.map(p => [p.f, { ...p }]));
-      for (const t of gtco) {
-        const dv = t.vig || t.f;
-        const ev = byDate.get(dv) || { f: dv };
+      var refSerie = hist.serie || [];
+      var gtco = (tco && tco.serie) || [];
+      var byDate = new Map(refSerie.map(function (p) { return [p.f, Object.assign({}, p)]; }));
+      gtco.forEach(function (t) {
+        var dv = t.vig || t.f;
+        var ev = byDate.get(dv) || { f: dv };
         ev.c = t.tco; ev.v = t.tco_venta; ev.sesion = t.f;
         ev.sesVol = t.vol; ev.sesTx = t.tx; ev.reg = 'tco'; ev.metodo = t.metodo;
         if (ev.usdt == null) ev.usdt = t.usdt;
         byDate.set(dv, ev);
-        const es = byDate.get(t.f) || { f: t.f };
+        var es = byDate.get(t.f) || { f: t.f };
         es.vol = t.vol; es.tx = t.tx;
         if (es.usdt == null) es.usdt = t.usdt;
         byDate.set(t.f, es);
-      }
+      });
       if (gtco.length) {
-        const hoy0 = localDateStr(new Date());
-        const nextD = iso => { const dd = new Date(iso + 'T00:00:00'); dd.setDate(dd.getDate() + 1); return localDateStr(dd); };
-        let ult = null;
-        for (let d = gtco[0].vig || gtco[0].f; d <= hoy0; d = nextD(d)) {
-          const e = byDate.get(d);
+        var hoy0 = localDateStr(new Date());
+        var nextD = function (iso) { var dd = new Date(iso + 'T00:00:00'); dd.setDate(dd.getDate() + 1); return localDateStr(dd); };
+        var ult = null;
+        for (var d = gtco[0].vig || gtco[0].f; d <= hoy0; d = nextD(d)) {
+          var e = byDate.get(d);
           if (e && e.reg === 'tco' && e.c != null) { ult = e; continue; }
           if (!ult) continue;
-          const ev = e || { f: d };
+          var ev = e || { f: d };
           ev.c = ult.c; ev.v = ult.v; ev.reg = 'tco'; ev.carried = true;
           ev.sesion = ult.sesion; ev.sesVol = ult.sesVol; ev.sesTx = ult.sesTx; ev.metodo = ult.metodo;
           byDate.set(d, ev);
         }
       }
-      const serie = [...byDate.values()].sort((a, b) => a.f < b.f ? -1 : (a.f > b.f ? 1 : 0));
-      const regimeTco = gtco.length ? (gtco[0].vig || gtco[0].f) : null;
-      const hoyStr = localDateStr(new Date());
-      const tcoPts = serie.filter(p => p.reg === 'tco' && p.c != null && !p.carried);
-      let vigIdx = -1;
-      for (let i = 0; i < tcoPts.length; i++) { if (tcoPts[i].f <= hoyStr) vigIdx = i; }
-      const vigente = vigIdx >= 0 ? tcoPts[vigIdx] : (tcoPts[tcoPts.length - 1] || hist.hoy || serie[serie.length - 1]);
-      const currentPrev = vigIdx > 0 ? tcoPts[vigIdx - 1] : null;
-      const lastUsdt = [...serie].reverse().find(p => p.usdt != null)?.usdt ?? null;
-      const current = { ...vigente, f: hoyStr, usdt: vigente.usdt ?? lastUsdt };
-      return { serie, regimeTco, current, currentPrev };
+      var serie = Array.from(byDate.values()).sort(function (a, b) { return a.f < b.f ? -1 : (a.f > b.f ? 1 : 0); });
+      var regimeTco = gtco.length ? (gtco[0].vig || gtco[0].f) : null;
+      var hoyStr = localDateStr(new Date());
+      var tcoPts = serie.filter(function (p) { return p.reg === 'tco' && p.c != null && !p.carried; });
+      var vigIdx = -1;
+      for (var i = 0; i < tcoPts.length; i++) { if (tcoPts[i].f <= hoyStr) vigIdx = i; }
+      var vigente = vigIdx >= 0 ? tcoPts[vigIdx] : (tcoPts[tcoPts.length - 1] || hist.hoy || serie[serie.length - 1]);
+      var currentPrev = vigIdx > 0 ? tcoPts[vigIdx - 1] : null;
+      var conUsdt = serie.slice().reverse().filter(function (p) { return p.usdt != null; })[0];
+      var lastUsdt = conUsdt ? conUsdt.usdt : null;
+      var current = Object.assign({}, vigente, { f: hoyStr, usdt: vigente.usdt != null ? vigente.usdt : lastUsdt });
+      return { serie: serie, regimeTco: regimeTco, current: current, currentPrev: currentPrev };
     }
 
-    async function init() {
-      let hist, tco, btc = null;
-      try {
-        const [rh, rt, rb] = await Promise.all([ fetch(HIST_URL), fetch(TCO_URL), fetch(BTC_URL).catch(() => null) ]);
-        hist = await rh.json();
-        tco  = await rt.json().catch(() => null);
-        btc  = rb && rb.ok ? await rb.json().catch(() => null) : null;
-      } catch (e) {
-        document.getElementById('loader').innerHTML =
-          '<span class="loading-text" style="color:var(--ct-venta)">Error al cargar datos. Intente recargar.</span>';
-        return;
-      }
+    function leer(nombre, opcional) {
+      var v = new Date().toISOString().slice(0, 10);
+      return fetch('../data/' + nombre + '?v=' + v).then(function (r) {
+        if (!r.ok) throw new Error(nombre + ': ' + r.status);
+        return r.json();
+      }).catch(function (e) { if (opcional) return null; throw e; });
+    }
 
-      const { serie, regimeTco, current, currentPrev } = buildSerie(hist, tco);
-      const N = serie.length;
-      if (!N || current.c == null) {
-        document.getElementById('loader').innerHTML =
-          '<span class="loading-text" style="color:var(--ct-venta)">Sin datos de tipo de cambio disponibles.</span>';
-        return;
-      }
+    Promise.all([leer('historico.json'), leer('tco.json', true), leer('bancos_tc.json', true)]).then(function (r) {
+      var hist = r[0], tco = r[1], btc = r[2];
+      var R = buildSerie(hist, tco), serie = R.serie, current = R.current, currentPrev = R.currentPrev, REGIME_TCO = R.regimeTco;
+      var N = serie.length;
+      if (!N || current.c == null) { PM.error(document.getElementById('chart'), 'Sin datos de tipo de cambio disponibles.'); return; }
 
-      const REGIME_TCO = regimeTco;
-      const dev     = current.c != null ? (current.c / BCB_OFICIAL - 1) * 100 : null;      // devaluación vs 6,96
+      var dev = current.c != null ? (current.c / BCB_OFICIAL - 1) * 100 : null;      // devaluación vs 6,96
       // Venta que publican los bancos hoy (mediana entre bancos): reemplaza a la
       // venta oficial TCO + 0,10, que dejó de existir en sep-2026.
-      const ventasB = ((btc && btc.bancos) || []).map(b => b.venta).filter(v => v != null).sort((a, b) => a - b);
-      const ventaBancos = ventasB.length
+      var ventasB = ((btc && btc.bancos) || []).map(function (b) { return b.venta; }).filter(function (v) { return v != null; }).sort(function (a, b) { return a - b; });
+      var ventaBancos = ventasB.length
         ? (ventasB.length % 2 ? ventasB[(ventasB.length - 1) / 2] : (ventasB[ventasB.length / 2 - 1] + ventasB[ventasB.length / 2]) / 2)
         : null;
       // Referencia oficial contra la que se mide el USDT: el TCO en el régimen nuevo.
-      const refDe = p => p ? (p.reg === 'tco' ? p.c : p.v) : null;
-      const devPrev = currentPrev && currentPrev.c != null ? (currentPrev.c / BCB_OFICIAL - 1) * 100 : null;
+      var refDe = function (p) { return p ? (p.reg === 'tco' ? p.c : p.v) : null; };
+      var devPrev = currentPrev && currentPrev.c != null ? (currentPrev.c / BCB_OFICIAL - 1) * 100 : null;
+      var rango = 'todo', si = 0, curIdx = N - 1;
+      var activas = new Set(SERIES.map(function (s) { return s.k; }));
 
-      const app = document.getElementById('app');
-      app.innerHTML = `
-        <!-- Section Header -->
-        <div class="section-header">
-          <h2 class="section-title">
-            <span class="accent-bar"></span>
-            Tipo de Cambio Oficial y USDT
-          </h2>
-          <p class="section-subtitle">Tipo de Cambio Oficial (TCO) del BCB, venta en bancos y USDT Binance P2P · Serie diaria</p>
-        </div>
-
-        <!-- KPIs -->
-        <div class="kpi-grid" id="kpis"></div>
-
-        <!-- Main Grid -->
-        <div class="main-grid">
-          <!-- Chart -->
-          <div class="chart-card">
-            <div class="chart-controls">
-              <div class="toggle-group" id="toggles"></div>
-              <div class="range-group" id="ranges"></div>
-            </div>
-            <div class="chart-area" id="chart"></div>
-            <div class="chart-source">
-              <span class="chart-source-text">
-                Fuente: <a href="https://www.bcb.gob.bo" target="_blank">BCB</a> · <a href="https://p2p.binance.com" target="_blank">Binance P2P</a> ·
-                Elaboración: <a href="https://populi.org.bo" target="_blank">Centro de Estudios POPULI</a>
-              </span>
-              <svg viewBox="0 0 310 130" xmlns="http://www.w3.org/2000/svg" class="watermark">
-                <text x="6" y="112" font-family="'Playfair Display', Georgia, serif" font-size="145" font-weight="700" fill="${isDark() ? '#E8706B' : '#C71E1D'}">P</text>
-                <text x="92" y="87" font-family="'Playfair Display', Georgia, serif" font-size="55" font-weight="400" font-style="italic" letter-spacing="1" fill="${isDark() ? '#F5EFE0' : '#3D2B1F'}">opuli</text>
-              </svg>
-            </div>
-          </div>
-
-          <!-- Panel -->
-          <div class="panel">
-            <div class="panel-header">
-              <span class="panel-header-title">Lectura del indicador</span>
-              <span class="panel-header-date" id="panel-date"></span>
-            </div>
-            <div class="panel-body" id="panel-body"></div>
-            <div class="panel-footer">
-              <a href="${DASHBOARD_URL}" target="_blank" class="ampliar-btn">
-                <span>Ampliar análisis</span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                  <polyline points="15 3 21 3 21 9"/>
-                  <line x1="10" y1="14" x2="21" y2="3"/>
-                </svg>
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <!-- Educational Boxes -->
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:10px; margin-top:16px;" id="edu-boxes"></div>
-      `;
-
-      // ── KPIs ──────────────────────────────────────────────────
-      const pr0 = currentPrev || {};
-      const kpis = [
-        { s:'c', label:'TCO · rige hoy',      value: current.c,    prev: pr0.c,    color:'var(--ct-compra)' },
-        current.v != null
-          ? { s:'v', label:'Venta oficial',             value: current.v,   prev: pr0.v, color:'var(--ct-venta)' }
-          : { s:'v', label:'Venta en bancos · mediana', value: ventaBancos, prev: null,  color:'var(--ct-venta)' },
-        { s:'u', label:'USDT Binance',        value: current.usdt, prev: pr0.usdt, color:'var(--ct-usdt)' },
-        { s:'b', label:'Devaluación vs 6,96', value: dev,          prev: devPrev,  color:'var(--ct-oficial)', isPct:true },
-      ];
-      document.getElementById('kpis').innerHTML = kpis.map(k => {
-        const hasPrev = k.prev != null && !isNaN(k.prev) && k.value != null;
-        const d = hasPrev ? (k.value - k.prev) : 0;
-        const cls = !hasPrev || Math.abs(d) < 0.005 ? 'flat' : (d > 0 ? 'up' : 'down');
-        const arrow = cls === 'up' ? '&#9650;' : cls === 'down' ? '&#9660;' : '&#8212;';
-        const deltaTxt = !hasPrev ? 'sin sesión previa' : (k.isPct ? Math.abs(d).toFixed(1) + ' pp' : Math.abs(d).toFixed(2) + ' Bs');
-        return `<div class="kpi-card" data-s="${k.s}">
-          <div class="kpi-label">${k.label}</div>
-          <div class="kpi-value" style="color:${k.color}">${k.isPct ? fpct(k.value) : fbs(k.value)}</div>
-          <div class="kpi-delta ${cls}">${arrow} ${deltaTxt}</div>
-        </div>`;
-      }).join('');
-
-      // ── Series config ─────────────────────────────────────────
-      const SERIES = [
-        { key:'c',    label:'TCO',   color:'#0A9396', dashed:false },
-        { key:'v',    label:'Venta', color:'#C71E1D', dashed:false },
-        { key:'usdt', label:'USDT',  color:'#EE9B00', dashed:true  },
-      ];
-      let active = new Set(SERIES.map(s => s.key));
-
-      // ── Toggle pills ──────────────────────────────────────────
-      const togglesEl = document.getElementById('toggles');
-      SERIES.forEach(s => {
-        const btn = document.createElement('button');
-        btn.className = 'toggle-pill';
-        btn.dataset.key = s.key;
-        btn.innerHTML = `<span class="line-prev${s.dashed ? ' dashed' : ''}" style="border-color:#fff"></span>${s.label}`;
-        btn.addEventListener('click', () => {
-          if (active.has(s.key)) { if (active.size === 1) return; active.delete(s.key); }
-          else { active.add(s.key); }
-          syncPills(); buildChart();
-        });
-        togglesEl.appendChild(btn);
-      });
-      function syncPills() {
-        document.querySelectorAll('.toggle-pill').forEach(btn => {
-          const s = SERIES.find(x => x.key === btn.dataset.key);
-          const on = active.has(s.key);
-          btn.style.backgroundColor = on ? s.color : 'transparent';
-          btn.style.color = on ? '#fff' : s.color;
-          btn.style.borderColor = s.color;
-          const line = btn.querySelector('.line-prev');
-          if (line) line.style.borderColor = on ? '#fff' : s.color;
-        });
+      // ── Cifras ─────────────────────────────────────────────────
+      function cifras() {
+        var pr0 = currentPrev || {};
+        // minilíneas: unos 60 días hábiles (sin los fines de semana que la serie rellena); el TCO y su
+        // devaluación sólo dentro del régimen TCO. La venta en bancos es un dato de hoy: sin minilínea.
+        var habiles = serie.filter(function (p) { return !p.carried; });
+        var ult60 = function (f) { return PM.ultimos(habiles.map(f).filter(function (x) { return x != null && !isNaN(x); }), 60); };
+        var tcoDe = function (p) { return p.reg === 'tco' ? p.c : null; };
+        var kpis = [
+          { rotulo: 'TCO · rige hoy', valor: current.c, prev: pr0.c, color: COL.c, serie: ult60(tcoDe) },
+          current.v != null
+            ? { rotulo: 'Venta oficial', valor: current.v, prev: pr0.v, color: COL.v, serie: ult60(function (p) { return p.reg === 'tco' ? p.v : null; }) }
+            : { rotulo: 'Venta en bancos · mediana', valor: ventaBancos, prev: null, color: COL.v },
+          { rotulo: 'USDT Binance', valor: current.usdt, prev: pr0.usdt, color: COL.usdt, serie: ult60(function (p) { return p.usdt; }) },
+          { rotulo: 'Devaluación vs 6,96', valor: dev, prev: devPrev, color: COL.oficial, esPct: true,
+            serie: ult60(function (p) { var c = tcoDe(p); return c == null ? null : (c / BCB_OFICIAL - 1) * 100; }) }
+        ];
+        document.getElementById('kpis').innerHTML = kpis.map(function (k) {
+          var hay = k.prev != null && !isNaN(k.prev) && k.valor != null;
+          var d = hay ? (k.valor - k.prev) : 0, plano = !hay || Math.abs(d) < 0.005;
+          var delta = !hay ? '— sin sesión previa'
+            : PM.flecha(d, 0.005) + ' ' + (k.esPct ? PM.num(Math.abs(d), 1) + NB + 'pp' : PM.num(Math.abs(d), 2) + NB + 'Bs');
+          // un dólar más caro es depreciación del boliviano: subir es malo
+          return PM.kpi({ color: k.color, rotulo: k.rotulo, valor: k.esPct ? fpct(k.valor) : fbs(k.valor), delta: delta, tono: plano ? 'neutro' : d > 0 ? 'malo' : 'bueno', serie: k.serie });
+        }).join('');
       }
-      syncPills();
 
-      // ── Range buttons ─────────────────────────────────────────
-      const ranges = [ { label:'1M', days:22 }, { label:'3M', days:66 }, { label:'Todo', days:0 } ];
-      let currentRange = 0;
-      const rangesEl = document.getElementById('ranges');
-      ranges.forEach((r, i) => {
-        const btn = document.createElement('button');
-        btn.className = 'range-btn' + (i === ranges.length - 1 ? ' active' : '');
-        btn.textContent = r.label;
-        btn.addEventListener('click', () => {
-          currentRange = r.days;
-          document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          buildChart();
-        });
-        rangesEl.appendChild(btn);
-      });
+      // ── Rango: por días de calendario (la serie rellena los fines de semana) ──
+      function desde() {
+        if (rango === 'todo') return 0;
+        var dias = rango === '1m' ? 31 : 92;
+        var u = new Date(serie[N - 1].f + 'T00:00:00');
+        u.setDate(u.getDate() - dias);
+        var corte = localDateStr(u);
+        for (var i = 0; i < N; i++) if (serie[i].f > corte) return i;
+        return 0;
+      }
 
-      // ── Panel update ──────────────────────────────────────────
-      let curIdx = N - 1;
-      function updatePanel(idx) {
-        if (idx < 0 || idx >= N) return;
+      // ── Panel ──────────────────────────────────────────────────
+      function panel(idx) {
+        if (idx == null || idx < 0 || idx >= N) return;
         curIdx = idx;
-        const p = serie[idx];
-        const pr = idx > 0 ? serie[idx - 1] : p;
-        const isTco = p.reg === 'tco';
-        const devPt = p.c != null ? (p.c / BCB_OFICIAL - 1) * 100 : null;
-        const prima = (p.usdt != null && refDe(p) != null) ? p.usdt - refDe(p) : null;   // USDT sobre el TCO (antes del 26-jun, sobre la venta referencial)
-        const dC = (p.c != null && pr.c != null) ? p.c - pr.c : null;
-
-        document.getElementById('panel-date').textContent = fdate(p.f) + (p.carried ? ' · vigente' : '');
-
-        let analysis;
-        if (devPt == null) {
-          analysis = `Punto del <strong>mercado paralelo referencial</strong>, antes del estreno del Tipo de Cambio Oficial flexible (27-jun-2026).`;
-        } else if (devPt > 38) {
-          analysis = `Frente al tipo de cambio oficial fijo de <strong>Bs 6,96</strong> (ancla nominal 2011–2026), el TCO implica una devaluación de <span class="delta-tag dt-indigo">${fpct(devPt)}</span>. El abandono del tipo fijo reconoce el agotamiento de las reservas y la presión cambiaria acumulada; el nuevo régimen busca que el precio del dólar refleje la oferta y demanda reales.`;
-        } else if (devPt > 20) {
-          analysis = `El TCO se ubica <span class="delta-tag dt-indigo">${fpct(devPt)}</span> por encima del viejo tipo fijo de <strong>Bs 6,96</strong>. La devaluación implícita traslada a precios la escasez de divisas que el mercado paralelo ya anticipaba.`;
-        } else {
-          analysis = `El TCO está <span class="delta-tag dt-indigo">${fpct(devPt)}</span> respecto al tipo fijo de <strong>Bs 6,96</strong>.`;
-        }
-
-        document.getElementById('panel-body').innerHTML = `
-          <div class="panel-block">
-            <div class="panel-label" style="color:#0A9396; background:rgba(10,147,150,.08); border-left-color:#0A9396">${isTco ? 'Tipo de Cambio Oficial' : 'Compra (paralelo)'}</div>
-            <div class="panel-val" style="color:#0A9396">${fbs(p.c)}</div>
-            <p class="panel-desc">${isTco
-              ? `${p.metodo === 'mediana' ? 'Mediana ponderada' : 'Promedio ponderado'} por monto de las <strong>compras de dólares de la banca</strong> el <strong>${fdate(p.sesion || p.f)}</strong>; rige como referencia el <strong>${fdate(p.f)}</strong>.${dC != null ? ` Variación de <span class="delta-tag dt-teal">${(dC >= 0 ? '+' : '') + dC.toFixed(2)} Bs</span> vs. la sesión anterior.` : ''}`
-              : `Precio de <strong>compra</strong> del dólar en el mercado paralelo referencial.`}</p>
-          </div>
-          <div class="panel-block">
-            <div class="panel-label" style="color:#C71E1D; background:rgba(199,30,29,.08); border-left-color:#C71E1D">${!isTco ? 'Venta (paralelo)' : (p.v != null ? 'Venta oficial' : 'Venta en bancos')}</div>
-            <div class="panel-val" style="color:#C71E1D">${fbs(isTco && p.v == null ? ventaBancos : p.v)}</div>
-            <p class="panel-desc">${!isTco
-              ? `Precio de <strong>venta</strong> del dólar en el mercado paralelo referencial.`
-              : (p.v != null
-                  ? `Tope de <strong>venta al público</strong> fijado por el BCB hasta el 24-sep-2026 (valor referencial de venta): TCO + <strong>0,10 Bs</strong>.`
-                  : `Desde fines de sep-2026 cada banco fija y publica su propio precio de venta. Mediana de lo publicado hoy${ventasB.length ? ` por ${ventasB.length} bancos (entre ${fbs(ventasB[0])} y ${fbs(ventasB[ventasB.length - 1])})` : ''}.`)}</p>
-          </div>
-          <div class="panel-block">
-            <div class="panel-label" style="color:#EE9B00; background:rgba(238,155,0,.08); border-left-color:#EE9B00">USDT Binance P2P</div>
-            <div class="panel-val" style="color:#EE9B00">${fbs(p.usdt)}</div>
-            <p class="panel-desc">${p.usdt == null ? 'Sin dato de USDT para esta fecha.' : (prima == null
-              ? `Mediana del USDT/BOB en Binance P2P.`
-              : `Mediana del USDT/BOB en Binance P2P — cotiza <span class="delta-tag dt-amber">${(prima >= 0 ? '+' : '') + prima.toFixed(2)} Bs</span> ${Math.abs(prima) < 0.15 ? 'prácticamente en línea con' : (prima >= 0 ? 'por encima de' : 'por debajo de')} ${isTco ? 'el TCO' : 'la venta referencial'}.`)}</p>
-          </div>
-          <div class="ctx-box"><p>${analysis}</p></div>
-        `;
+        var p = serie[idx], pr = idx > 0 ? serie[idx - 1] : p, isTco = p.reg === 'tco';
+        var devPt = p.c != null ? (p.c / BCB_OFICIAL - 1) * 100 : null;
+        var prima = (p.usdt != null && refDe(p) != null) ? p.usdt - refDe(p) : null;   // USDT sobre el TCO (antes del 26-jun, sobre la venta referencial)
+        var dC = (p.c != null && pr.c != null) ? p.c - pr.c : null;
+        document.getElementById('panel-fecha').textContent = PM.fecha(p.f) + (p.carried ? ' · vigente' : '');
+        var tDev = PM.dt(COL.oficial, fpct(devPt)), txt;
+        if (devPt == null) txt = 'Punto del <strong>mercado paralelo referencial</strong>, antes del estreno del Tipo de Cambio Oficial flexible (27 de junio de 2026).';
+        else if (devPt > 38) txt = 'Frente al tipo de cambio oficial fijo de <strong>Bs 6,96</strong> (ancla nominal 2011–2026), el TCO implica una devaluación de ' + tDev + '. El abandono del tipo fijo reconoce el agotamiento de las reservas y la presión cambiaria acumulada; el nuevo régimen busca que el precio del dólar refleje la oferta y demanda reales.';
+        else if (devPt > 20) txt = 'El TCO se ubica ' + tDev + ' por encima del viejo tipo fijo de <strong>Bs 6,96</strong>. La devaluación implícita traslada a precios la escasez de divisas que el mercado paralelo ya anticipaba.';
+        else txt = 'El TCO está ' + tDev + ' respecto al tipo fijo de <strong>Bs 6,96</strong>.';
+        var descC = isTco
+          ? (p.metodo === 'mediana' ? 'Mediana ponderada' : 'Promedio ponderado') + ' por monto de las <strong>compras de dólares de la banca</strong> el <strong>' + PM.fecha(p.sesion || p.f) +
+            '</strong>; rige como referencia el <strong>' + PM.fecha(p.f) + '</strong>.' +
+            (dC != null ? ' Variación de ' + PM.dt(COL.c, PM.signo(dC, 2) + NB + 'Bs') + ' vs. la sesión anterior.' : '')
+          : 'Precio de <strong>compra</strong> del dólar en el mercado paralelo referencial.';
+        var descV = !isTco ? 'Precio de <strong>venta</strong> del dólar en el mercado paralelo referencial.'
+          : (p.v != null
+            ? 'Tope de <strong>venta al público</strong> fijado por el BCB hasta el 24 de septiembre de 2026 (valor referencial de venta): TCO + <strong>0,10 Bs</strong>.'
+            : 'Desde fines de septiembre de 2026 cada banco fija y publica su propio precio de venta. Mediana de lo publicado hoy' +
+              (ventasB.length ? ' por ' + ventasB.length + ' bancos (entre ' + fbs(ventasB[0]) + ' y ' + fbs(ventasB[ventasB.length - 1]) + ')' : '') + '.');
+        var descU = p.usdt == null ? 'Sin dato de USDT para esta fecha.'
+          : (prima == null ? 'Mediana del USDT/BOB en Binance P2P.'
+            : 'Mediana del USDT/BOB en Binance P2P — cotiza ' + PM.dt(COL.usdt, PM.signo(prima, 2) + NB + 'Bs') + ' ' +
+              (Math.abs(prima) < 0.15 ? 'prácticamente en línea con' : (prima >= 0 ? 'por encima de' : 'por debajo de')) + ' ' + (isTco ? 'el TCO' : 'la venta referencial') + '.');
+        document.getElementById('panel').innerHTML =
+          PM.pb(COL.c, isTco ? 'Tipo de Cambio Oficial' : 'Compra (paralelo)', fbs(p.c), descC) +
+          PM.pb(COL.v, !isTco ? 'Venta (paralelo)' : (p.v != null ? 'Venta oficial' : 'Venta en bancos'), fbs(isTco && p.v == null ? ventaBancos : p.v), descV) +
+          PM.pb(COL.usdt, 'USDT Binance P2P', fbs(p.usdt), descU) +
+          PM.ctx(txt);
       }
 
-      // ── ECharts ───────────────────────────────────────────────
-      let chart = null;
-      function buildChart() {
-        const container = document.getElementById('chart');
-        if (!chart) chart = echarts.init(container);
-        const dk = isDark();
-        const slicedSerie = currentRange > 0 ? serie.slice(-currentRange) : serie;
-        const dates = slicedSerie.map(d => d.f);
-
-        const seriesData = [];
-        const colors = [];
-
-        function lineSeries(key, name, color, width, dashed, gradTop) {
-          const vals = slicedSerie.map(d => d[key] == null ? null : d[key]);
-          const lastValid = [...vals].reverse().find(v => v != null);
-          const lastIdx = lastValid != null ? vals.lastIndexOf(lastValid) : -1;
-          colors.push(color);
-          return {
-            name, type: 'line', data: vals, symbol: 'none', connectNulls: false,
-            lineStyle: dashed ? { width, type: [6, 4] } : { width },
-            areaStyle: gradTop ? { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: gradTop }, { offset: 1, color: 'rgba(0,0,0,0)' }
-            ]) } : undefined,
-            markPoint: lastIdx >= 0 ? {
-              data: [{ coord: [lastIdx, lastValid] }],
-              symbol: 'circle', symbolSize: 7,
-              itemStyle: { color, borderColor: dk ? '#141414' : '#fff', borderWidth: 2 },
-              label: { show: false }
-            } : undefined,
-            z: 3
-          };
+      // ── Gráfico ────────────────────────────────────────────────
+      function opciones() {
+        si = desde();
+        var V = serie.slice(si), K = V.map(function (d) { return d.f; }), dk = PM.dk(), series = [];
+        function linea(clave, nombre, color, ancho, punteada, area) {
+          var vals = V.map(function (d) { return d[clave] == null ? null : d[clave]; });
+          var n = -1;
+          for (var i = vals.length - 1; i >= 0; i--) if (vals[i] != null) { n = i; break; }
+          var o = PM.linea(color, { ancho: ancho, punteada: punteada, extra: {
+            name: nombre, data: vals, connectNulls: false, z: 3,
+            markPoint: n >= 0 ? PM.puntoFinal(color, n, vals[n]) : undefined
+          } });
+          if (area) o.areaStyle = { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: PM.rgba(color, dk ? 0.16 : 0.12) }, { offset: 1, color: PM.rgba(color, 0) }]) };
+          return o;
         }
-
-        if (active.has('c'))    seriesData.push(lineSeries('c', 'TCO', '#0A9396', 2.6, false, 'rgba(10,147,150,.12)'));
-        if (active.has('v'))    seriesData.push(lineSeries('v', 'Venta oficial (hasta sep-2026)', '#C71E1D', 2, false, 'rgba(199,30,29,.10)'));
-        if (active.has('usdt')) seriesData.push(lineSeries('usdt', 'USDT', '#EE9B00', 2, true, null));
-
-        // Línea de referencia del tipo fijo 6,96 + marca del cambio de régimen
-        seriesData.push({
-          name: 'Oficial (6,96)', type: 'line', data: dates.map(() => BCB_OFICIAL), symbol: 'none',
-          lineStyle: { width: 1.5, color: '#005F73', type: [5, 4] }, itemStyle: { color: '#005F73' }, z: 1,
-          markLine: REGIME_TCO ? {
-            silent: true, symbol: 'none',
-            lineStyle: { color: dk ? '#94D2BD' : '#005F73', type: 'dashed', width: 1.2 },
-            label: { show: true, formatter: 'Cambio de régimen · TCO', position: 'insideEndTop', fontSize: 9, color: dk ? '#94D2BD' : '#005F73' },
-            data: [{ xAxis: REGIME_TCO }]
-          } : undefined
-        });
-
-        const option = {
-          color: colors,
-          backgroundColor: 'transparent',
-          grid: { top: 30, right: 16, bottom: 44, left: 52 },
-          tooltip: {
-            trigger: 'axis',
-            backgroundColor: dk ? '#080808' : 'rgba(13,27,42,.96)',
-            borderColor: dk ? '#2A3A50' : '#1A2940',
-            textStyle: { fontFamily: 'Inter', fontSize: 12, color: '#fff' },
-            padding: [12, 16],
-            extraCssText: 'border-radius:10px; box-shadow:0 8px 32px rgba(0,0,0,.3);',
-            formatter: function(params) {
-              if (!params.length) return '';
-              const idx = params[0].dataIndex;
-              const startIdx = N - slicedSerie.length;
-              updatePanel(startIdx + idx);
-              let html = `<div style="font-weight:700; margin-bottom:6px; color:#E9D8A6; font-size:12px">${fdate(dates[idx])}</div>`;
-              params.forEach(p => {
-                if (p.value == null) return;
-                const c = p.seriesName === 'Oficial (6,96)' ? '#005F73' : p.color;
-                html += `<div style="display:flex; align-items:center; gap:8px; margin:3px 0">
-                  <span style="width:8px;height:8px;border-radius:50%;background:${c};display:inline-block"></span>
-                  <span style="flex:1;font-size:11px;color:rgba(255,255,255,.7)">${p.seriesName}</span>
-                  <span style="font-family:'JetBrains Mono';font-weight:700;font-size:12px">${typeof p.value === 'number' ? p.value.toFixed(2) : p.value} Bs</span>
-                </div>`;
-              });
-              return html;
-            }
-          },
-          xAxis: {
-            type: 'category', data: dates,
-            axisLine: { lineStyle: { color: dk ? '#2A3A50' : '#E2DDD3' } },
-            axisTick: { show: false },
-            axisLabel: {
-              fontFamily: 'Inter', fontSize: 10, fontWeight: 500, color: dk ? '#64748B' : '#64748B',
-              formatter: function(v, idx) {
-                const d = new Date(v + 'T00:00:00');
-                const total = dates.length;
-                if (idx === 0 || idx === total - 1) return d.toLocaleDateString('es-BO', { day:'numeric', month:'short' });
-                if (idx > 0) {
-                  const prev = new Date(dates[idx - 1] + 'T00:00:00');
-                  if (d.getMonth() !== prev.getMonth()) return d.toLocaleDateString('es-BO', { day:'numeric', month:'short' });
-                }
-                const step = Math.max(1, Math.round(total / 8));
-                if (idx % step === 0) return d.toLocaleDateString('es-BO', { day:'numeric', month:'short' });
-                return '';
-              },
-              showMinLabel: true, showMaxLabel: true,
-            }
-          },
-          yAxis: {
-            type: 'value',
-            min: function(v) { return Math.floor((Math.min(v.min, BCB_OFICIAL) - 0.3) * 2) / 2; },
-            splitLine: { lineStyle: { color: dk ? '#141414' : '#F1F5F9', type: 'dashed' } },
-            axisLine: { show: false }, axisTick: { show: false },
-            axisLabel: { fontFamily: 'JetBrains Mono', fontSize: 11, color: dk ? '#64748B' : '#64748B', formatter: '{value} Bs' }
-          },
-          series: seriesData
+        // protagonista el TCO (2,5 px y único relleno); venta y USDT, 1,75 px
+        if (activas.has('c')) series.push(linea('c', 'TCO', COL.c, 2.5, false, true));
+        if (activas.has('v')) series.push(linea('v', NOMBRE_VENTA, COL.v, 1.75, false, false));
+        if (activas.has('usdt')) series.push(linea('usdt', 'USDT', COL.usdt, 1.75, true, false));
+        // Línea de referencia del tipo fijo 6,96 + marca del cambio de régimen: umbrales en pizarra, 1,25 px
+        var ref = PM.linea(PIZARRA, { ancho: 1.25, punteada: true, extra: { name: NOMBRE_REF, data: K.map(function () { return BCB_OFICIAL; }), symbol: 'none', z: 1 } });
+        if (REGIME_TCO && K.indexOf(REGIME_TCO) >= 0) ref.markLine = {
+          silent: true, symbol: 'none', animation: false,
+          lineStyle: { color: PM.col(PIZARRA), type: 'dashed', width: 1.25 },
+          label: { show: true, formatter: 'Cambio de régimen · TCO', position: 'end', distance: 6, fontFamily: 'Inter', fontSize: 9.5, fontWeight: 600, color: PM.tx(PIZARRA) },
+          data: [{ xAxis: REGIME_TCO }]
         };
-        chart.setOption(option, true);
+        series.push(ref);
+        var el = document.getElementById('chart');
+        return {
+          grid: PM.grid({ top: 30 }),
+          xAxis: PM.ejeTiempo(K, el),
+          // piso entero que incluye el viejo 6,96: los cortes caen en bolivianos enteros, sin rótulo doble en el borde
+          yAxis: PM.ejeY({ unidad: 'Bs', extra: { min: function (v) { return Math.floor(Math.min(v.min, BCB_OFICIAL) - 0.3); } } }),
+          tooltip: PM.tooltip(function (ps) {
+            if (!ps.length) return '';
+            var i = ps[0].dataIndex;
+            panel(si + i);
+            var h = PM.ttTitulo(PM.fecha(K[i])), tco = V[i].reg === 'tco';
+            // antes del 27 de junio de 2026 la serie es el paralelo referencial: se nombra como en el panel
+            var rotulo = { TCO: tco ? 'TCO' : 'Compra (paralelo)' };
+            rotulo[NOMBRE_VENTA] = tco ? 'Venta oficial' : 'Venta (paralelo)';
+            ps.forEach(function (p) {
+              if (p.value == null) return;
+              var c = CLAVE[p.seriesName] || [COL.oficial, 'linea'];
+              h += PM.ttFila(c[0], rotulo[p.seriesName] || p.seriesName, fbs(p.value), c[1]);
+            });
+            return h;
+          }),
+          series: series
+        };
       }
 
-      buildChart();
-      updatePanel(N - 1);
-      window.addEventListener('resize', () => chart && chart.resize());
-      new MutationObserver(() => { buildChart(); updatePanel(curIdx); })
-        .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+      // ── Preguntas (con cifras de hoy; se rehacen con el tema y conservan las abiertas) ──
+      var primaHoy = (current.usdt != null && current.c != null) ? current.usdt - current.c : null;   // USDT sobre el TCO
+      function preguntas() {
+        var el = document.getElementById('preguntas');
+        var abiertas = [].map.call(el.querySelectorAll('.edu'), function (e) { return e.classList.contains('open'); });
+        PM.preguntas(el, [
+          ['¿Qué es el Tipo de Cambio Oficial (TCO)?', '<p>Desde el <strong>27 de junio de 2026</strong>, el <strong>Banco Central de Bolivia (BCB)</strong> reemplazó el tipo de cambio fijo por el <strong>Tipo de Cambio Oficial (TCO)</strong>, que resume las <strong>operaciones de compra de dólares de la banca</strong>: desde la sesión del 25 de septiembre es su <strong>mediana ponderada por monto</strong> (antes, el promedio ponderado). El BCB lo publica a las 23:30 y rige como referencia desde el día siguiente (R.D. 142/2026).</p>' +
+            '<p>Hasta el 24 de septiembre la venta tenía un <strong>tope oficial</strong> de TCO más ' + PM.dt(COL.v, '0,10' + NB + 'Bs') + '; la R.D. 142/2026 lo eliminó y desde entonces cada banco fija y publica su propia venta. Hoy el TCO rige en ' + PM.dt(COL.c, fbs(current.c)) +
+            (ventaBancos != null ? ' y la venta que publican los bancos tiene una mediana de ' + PM.dt(COL.v, fbs(ventaBancos)) : '') + '.</p>'],
+          ['El fin del tipo fijo de Bs 6,96', '<p>Entre <strong>noviembre de 2011 y junio de 2026</strong>, el boliviano estuvo anclado a un tipo de cambio fijo de ' + PM.dt(COL.oficial, 'Bs' + NB + '6,96') + ' por dólar. Ese ancla nominal buscaba estabilidad de precios, pero exigía reservas suficientes para vender dólares a ese precio.</p>' +
+            '<p>Agotadas las reservas, el BCB abandonó el tipo fijo. El TCO arrancó en <strong>Bs 9,73</strong> y hoy implica una <strong>devaluación de ' + PM.dt(COL.oficial, fpct(dev)) + '</strong> frente al viejo 6,96.</p>'],
+          ['¿Qué es el USDT y por qué importa?', '<p>El <strong>USDT (Tether)</strong> es una criptomoneda estable vinculada 1:1 al dólar. En Bolivia se negocia en <strong>Binance P2P</strong> y funciona como un <strong>«dólar digital»</strong> cuyo precio refleja la demanda real de divisas.</p>' +
+            '<p>Hoy cotiza en ' + PM.dt(COL.usdt, fbs(current.usdt)) + ', ' + (primaHoy == null ? 'sin comparación disponible con el TCO.'
+              : (Math.abs(primaHoy) < 0.15 ? 'prácticamente en línea con el TCO — ambos mercados convergen.'
+                : primaHoy >= 0 ? '<strong>' + PM.num(primaHoy, 2) + NB + 'Bs por encima</strong> del TCO, señal de que aún hay presión de demanda.'
+                : '<strong>' + PM.num(Math.abs(primaHoy), 2) + NB + 'Bs por debajo</strong> del TCO.')) + '</p>'],
+          ['¿Por qué se disparó el precio del dólar?', '<p>La escasez de divisas tiene raíz <strong>fiscal y monetaria</strong>: la caída sostenida de las <strong>reservas internacionales</strong> dejó al BCB sin capacidad de sostener el tipo fijo, mientras el financiamiento del déficit público presionaba la demanda de dólares.</p>' +
+            '<p>El TCO flexible traslada esa presión al precio de forma explícita, en lugar de contenerla con un mercado paralelo cada vez más amplio. Es un cambio de régimen, no un ajuste puntual.</p>']
+        ]);
+        abiertas.forEach(function (a, i) {
+          var e = el.children[i];
+          if (a && e) { e.classList.add('open'); e.querySelector('.edu-t').setAttribute('aria-expanded', 'true'); }
+        });
+      }
 
-      // ── Educational Boxes ─────────────────────────────────────
-      const primaHoy = (current.usdt != null && current.c != null) ? current.usdt - current.c : null;   // USDT sobre el TCO
-      const eduData = [
-        {
-          title: '¿Qué es el Tipo de Cambio Oficial (TCO)?',
-          content: `<p>Desde el <strong>27 de junio de 2026</strong>, el <strong>Banco Central de Bolivia (BCB)</strong> reemplazó el tipo de cambio fijo por el <strong>Tipo de Cambio Oficial (TCO)</strong>, que resume las <strong>operaciones de compra de dólares de la banca</strong>: desde la sesión del 25 de septiembre es su <strong>mediana ponderada por monto</strong> (antes, el promedio ponderado). El BCB lo publica a las 23:30 y rige como referencia desde el día siguiente (R.D. 142/2026).</p>
-          <p>Hasta el 24 de septiembre la venta tenía un <strong>tope oficial</strong> de TCO más <span class="highlight hl-red">0,10 Bs</span>; la R.D. 142/2026 lo eliminó y desde entonces cada banco fija y publica su propia venta. Hoy el TCO rige en <span class="highlight hl-teal">${fbs(current.c)}</span>${ventaBancos != null ? ` y la venta que publican los bancos tiene una mediana de <span class="highlight hl-red">${fbs(ventaBancos)}</span>` : ''}.</p>`
-        },
-        {
-          title: 'El fin del tipo fijo de Bs 6,96',
-          content: `<p>Entre <strong>noviembre de 2011 y junio de 2026</strong>, el boliviano estuvo anclado a un tipo de cambio fijo de <span class="highlight hl-indigo">Bs 6,96</span> por dólar. Ese ancla nominal buscaba estabilidad de precios, pero exigía reservas suficientes para vender dólares a ese precio.</p>
-          <p>Agotadas las reservas, el BCB abandonó el tipo fijo. El TCO arrancó en <strong>Bs 9,73</strong> y hoy implica una <strong>devaluación de <span class="highlight hl-indigo">${fpct(dev)}</span></strong> frente al viejo 6,96.</p>`
-        },
-        {
-          title: '¿Qué es el USDT y por qué importa?',
-          content: `<p>El <strong>USDT (Tether)</strong> es una criptomoneda estable vinculada 1:1 al dólar. En Bolivia se negocia en <strong>Binance P2P</strong> y funciona como un <strong>"dólar digital"</strong> cuyo precio refleja la demanda real de divisas.</p>
-          <p>Hoy cotiza en <span class="highlight hl-amber">${fbs(current.usdt)}</span>, ${primaHoy == null ? 'sin comparación disponible con el TCO.' : (Math.abs(primaHoy) < 0.15 ? 'prácticamente en línea con el TCO — ambos mercados convergen.' : primaHoy >= 0 ? `<strong>${primaHoy.toFixed(2)} Bs por encima</strong> del TCO, señal de que aún hay presión de demanda.` : `<strong>${Math.abs(primaHoy).toFixed(2)} Bs por debajo</strong> del TCO.`)}</p>`
-        },
-        {
-          title: '¿Por qué se disparó el precio del dólar?',
-          content: `<p>La escasez de divisas tiene raíz <strong>fiscal y monetaria</strong>: la caída sostenida de las <strong>reservas internacionales</strong> dejó al BCB sin capacidad de sostener el tipo fijo, mientras el financiamiento del déficit público presionaba la demanda de dólares.</p>
-          <p>El TCO flexible traslada esa presión al precio de forma explícita, en lugar de contenerla con un mercado paralelo cada vez más amplio. Es un cambio de régimen, no un ajuste puntual.</p>`
-        }
-      ];
-      document.getElementById('edu-boxes').innerHTML = eduData.map(e => `
-        <div class="edu-box" onclick="this.classList.toggle('open')">
-          <div class="edu-box-toggle">
-            <span class="edu-box-title">${e.title}</span>
-            <span class="edu-box-arrow">&#9660;</span>
-          </div>
-          <div class="edu-box-content">${e.content}</div>
-        </div>
-      `).join('');
-    }
-
-    init();
+      // ── Montaje ────────────────────────────────────────────────
+      cifras();
+      PM.pastillas(document.getElementById('pastillas'), SERIES, activas, function () { grafico.redibujar(); });
+      PM.botonera(document.getElementById('b-rango'), [['1m', '1 mes'], ['3m', '3 meses'], ['todo', 'Todo']], rango,
+        function (v) { rango = v; grafico.redibujar(); });
+      var el = document.getElementById('chart');
+      el.innerHTML = '';
+      var grafico = PM.montar(el, opciones);
+      grafico.chart.on('click', function (p) { if (p.dataIndex != null) panel(si + p.dataIndex); });
+      panel(N - 1);
+      preguntas();
+      PM.alCambiarTema(function () { cifras(); panel(curIdx); preguntas(); });
+    }).catch(function (e) { console.error(e); PM.error(document.getElementById('chart'), 'Error al cargar datos. Intente recargar.'); });
   })();
   </script>
 </body>
