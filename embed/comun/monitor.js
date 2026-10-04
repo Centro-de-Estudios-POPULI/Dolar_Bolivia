@@ -412,8 +412,11 @@
     return '<div class="tt-t">' + t + '</div>' + (sub ? '<div class="tt-s">' + sub + '</div>' : '') + '<div class="tt-hr"></div>';
   };
   // forma: 'linea' · 'punteada' · 'area' (la clave imita la marca del gráfico)
+  // color null: fila sin clave (todas las filas describen la misma marca: dispersiones, mapas)
   PM.ttFila = function (color, nombre, valor, forma) {
+    if (!color) return '<div class="tt-f"><span class="tt-n">' + nombre + '</span><span class="tt-v" style="color:#fff">' + valor + '</span></div>';
     var c = PM.col(color);
+    if (/^#[0-9a-f]{6}$/i.test(c) && lum(c) < 0.035) c = '#E2E8F0';   // el tooltip es oscuro en los dos temas: la tinta no se vería
     var k = forma === 'area' ? 'width:9px;height:9px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);background:' + c
       : 'width:12px;height:0;border-top:2.5px ' + (forma === 'punteada' ? 'dashed' : 'solid') + ' ' + c;
     return '<div class="tt-f"><span class="tt-k" style="' + k + '"></span><span class="tt-n">' + nombre + '</span>' +
@@ -775,7 +778,8 @@
       img.onload = function () {
         var lado = 20 * pr, W = img.width + 2 * lado, m = 28 * pr, cv = document.createElement('canvas'), c = cv.getContext('2d');
         var titulo = texto('.sec-title'), sub = texto('.sec-sub'), fuente = texto('.source-txt');
-        var opt = ch.getOption(), ley = seriesVisibles(opt), hFirma = Math.round(W * 0.048);   // la firma del Banco mide 52 px en láminas de 1080
+        // la página puede declarar su leyenda (dispersiones, mapas, radares: sin series con nombre)
+        var opt = ch.getOption(), ley = PM.leyendaImagen ? PM.leyendaImagen() : seriesVisibles(opt), hFirma = Math.round(W * 0.048);   // la firma del Banco mide 52 px en láminas de 1080
         c.font = '500 ' + 13 * pr + 'px Inter, sans-serif';
         var lSub = envolver(c, sub, W - 2 * m);
         // la fuente cede a la firma el ancho de la derecha, como en las láminas del Banco
@@ -805,7 +809,13 @@
           filas.forEach(function (fila, k) {
             fila.forEach(function (it) {
               var yy = y + k * 22 * pr;
-              c.fillStyle = colorSerie(it.s); c.fillRect(it.x, yy + 4 * pr, 12 * pr, 10 * pr);
+              var col = colorSerie(it.s), f = it.s.forma;
+              if (f === 'linea' || f === 'punteada') {
+                c.strokeStyle = col; c.lineWidth = 2 * pr; c.setLineDash(f === 'punteada' ? [4 * pr, 3 * pr] : []);
+                c.beginPath(); c.moveTo(it.x, yy + 9 * pr); c.lineTo(it.x + 12 * pr, yy + 9 * pr); c.stroke(); c.setLineDash([]);
+              } else if (f === 'punto') {
+                c.fillStyle = col; c.beginPath(); c.arc(it.x + 6 * pr, yy + 9 * pr, 5 * pr, 0, 2 * Math.PI); c.fill();
+              } else { c.fillStyle = col; c.fillRect(it.x, yy + 4 * pr, 12 * pr, 10 * pr); }
               c.fillStyle = tinta; c.fillText(it.s.name, it.x + 18 * pr, yy + 2 * pr);
             });
           });
@@ -823,8 +833,21 @@
       img.src = ch.getDataURL({ type: 'png', pixelRatio: pr, backgroundColor: card, excludeComponents: ['toolbox'] });
     }); });
   };
+  // la línea de fuente de cada página ya empieza con «Fuente:»: no repetirlo en el CSV
+  function conFuente(t) { return /^\s*fuente/i.test(t) ? t.trim() : 'Fuente: ' + t; }
   PM.descargarDatos = function () {
     var g = graficos[0]; if (!g) return;
+    if (PM.tablaDatos) {   // la página declara su tabla (dispersiones, mapas: el eje X no es de categorías)
+      var t = PM.tablaDatos(), celda = function (v) {
+        if (v == null || (typeof v === 'number' && isNaN(v))) return '';
+        if (typeof v === 'number') return String(Math.round(v * 1e6) / 1e6).replace('.', ',');
+        v = String(v); return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+      };
+      var ft = [t.cols.map(celda).join(';')].concat(t.filas.map(function (r) { return r.map(celda).join(';'); }));
+      ft.push('', conFuente(texto('.source-txt')));
+      bajar(slug(texto('.sec-title')) + '-' + new Date().toISOString().slice(0, 10) + '.csv', new Blob(['\ufeff' + ft.join('\r\n')], { type: 'text/csv;charset=utf-8' }));
+      return;
+    }
     var opt = g.chart.getOption(), x = (opt.xAxis && opt.xAxis[0] && opt.xAxis[0].data) || [];
     var cols = {}, orden = [];
     (opt.series || []).forEach(function (s) {
@@ -840,7 +863,7 @@
     var filas = ['Período;' + orden.join(';')];
     x.forEach(function (k, i) { filas.push(k + ';' + orden.map(function (n) { return fmt(cols[n][i]); }).join(';')); });
     var titulo = texto('.sec-title');
-    filas.push('', 'Fuente: ' + texto('.source-txt'));
+    filas.push('', conFuente(texto('.source-txt')));
     bajar(slug(titulo) + '-' + new Date().toISOString().slice(0, 10) + '.csv', new Blob(['\ufeff' + filas.join('\r\n')], { type: 'text/csv;charset=utf-8' }));
   };
   // Marca del pie: el logo compacto OFICIAL de la barra superior de populi.org.bo

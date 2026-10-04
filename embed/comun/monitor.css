@@ -157,6 +157,12 @@ button { font-family: inherit; }
 .lp.dashed { border-top-style: dashed; }
 .lp.area { width: 10px; height: 10px; border-top: 0; background: var(--pc); box-shadow: inset 0 0 0 1px rgba(0, 18, 25, .14); }   /* la leyenda imita la marca; el filo deja ver los tonos muy claros */
 [data-theme="dark"] .lp.area { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14); }
+/* Leyenda fija (dispersiones, mapas): el círculo es la burbuja misma, la raya es la tendencia */
+.ley { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
+.ley-i { display: inline-flex; align-items: center; gap: 6px; font: 600 .64rem/1.3 'Inter', sans-serif; color: var(--muted); white-space: nowrap; }
+.ley-d { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.ley-l { width: 16px; height: 0; border-top: 2px dashed currentColor; flex: none; opacity: .8; }
+.ley-r2 { font-family: 'JetBrains Mono', monospace; font-weight: 500; }
 /* Clave fija de un umbral o una meta (no es una serie que se apague) */
 .ref { display: inline-flex; align-items: center; gap: 7px; padding: 5px 2px; font: 600 .66rem/1.25 'Inter', sans-serif; color: var(--muted); white-space: nowrap; }
 .ref .lp { --pc: var(--pizarra); }
