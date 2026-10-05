@@ -323,9 +323,13 @@
       axisLabel: {
         interval: function (i) { return c.txt[i] != null; }, margin: 9,
         // el año ancla la lectura: más oscuro y más firme que los meses
+        // Donde no hay rótulo, un carácter invisible con la misma letra (no '' ): ECharts reserva el alto de los
+        // rótulos midiendo sólo 1 de cada n/40 categorías, y si todas las medidas salen vacías reserva 0 px y los
+        // años quedan dibujados debajo del lienzo (pasaba en «Todo» de Reservas, Emisión, Agregados, Monetización).
+        // Sólo se dibujan los índices que aprueba `interval`: el invisible nunca llega a la pantalla.
         formatter: function (v, i) {
           var t = c.txt[i], r;
-          if (t == null) return '';
+          if (t == null) return '{a|\u200b}';
           if (/^\d{4}$/.test(t)) return '{a|' + t + '}';
           if ((r = /^(.*) (\d{4})$/.exec(t))) return '{m|' + r[1] + ' }{a|' + r[2] + '}';
           return '{m|' + t + '}';
