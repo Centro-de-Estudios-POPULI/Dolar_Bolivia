@@ -231,11 +231,6 @@
     }
     return out;
   }
-  function separacion(L, px) {             // la menor distancia en px entre índices consecutivos
-    var m = Infinity;
-    for (var j = 1; j < L.length; j++) m = Math.min(m, (L[j][0] - L[j - 1][0]) * px);
-    return m;
-  }
   // Marcas menores (sin rótulo) que acompañan a cada escala de rótulos
   function menores(esq) {
     if (esq.tipo === 'anio') return esq.paso >= 10 ? [{ tipo: 'anio', paso: 1 }, { tipo: 'anio', paso: 5 }]
@@ -244,38 +239,69 @@
     if (esq.tipo === 'dia') return esq.anclas.length === 2 ? [{ tipo: 'dia', anclas: [1, 8, 15, 22] }] : [];
     return [];
   }
-  PM.cortesTiempo = function (claves, ancho, conHueco) {
+  // De los rótulos candidatos de un esquema, los que entran. Se recorre de derecha a izquierda (lo reciente
+  // manda). Si un rótulo choca con el de su derecha: en un tramo normal, el esquema no entra; en un tramo
+  // COMPRIMIDO (la serie trae datos anuales o trimestrales antes de los mensuales y cada año ocupa una sola
+  // casilla) el eje deja de rotular ahí, sin bajar la densidad de todo el resto.
+  function elegir(C, px, car, aire) {
+    if (C.length < 2) return C.slice();
+    var d = [];
+    for (var j = 1; j < C.length; j++) d.push(C[j][0] - C[j - 1][0]);
+    var med = d.slice().sort(function (a, b) { return a - b; })[Math.floor(d.length / 2)];
+    var hace = function (a, b) { return (a[1].length + b[1].length) * car / 2 + aire; };
+    var puestos = [C[C.length - 1]];
+    for (var i = C.length - 2; i >= 0; i--) {
+      var der = puestos[puestos.length - 1];
+      if ((der[0] - C[i][0]) * px >= hace(C[i], der)) { puestos.push(C[i]); continue; }
+      // tramo comprimido (el comienzo anual o trimestral de la serie): de ahí hacia atrás, sin rótulos;
+      // seguir poniendo dejaría un paso irregular («2002, 2006, 2008…»)
+      if (C[i + 1][0] - C[i][0] < 0.85 * med) break;
+      return null;
+    }
+    return puestos.reverse();
+  }
+  // Rótulos y marcas del eje de tiempo para un ancho dado. `util` es el ancho REAL del trazado si ya se midió
+  // (PM.montar lo mide tras el primer dibujo); si no, se estima: lienzo − rótulos del eje Y − márgenes.
+  PM.cortesTiempo = function (claves, ancho, conHueco, util) {
     var P = claves.map(PM.periodo), n = P.length;
     var res = { txt: {}, marcas: {}, n: 0 };
     if (!n || !P[0]) return res;
     var fs = PM.pequeno() ? 10 : 10.5, car = fs * 0.6 + 0.15;   // JetBrains Mono: 0,6 em por carácter
-    var util = Math.max(140, (ancho || 600) - 64);              // lienzo − rótulos del eje Y − márgenes
+    util = util || Math.max(140, (ancho || 600) - 64);
+    res.util = util;
     var px = util / Math.max(1, conHueco ? n : n - 1);
-    var aire = PM.pequeno() ? 48 : 56;                          // aire mínimo entre rótulos
+    var aire = PM.pequeno() ? 12 : 14;                          // aire entre dos rótulos (además del texto)
     var f = P[n - 1].f, esquemas = [];
     if (f === 'd') esquemas.push({ tipo: 'dia', anclas: [1, 8, 15, 22] }, { tipo: 'dia', anclas: [1, 15] });
-    if (f !== 'a' && f !== 't') esquemas.push({ tipo: 'mes', paso: 1 }, { tipo: 'mes', paso: 3 }, { tipo: 'mes', paso: 6 });
+    // con más de cinco años y medio a la vista bastan los años: los meses entre año y año sólo ensucian
+    var meses = (P[n - 1].a - P[0].a) * 12 + P[n - 1].m - P[0].m;
+    if (f !== 'a' && f !== 't' && meses <= 66) esquemas.push({ tipo: 'mes', paso: 1 }, { tipo: 'mes', paso: 3 }, { tipo: 'mes', paso: 6 });
     [1, 2, 5, 10, 20, 50].forEach(function (k) { esquemas.push({ tipo: 'anio', paso: k }); });
     var L = null, esq = null;
     for (var e = 0; e < esquemas.length && !L; e++) {
       var C = rotulos(P, esquemas[e]);
       if (!C.length) continue;
-      var entra = true;
-      for (var j = 1; j < C.length && entra; j++) {
-        var hace = Math.max((C[j][1].length + C[j - 1][1].length) * car / 2 + 12, aire);
-        if ((C[j][0] - C[j - 1][0]) * px < hace) entra = false;
-      }
-      if (entra) { L = C; esq = esquemas[e]; }
+      var r = elegir(C, px, car, aire);
+      if (r && r.length) { L = r; esq = esquemas[e]; }
     }
     if (!L) { esq = { tipo: 'anio', paso: 50 }; L = rotulos(P, esq); }
     // Si ningún rótulo nombra el año (rango corto sin enero), el primero lo lleva.
     if (L.length && !L.some(function (x) { return /^\d{4}$/.test(x[1]); })) L[0][1] += ' ' + P[L[0][0]].a;
     L.forEach(function (x) { res.txt[x[0]] = x[1]; res.marcas[x[0]] = true; });
-    // Marcas menores: la escala más fina que deje al menos 9 px entre marca y marca.
+    // Marcas menores: la escala más fina cuyo paso típico deje al menos 9 px; donde se aprietan (tramo
+    // comprimido) se ralean a 7 px en vez de quitarlas de todo el eje.
     var cand = menores(esq);
     for (var m = 0; m < cand.length; m++) {
       var M = rotulos(P, cand[m]);
-      if (M.length > 1 && separacion(M, px) >= 9) { M.forEach(function (x) { res.marcas[x[0]] = true; }); break; }
+      if (M.length < 2) continue;
+      var dm = [];
+      for (var q = 1; q < M.length; q++) dm.push((M[q][0] - M[q - 1][0]) * px);
+      if (dm.sort(function (a, b) { return a - b; })[Math.floor(dm.length / 2)] < 9) continue;
+      var ult = Infinity;
+      for (var q2 = M.length - 1; q2 >= 0; q2--) {
+        if ((ult - M[q2][0]) * px >= 7 || res.txt[M[q2][0]] != null) { res.marcas[M[q2][0]] = true; ult = M[q2][0]; }
+      }
+      break;
     }
     res.n = L.length;
     var ancho = function (t) { return t.length * car; };
@@ -285,8 +311,8 @@
     return res;
   };
   PM.ejeTiempo = function (claves, el, extra) {
-    var conHueco = !!(extra && extra.boundaryGap);
-    var c = PM.cortesTiempo(claves, el ? el.clientWidth : 600, conHueco);
+    var conHueco = !!(extra && extra.boundaryGap), medido = el && el._util && el._util.ancho === el.clientWidth ? el._util.util : null;
+    var c = PM.cortesTiempo(claves, el ? el.clientWidth : 600, conHueco, medido);
     var dk = PM.dk(), fs = PM.pequeno() ? 10 : 10.5, linea = dk ? '#3A4549' : '#C9CDCE';
     var letra = { fontFamily: PM.mono(), fontSize: fs, lineHeight: fs + 4 };
     return mezclar({
@@ -310,7 +336,8 @@
         }
       },
       splitLine: { show: false },
-      _bordes: { der: c.der, izq: c.izq }      // lo lee PM.montar para ensanchar el grid (y lo borra)
+      _bordes: { der: c.der, izq: c.izq },     // lo lee PM.montar para ensanchar el grid (y lo borra)
+      _util: c.util                            // el ancho de trazado que usó: PM.montar lo compara con el real
     }, extra);
   };
   PM.ejeY = function (opc) {
@@ -452,19 +479,28 @@
     var ancho = el.clientWidth, t = 0, primera = true, arrancado = false;
     var pintar = function (quieto) {
       if (!arrancado) return;                     // todavía esperando las fuentes
-      var o = opciones();
-      var x = Array.isArray(o.xAxis) ? o.xAxis[0] : o.xAxis;
-      if (x && x._bordes) {
-        if (o.grid && !Array.isArray(o.grid)) {
-          if (typeof o.grid.right === 'number') o.grid.right = Math.max(o.grid.right, x._bordes.der);
-          if (typeof o.grid.left === 'number') o.grid.left = Math.max(o.grid.left, x._bordes.izq);
+      // El eje de tiempo elige sus rótulos con el ancho del trazado; la primera vez lo estima. Si el trazado
+      // real (que depende de los rótulos del eje Y) difiere, se vuelve a armar con el real: una vuelta más.
+      for (var vuelta = 0; vuelta < 2; vuelta++) {
+        var o = opciones(), ejes = [].concat(o.xAxis || []), x = ejes[0], usado = null;
+        ejes.forEach(function (a) { if (a && a._util != null) { if (usado == null) usado = a._util; delete a._util; } });
+        if (x && x._bordes) {
+          if (o.grid && !Array.isArray(o.grid)) {
+            if (typeof o.grid.right === 'number') o.grid.right = Math.max(o.grid.right, x._bordes.der);
+            if (typeof o.grid.left === 'number') o.grid.left = Math.max(o.grid.left, x._bordes.izq);
+          }
+          delete x._bordes;
         }
-        delete x._bordes;
+        if (quieto) o.animation = false;
+        else if (o.animationDuration == null) { o.animationDuration = primera ? 800 : 480; o.animationEasing = 'cubicOut'; }
+        chart.setOption(o, true);
+        if (usado == null || vuelta) break;
+        var eje = chart.getModel().getComponent('xAxis', 0), ext = eje && eje.axis && eje.axis.getExtent();
+        var real = ext ? Math.abs(ext[1] - ext[0]) : 0;
+        if (!real || Math.abs(real - usado) <= 4) break;
+        el._util = { ancho: el.clientWidth, util: real };
       }
-      if (quieto) o.animation = false;
-      else if (o.animationDuration == null) { o.animationDuration = primera ? 800 : 480; o.animationEasing = 'cubicOut'; }
       primera = false;
-      chart.setOption(o, true);
       PM.programarAlto();
     };
     PM.alCambiarTema(function () { pintar(true); });
