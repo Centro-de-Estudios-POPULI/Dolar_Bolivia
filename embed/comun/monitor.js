@@ -34,7 +34,8 @@
   };
 
   PM.dk = function () { return root.getAttribute('data-theme') === 'dark'; };
-  PM.pequeno = function () { return window.innerWidth <= 640; };
+  var exportando = false;   // mientras se dibuja la imagen de descarga: formato de PC aunque sea un teléfono
+  PM.pequeno = function () { return !exportando && window.innerWidth <= 640; };
   PM.var = function (n) { return getComputedStyle(root).getPropertyValue(n).trim(); };
 
   function mezclar(base, extra) {             // mezcla profunda de objetos planos de opciones
@@ -501,7 +502,7 @@
         else intentar();
       });
     } else intentar();
-    graficos.push({ chart: chart, el: el });
+    graficos.push({ chart: chart, el: el, pintar: pintar });
     ponerDescargas();
     return { chart: chart, redibujar: function () { pintar(false); } };
   };
@@ -769,38 +770,100 @@
     c.fillStyle = rojo; c.fillRect(x, arriba - 7 * h / 52 - grueso, xDer - x, grueso);   // 7 px sobre la firma de 52 px, como el Banco
     return ancho;
   }
+  // Imagen de descarga de TAMAÑO FIJO, la misma desde el teléfono que desde el PC (en el teléfono el lienzo es
+  // angosto y la imagen salía alta y apretada): 2160 px de ancho, 800 lógicos a 2,7× (el ancho de las láminas
+  // del Banco a doble resolución), y el alto de una proporción fija: 5:4 por defecto. La página puede pedir otra
+  // (PM.imagen = { proporcion: 1 }) o el aspecto de su lienzo (PM.imagen = { aspecto: 2.2 }: el mapa). Si la
+  // leyenda es tan larga que el trazado quedaría más ancho que 2:1, pasa a la proporción siguiente más alta
+  // (5:4 → 1:1 → 4:5). El gráfico se vuelve a dibujar fuera de pantalla en ese tamaño, con formato de PC.
+  var IMG_ANCHO = 800, IMG_PR = 2.7, PROPORCIONES = [16 / 9, 4 / 3, 5 / 4, 1, 4 / 5];
+  // El gráfico se dibuja fuera de pantalla en el tamaño de la imagen y se captura cuando TERMINA de dibujarse
+  // (evento «finished»): las etiquetas al final de la línea y el reacomodo de rótulos se ubican un cuadro después.
+  // Mientras tanto, en su lugar queda una foto del gráfico tal como se ve, ya decodificada: no parpadea ni salta.
+  function lienzoFijo(g, ancho, alto, pr, fondo) {
+    var el = g.el, ch = g.chart, r = el.getBoundingClientRect(), foto = new Image();
+    foto.src = ch.getDataURL({ type: 'png', pixelRatio: window.devicePixelRatio || 1, backgroundColor: fondo });
+    foto.alt = '';
+    foto.style.cssText = 'display:block;width:' + r.width + 'px;height:' + r.height + 'px';
+    var decodificada = foto.decode ? foto.decode().catch(function () {}) : Promise.resolve();
+    return decodificada.then(function () { return new Promise(function (ok) {
+      var estilo = el.getAttribute('style'), listo = false, url = null;
+      var terminar = function () {
+        if (listo) return;
+        listo = true; ch.off('finished', alTerminar);
+        try { url = ch.getDataURL({ type: 'png', pixelRatio: pr, backgroundColor: fondo, excludeComponents: ['toolbox'] }); }
+        finally {
+          exportando = false;
+          if (estilo == null) el.removeAttribute('style'); else el.setAttribute('style', estilo);
+          if (foto.parentNode) foto.parentNode.removeChild(foto);
+          ch.resize({ width: 'auto', height: 'auto' });   // sin 'auto', ECharts se queda con el tamaño explícito
+          ch.clear(); g.pintar(true);
+        }
+        ok(url);
+      };
+      // fuera del despacho del evento: ECharts ignora resize y setOption mientras despacha «finished»
+      var alTerminar = function () { setTimeout(terminar, 0); };
+      el.parentNode.insertBefore(foto, el);
+      el.style.position = 'fixed'; el.style.left = '-40000px'; el.style.top = '0';
+      el.style.width = ancho + 'px'; el.style.height = alto + 'px';
+      exportando = true;
+      try {
+        ch.resize({ width: ancho, height: alto, animation: { duration: 0 } });
+        ch.on('finished', alTerminar);
+        // de cero: al reutilizar la vista de una línea con otro tamaño, ECharts no reubica su etiqueta final
+        ch.clear(); g.pintar(true);
+      } catch (e) { terminar(); return; }
+      setTimeout(terminar, 900);   // red de seguridad: si «finished» no llega, se captura igual
+    }); });
+  }
   PM.descargarImagen = function () {
     var g = graficos[0]; if (!g) return Promise.resolve();
-    var ch = g.chart, dk = PM.dk(), pr = 2, card = PM.var('--card') || '#fff';
+    var ch = g.chart, dk = PM.dk(), pr = IMG_PR, card = PM.var('--card') || '#fff';
     var tinta = dk ? '#E2E8F0' : '#001219', gris = dk ? '#8A9699' : '#5C6B70', acento = PM.var('--acento') || '#C71E1D';
     return fuentesFirma().then(function () { return new Promise(function (ok) {
+      var lado = 20 * pr, W = IMG_ANCHO * pr, m = 28 * pr, cv = document.createElement('canvas'), c = cv.getContext('2d');
+      var titulo = texto('.sec-title'), sub = texto('.sec-sub'), fuente = texto('.source-txt');
+      // la página puede declarar su leyenda (dispersiones, mapas, radares: sin series con nombre)
+      var opt = ch.getOption(), ley = PM.leyendaImagen ? PM.leyendaImagen() : seriesVisibles(opt), hFirma = Math.round(W * 0.048);   // la firma del Banco mide 52 px en láminas de 1080
+      c.font = '700 ' + 24 * pr + 'px "Playfair Display", Georgia, serif';
+      var lTit = envolver(c, titulo, W - 2 * m - 14 * pr);
+      c.font = '500 ' + 13 * pr + 'px Inter, sans-serif';
+      var lSub = envolver(c, sub, W - 2 * m);
+      // la fuente cede a la firma el ancho de la derecha, como en las láminas del Banco
+      c.font = '500 ' + 11 * pr + 'px Inter, sans-serif';
+      var anchoFirma = hFirma * 1.62, lFue = envolver(c, fuente, W - 2 * m - anchoFirma - 18 * pr);
+      // leyenda en filas: cada ítem = clave + nombre; salta de fila antes del margen derecho
+      c.font = '600 ' + 12 * pr + 'px Inter, sans-serif';
+      var filas = [[]], xf = m;
+      ley.forEach(function (s) {
+        var w = 18 * pr + c.measureText(s.name).width + 18 * pr;
+        if (xf + w - 18 * pr > W - m && filas[filas.length - 1].length) { filas.push([]); xf = m; }
+        filas[filas.length - 1].push({ s: s, x: xf }); xf += w;
+      });
+      var hTit = lTit.length * 30 * pr, hSub = lSub.length * 18 * pr, hLey = ley.length ? filas.length * 22 * pr + 4 * pr : 0;
+      var hPie = Math.max(lFue.length * 15 * pr, hFirma + 14 * pr) + 20 * pr;
+      // tamaño fijo: el trazado se lleva lo que deja la proporción (en píxeles lógicos enteros)
+      var arriba = m + hTit + hSub + 10 * pr + hLey, abajo = 14 * pr + hPie, anchoL = IMG_ANCHO - 40, altoL, H;
+      var pide = PM.imagen || {};
+      if (pide.aspecto) {
+        altoL = Math.round(anchoL / pide.aspecto); H = Math.round(arriba + altoL * pr + abajo);
+      } else {
+        var p0 = pide.proporcion || 5 / 4, lista = PROPORCIONES.filter(function (p) { return p < p0 - 1e-6; });
+        lista.unshift(p0);
+        for (var i = 0; i < lista.length; i++) {
+          H = Math.round(W / lista[i]); altoL = Math.floor((H - arriba - abajo) / pr);
+          if (altoL >= anchoL / 2) break;
+        }
+      }
+      lienzoFijo(g, anchoL, altoL, pr, card).then(function (url) {
       var img = new Image();
       img.onload = function () {
-        var lado = 20 * pr, W = img.width + 2 * lado, m = 28 * pr, cv = document.createElement('canvas'), c = cv.getContext('2d');
-        var titulo = texto('.sec-title'), sub = texto('.sec-sub'), fuente = texto('.source-txt');
-        // la página puede declarar su leyenda (dispersiones, mapas, radares: sin series con nombre)
-        var opt = ch.getOption(), ley = PM.leyendaImagen ? PM.leyendaImagen() : seriesVisibles(opt), hFirma = Math.round(W * 0.048);   // la firma del Banco mide 52 px en láminas de 1080
-        c.font = '500 ' + 13 * pr + 'px Inter, sans-serif';
-        var lSub = envolver(c, sub, W - 2 * m);
-        // la fuente cede a la firma el ancho de la derecha, como en las láminas del Banco
-        c.font = '500 ' + 11 * pr + 'px Inter, sans-serif';
-        var anchoFirma = hFirma * 1.62, lFue = envolver(c, fuente, W - 2 * m - anchoFirma - 18 * pr);
-        // leyenda en filas: cada ítem = cuadro + nombre; salta de fila antes del margen derecho
-        c.font = '600 ' + 12 * pr + 'px Inter, sans-serif';
-        var filas = [[]], xf = m;
-        ley.forEach(function (s) {
-          var w = 18 * pr + c.measureText(s.name).width + 18 * pr;
-          if (xf + w - 18 * pr > W - m && filas[filas.length - 1].length) { filas.push([]); xf = m; }
-          filas[filas.length - 1].push({ s: s, x: xf }); xf += w;
-        });
-        var hTit = 30 * pr, hSub = lSub.length * 18 * pr, hLey = ley.length ? filas.length * 22 * pr + 4 * pr : 0;
-        var hPie = Math.max(lFue.length * 15 * pr, hFirma + 14 * pr) + 20 * pr;
-        cv.width = W; cv.height = m + hTit + hSub + 10 * pr + hLey + img.height + 14 * pr + hPie;
-        c.fillStyle = card; c.fillRect(0, 0, cv.width, cv.height);
+        cv.width = W; cv.height = H;
+        c.fillStyle = card; c.fillRect(0, 0, W, H);
         var y = m;
-        c.fillStyle = acento; c.fillRect(m, y + 2 * pr, 4 * pr, 24 * pr);
+        c.fillStyle = acento; c.fillRect(m, y + 2 * pr, 4 * pr, (lTit.length * 30 - 6) * pr);
         c.fillStyle = tinta; c.font = '700 ' + 24 * pr + 'px "Playfair Display", Georgia, serif'; c.textBaseline = 'top'; c.textAlign = 'left';
-        c.fillText(titulo, m + 14 * pr, y); y += hTit;
+        lTit.forEach(function (l) { c.fillText(l, m + 14 * pr, y); y += 30 * pr; });
         c.fillStyle = gris; c.font = '500 ' + 13 * pr + 'px Inter, sans-serif';
         lSub.forEach(function (l) { c.fillText(l, m, y); y += 18 * pr; });
         y += 10 * pr;
@@ -821,16 +884,17 @@
           });
           y += hLey;
         }
-        c.drawImage(img, lado, y); y += img.height + 14 * pr;
+        c.drawImage(img, lado, y, anchoL * pr, altoL * pr);
         // pie: fuente a la izquierda, firma oficial abajo a la derecha
-        var base = cv.height - m * 0.75;
+        var base = H - m * 0.75;
         c.fillStyle = gris; c.font = '500 ' + 11 * pr + 'px Inter, sans-serif'; c.textBaseline = 'alphabetic';
         var yf = base - (lFue.length - 1) * 15 * pr;
         lFue.forEach(function (l) { c.fillText(l, m, yf); yf += 15 * pr; });
         firma(c, W - m, base, hFirma, dk);
         cv.toBlob(function (b) { bajar(slug(titulo) + '-' + new Date().toISOString().slice(0, 10) + '.png', b); ok(); }, 'image/png');
       };
-      img.src = ch.getDataURL({ type: 'png', pixelRatio: pr, backgroundColor: card, excludeComponents: ['toolbox'] });
+      img.src = url;
+      });
     }); });
   };
   // la línea de fuente de cada página ya empieza con «Fuente:»: no repetirlo en el CSV
