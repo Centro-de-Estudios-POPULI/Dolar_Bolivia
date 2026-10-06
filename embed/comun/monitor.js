@@ -21,7 +21,7 @@
    ════════════════════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
-  var PM = { version: '2.3.0' };
+  var PM = { version: '2.3.1' };
   var root = document.documentElement;
 
   // ── Paleta de la marca (populi-marca/paleta.json), por familias ────────────
@@ -30,7 +30,16 @@
     turquesa: '#0A9396', menta: '#94D2BD', petroleo: '#005F73',
     oro: '#EE9B00', arena: '#E9D8A6', oroOscuro: '#A86E00',
     naranja: '#E57D22', tierra: '#DF5D25', granate: '#9B2226',
-    tinta: '#001219', pizarra: '#5C6B70', gris: '#8A9699', tenue: '#C9CDCE'
+    tinta: '#001219', pizarra: '#5C6B70', gris: '#8A9699', tenue: '#C9CDCE',
+    // tintes de la paleta (TINT_* de paleta.py): rellenos por signo, nunca series
+    tintRojo: '#F8E5E3', tintTurquesa: '#D9EAE6', tintRojoOscuro: '#271515', tintTurquesaOscuro: '#132627'
+  };
+  // Relleno por signo contra una referencia (el 0 de un crecimiento, el 100 de un nivel): SÓLIDO y con los
+  // tintes oficiales, el mismo en todos los gráficos. Sobre la referencia, turquesa; debajo, rojo. En oscuro,
+  // la pareja derivada a la misma distancia visual de la tarjeta. La línea encima va en tinta.
+  PM.tinte = function (arriba) {
+    var C = PM.C;
+    return PM.dk() ? (arriba ? C.tintTurquesaOscuro : C.tintRojoOscuro) : (arriba ? C.tintTurquesa : C.tintRojo);
   };
 
   PM.dk = function () { return root.getAttribute('data-theme') === 'dark'; };
