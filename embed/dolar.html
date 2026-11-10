@@ -207,11 +207,17 @@
         var devPt = p.c != null ? (p.c / BCB_OFICIAL - 1) * 100 : null;
         var prima = (p.usdt != null && refDe(p) != null) ? p.usdt - refDe(p) : null;   // USDT sobre el TCO (antes del 26-jun, sobre la venta referencial)
         var dC = (p.c != null && pr.c != null) ? p.c - pr.c : null;
+        // Primera sesión con TCO: el punto anterior todavía es del paralelo referencial, no hay sesión anterior del TCO
+        var primerTco = isTco && pr.reg !== 'tco';
         document.getElementById('panel-fecha').textContent = PM.fecha(p.f) + (p.carried ? T(' · vigente', ' · in force') : '');
         var tDev = PM.dt(COL.oficial, fpct(devPt)), txt;
-        if (devPt == null) txt = T(
-          'Punto del <strong>mercado paralelo referencial</strong>, antes del estreno del Tipo de Cambio Oficial flexible (27 de junio de 2026).',
-          'Data point from the <strong>reference parallel market</strong>, before the launch of the flexible Official Exchange Rate (June 27, 2026).');
+        // Antes de la primera sesión con TCO el punto es del paralelo referencial (lo dice el dato: `reg` no es «tco»):
+        // la lectura habla del paralelo, no del TCO. La fecha del estreno es la primera vigencia del TCO de la serie.
+        if (!isTco || devPt == null) txt = T(
+          'Punto del <strong>mercado paralelo referencial</strong>, antes del estreno del Tipo de Cambio Oficial flexible' + (REGIME_TCO ? ' (' + PM.fecha(REGIME_TCO, true) + ')' : '') + '.' +
+          (devPt != null ? ' La compra del dólar en el paralelo estaba ' + tDev + ' respecto al tipo fijo de <strong>Bs 6,96</strong>.' : ''),
+          'Data point from the <strong>reference parallel market</strong>, before the launch of the flexible Official Exchange Rate' + (REGIME_TCO ? ' (' + PM.fecha(REGIME_TCO, true) + ')' : '') + '.' +
+          (devPt != null ? ' The buying price of the dollar in the parallel market was ' + tDev + ' relative to the fixed rate of <strong>Bs 6.96</strong>.' : ''));
         else if (devPt > 38) txt = T(
           'Frente al tipo de cambio oficial fijo de <strong>Bs 6,96</strong> (ancla nominal 2011–2026), el TCO implica una devaluación de ' + tDev + '. El abandono del tipo fijo reconoce el agotamiento de las reservas y la presión cambiaria acumulada; el nuevo régimen busca que el precio del dólar refleje la oferta y demanda reales.',
           'Against the fixed official exchange rate of <strong>Bs 6.96</strong> (nominal anchor 2011–2026), the TCO implies a devaluation of ' + tDev + '. Abandoning the fixed rate acknowledges the depletion of reserves and the accumulated exchange-rate pressure; the new regime seeks to have the price of the dollar reflect actual supply and demand.');
@@ -224,10 +230,10 @@
         var descC = isTco
           ? T((p.metodo === 'mediana' ? 'Mediana ponderada' : 'Promedio ponderado') + ' por monto de las <strong>compras de dólares de la banca</strong> el <strong>' + PM.fecha(p.sesion || p.f) +
             '</strong>; rige como referencia el <strong>' + PM.fecha(p.f) + '</strong>.' +
-            (dC != null ? ' Variación de ' + PM.dt(COL.c, PM.signo(dC, 2) + NB + 'Bs') + ' vs. la sesión anterior.' : ''),
+            (primerTco ? ' Es la primera sesión del TCO.' : dC != null ? ' Variación de ' + PM.dt(COL.c, PM.signo(dC, 2) + NB + 'Bs') + ' vs. la sesión anterior.' : ''),
             (p.metodo === 'mediana' ? 'Amount-weighted median' : 'Amount-weighted average') + ' of <strong>dollar purchases by banks</strong> on <strong>' + PM.fecha(p.sesion || p.f) +
             '</strong>; in force as the reference rate on <strong>' + PM.fecha(p.f) + '</strong>.' +
-            (dC != null ? ' Change of ' + PM.dt(COL.c, bsSignoEn(dC)) + ' vs. the previous session.' : ''))
+            (primerTco ? ' It is the first TCO session.' : dC != null ? ' Change of ' + PM.dt(COL.c, bsSignoEn(dC)) + ' vs. the previous session.' : ''))
           : T('Precio de <strong>compra</strong> del dólar en el mercado paralelo referencial.', '<strong>Buying</strong> price of the dollar in the reference parallel market.');
         var descV = !isTco ? T('Precio de <strong>venta</strong> del dólar en el mercado paralelo referencial.', '<strong>Selling</strong> price of the dollar in the reference parallel market.')
           : (p.v != null
@@ -240,7 +246,8 @@
         var descU = p.usdt == null ? T('Sin dato de USDT para esta fecha.', 'No USDT data for this date.')
           : (prima == null ? T('Mediana del USDT/BOB en Binance P2P.', 'Median of USDT/BOB on Binance P2P.')
             : T('Mediana del USDT/BOB en Binance P2P — cotiza ' + PM.dt(COL.usdt, PM.signo(prima, 2) + NB + 'Bs') + ' ' +
-              (Math.abs(prima) < 0.15 ? 'prácticamente en línea con' : (prima >= 0 ? 'por encima de' : 'por debajo de')) + ' ' + (isTco ? 'el TCO' : 'la venta referencial') + '.',
+              (Math.abs(prima) < 0.15 ? 'prácticamente en línea con ' + (isTco ? 'el TCO' : 'la venta referencial')
+                : (prima >= 0 ? 'por encima ' : 'por debajo ') + (isTco ? 'del TCO' : 'de la venta referencial')) + '.',
               'Median of USDT/BOB on Binance P2P — it trades ' + PM.dt(COL.usdt, bsSignoEn(prima)) + ' ' +
               (Math.abs(prima) < 0.15 ? 'practically in line with' : (prima >= 0 ? 'above' : 'below')) + ' ' + (isTco ? 'the TCO' : 'the reference selling rate') + '.'));
         document.getElementById('panel').innerHTML =
@@ -316,7 +323,7 @@
             '<p>On <strong>June 27, 2026</strong>, the <strong>Central Bank of Bolivia (BCB)</strong> replaced the fixed exchange rate with the <strong>Official Exchange Rate (TCO)</strong>, which summarizes the <strong>dollar purchase transactions of banks</strong>: since the September 25 session it is their <strong>amount-weighted median</strong> (before, the weighted average). The BCB publishes it at 11:30 p.m. and it is in force as the reference rate from the following day (Board Resolution R.D. 142/2026).</p>' +
             '<p>Until September 24 the selling rate had an <strong>official cap</strong> of TCO plus ' + PM.dt(COL.v, 'Bs' + NB + '0.10') + '; R.D. 142/2026 removed it and since then each bank sets and publishes its own selling rate. Today the TCO is in force at ' + PM.dt(COL.c, fbs(current.c)) +
             (ventaBancos != null ? ' and the selling rate published by banks has a median of ' + PM.dt(COL.v, fbs(ventaBancos)) : '') + '.</p>')],
-          [T('El fin del tipo fijo de Bs 6,96', 'The end of the Bs 6.96 fixed rate'), T('<p>Entre <strong>noviembre de 2011 y junio de 2026</strong>, el boliviano estuvo anclado a un tipo de cambio fijo de ' + PM.dt(COL.oficial, 'Bs' + NB + '6,96') + ' por dólar. Ese ancla nominal buscaba estabilidad de precios, pero exigía reservas suficientes para vender dólares a ese precio.</p>' +
+          [T('El fin del tipo fijo de Bs 6,96', 'The end of the Bs 6.96 fixed rate'), T('<p>Entre <strong>noviembre de 2011 y junio de 2026</strong>, el boliviano estuvo anclado a un tipo de cambio fijo de ' + PM.dt(COL.oficial, 'Bs' + NB + '6,96') + ' por dólar. Esa ancla nominal buscaba estabilidad de precios, pero exigía reservas suficientes para vender dólares a ese precio.</p>' +
             '<p>Agotadas las reservas, el BCB abandonó el tipo fijo. El TCO arrancó en <strong>Bs 9,73</strong> y hoy implica una <strong>devaluación de ' + PM.dt(COL.oficial, fpct(dev)) + '</strong> frente al viejo 6,96.</p>',
             '<p>Between <strong>November 2011 and June 2026</strong>, the boliviano was anchored to a fixed exchange rate of ' + PM.dt(COL.oficial, 'Bs' + NB + '6.96') + ' per dollar. That nominal anchor sought price stability, but it required sufficient reserves to sell dollars at that price.</p>' +
             '<p>With reserves depleted, the BCB abandoned the fixed rate. The TCO started at <strong>Bs 9.73</strong> and today implies a <strong>devaluation of ' + PM.dt(COL.oficial, fpct(dev)) + '</strong> against the old 6.96.</p>')],
