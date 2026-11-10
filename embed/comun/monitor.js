@@ -18,10 +18,18 @@
      {populiEmbed:'height', height}); una pregunta abierta agranda el iframe.
    - v2.3: el gráfico se dibuja (y las cifras cuentan) cuando entra en pantalla; cada
      cifra puede llevar su minilínea de tendencia; descarga de imagen y de datos.
+   - v2.4: DOS IDIOMAS. El castellano es el de siempre y no cambia en nada; con
+     `?lang=en` en la dirección el gráfico sale en inglés. Cada texto se escribe UNA
+     vez, con su pareja al lado: en el marcado, `<h2 data-en="Reserves">Reservas</h2>`
+     (también `data-en-title` y `data-en-aria-label`); en el código, PM.t('Oro', 'Gold').
+     Los números y las fechas siguen al idioma solos (PM.num, PM.mm, PM.fecha, el eje
+     de tiempo, el CSV): en inglés «4,148» · «549.9» · «5.0%» · «Aug 2026» ·
+     «Oct 4, 2026» · «wk 4 · Sep 2026» · «Q2 2026». Un texto sin pareja queda en
+     castellano: no falla, pero la sonda de idioma lo encuentra.
    ════════════════════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
-  var PM = { version: '2.3.1' };
+  var PM = { version: '2.4.0' };
   var root = document.documentElement;
 
   // ── Paleta de la marca (populi-marca/paleta.json), por familias ────────────
@@ -103,6 +111,31 @@
     oyentes.forEach(function (f) { try { f(); } catch (e) { console.error(e); } });
   }
 
+  // ── Idioma ─────────────────────────────────────────────────────────────────
+  // `?lang=en` → inglés; cualquier otra cosa, castellano. Se decide al cargar y no cambia: la página
+  // que incrusta el gráfico elige el idioma en la dirección del iframe.
+  PM.en = (qs.get('lang') || '').toLowerCase() === 'en';
+  PM.lang = PM.en ? 'en' : 'es';
+  // El texto en el idioma del gráfico. Sin pareja en inglés, queda el castellano.
+  PM.t = function (es, en) { return PM.en && en != null ? en : es; };
+  // El marcado trae el castellano y, al lado, su pareja: data-en (contenido), data-en-title, data-en-aria-label.
+  PM.traducir = function (raiz) {
+    if (!PM.en) return;
+    raiz = raiz || document;
+    raiz.querySelectorAll('[data-en]').forEach(function (e) {
+      if (e.tagName === 'TITLE') document.title = e.getAttribute('data-en'); else e.innerHTML = e.getAttribute('data-en');
+      e.removeAttribute('data-en');
+    });
+    ['title', 'aria-label'].forEach(function (a) {
+      raiz.querySelectorAll('[data-en-' + a + ']').forEach(function (e) { e.setAttribute(a, e.getAttribute('data-en-' + a)); e.removeAttribute('data-en-' + a); });
+    });
+  };
+  if (PM.en) {
+    root.setAttribute('lang', 'en');
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { PM.traducir(); });
+    else PM.traducir();
+  }
+
   var enIframe = window.parent !== window, ultimoAlto = 0, cuadro = 0;
   // El alto es el del CONTENIDO: scrollHeight no sirve porque nunca baja del alto del iframe.
   PM.alto = function () { return Math.ceil(root.getBoundingClientRect().height); };
@@ -139,10 +172,11 @@
 
   // ── Números (es-BO) ────────────────────────────────────────────────────────
   var NF = {}, NB = ' ';                 // espacio duro: «ago 2026» y «2,0 pp» nunca se parten
+  var LOCAL = PM.en ? 'en-US' : 'es-BO';   // en inglés: coma de miles y punto decimal
   PM.num = function (x, dec) {
     if (x === null || x === undefined || x === '' || isNaN(x)) return '—';
     dec = dec == null ? 1 : dec;
-    var f = NF[dec] || (NF[dec] = new Intl.NumberFormat('es-BO', { minimumFractionDigits: dec, maximumFractionDigits: dec }));
+    var f = NF[dec] || (NF[dec] = new Intl.NumberFormat(LOCAL, { minimumFractionDigits: dec, maximumFractionDigits: dec }));
     var t = f.format(+x);                                 // Intl redondea simétrico: −2,5 → −3 como 2,5 → 3
     if (/^-[0.,]+$/.test(t)) t = t.slice(1);              // sin «−0,0»
     return t.replace('-', '−');
@@ -160,9 +194,14 @@
   // Magnitudes: sin decimales desde mil, uno por debajo. «4.148» · «549,9» · «65,2»
   PM.auto = function (x) { return PM.num(x, Math.abs(x) >= 1000 ? 0 : 1); };
   // Montos en millones: PM.mm(4148.3) → «$4.148 MM» · PM.mm(105417, 'Bs') → «105.417 MM Bs»
+  // En inglés, «M» y la moneda adelante: «$4,148 M» · «Bs 105,417 M»
   PM.mm = function (x, moneda) {
     if (x === null || x === undefined || isNaN(x)) return '—';
-    return moneda === 'Bs' ? PM.auto(x) + NB + 'MM' + NB + 'Bs' : '$' + PM.auto(x) + NB + 'MM';
+    // el signo va delante del símbolo: «−$62,8 MM» (la RIN de 1989), no «$−62,8 MM»
+    var s = PM.auto(x), menos = s.charAt(0) === '−' ? '−' : '';
+    if (menos) s = s.slice(1);
+    if (PM.en) return menos + (moneda === 'Bs' ? 'Bs' + NB : '$') + s + NB + 'M';
+    return moneda === 'Bs' ? menos + s + NB + 'MM' + NB + 'Bs' : menos + '$' + s + NB + 'MM';
   };
   // Rótulo de eje: los decimales que el corte necesita, ni uno más. «0» · «0,5» · «120.000»
   PM.tick = function (v) {
@@ -171,8 +210,11 @@
   };
 
   // ── Fechas ─────────────────────────────────────────────────────────────────
-  PM.MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-  PM.MES_L = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  PM.MES = PM.en ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    : ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  PM.MES_L = PM.en ? ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+    : ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  // las claves de los datos son siempre las mismas (castellano o ISO), cualquiera sea el idioma del gráfico
   var MES_IDX = { ene: 0, feb: 1, mar: 2, abr: 3, may: 4, jun: 5, jul: 6, ago: 7, sep: 8, set: 8, oct: 9, nov: 10, dic: 11 };
   var cachePer = {};
   // Cualquier clave de período → {a, m (0-11), d, s, t, f}; f: 'd' diaria · 's' semanal BCB ·
@@ -192,10 +234,20 @@
       p = { a: +r[2], m: MES_IDX[r[1].toLowerCase()], f: 'm' };
     return (cachePer[k] = p);
   };
+  var ORDINAL = ['', '1st', '2nd', '3rd', '4th', '5th'];
   PM.fecha = function (k, largo) {
     var p = PM.periodo(k);
     if (!p) return String(k);
     var M = largo ? PM.MES_L : PM.MES;
+    if (PM.en) {      // «Oct 4, 2026» · «wk 4 · Sep 2026» · «Q2 2026» · «Aug 2026»; largo: «October 4, 2026» · «4th week of September 2026»
+      switch (p.f) {
+        case 'd': return M[p.m] + NB + p.d + ', ' + p.a;
+        case 's': return largo ? (ORDINAL[p.s] || p.s + 'th') + ' week of ' + M[p.m] + ' ' + p.a : 'wk' + NB + p.s + ' · ' + M[p.m] + NB + p.a;
+        case 't': return 'Q' + p.t + NB + p.a;
+        case 'a': return String(p.a);
+        default: return M[p.m] + (largo ? ' ' : NB) + p.a;
+      }
+    }
     switch (p.f) {
       case 'd': return largo ? p.d + ' de ' + M[p.m] + ' de ' + p.a : p.d + NB + M[p.m] + NB + p.a;
       case 's': return largo ? p.s + '.ª semana de ' + M[p.m] + ' de ' + p.a : 'sem' + NB + p.s + ' · ' + M[p.m] + NB + p.a;
@@ -234,7 +286,7 @@
       } else if (esq.tipo === 'dia') {
         var anc = function (x) { var b = 0; esq.anclas.forEach(function (a) { if (x.d >= a) b = a; }); return b; };
         var cambia = q ? (p.a !== q.a || p.m !== q.m || anc(p) !== anc(q)) : esq.anclas.indexOf(p.d) >= 0;
-        if (cambia && anc(p)) t = (p.m === 0 && anc(p) === 1) ? String(p.a) : p.d + ' ' + PM.MES[p.m];
+        if (cambia && anc(p)) t = (p.m === 0 && anc(p) === 1) ? String(p.a) : PM.en ? PM.MES[p.m] + ' ' + p.d : p.d + ' ' + PM.MES[p.m];
       }
       if (t) out.push([i, t]);
     }
@@ -567,7 +619,7 @@
     }));
   };
   PM.error = function (el, txt) {
-    if (el) el.innerHTML = '<div class="loading"><span style="color:#C71E1D">' + (txt || 'No se pudieron cargar los datos') + '</span></div>';
+    if (el) el.innerHTML = '<div class="loading"><span style="color:#C71E1D">' + (txt || PM.t('No se pudieron cargar los datos', 'The data could not be loaded')) + '</span></div>';
   };
 
   // ── Botonera: el activo es un indicador que se desliza de un tramo a otro ──
@@ -700,16 +752,17 @@
   PM.vigilarPaneles = vigilarPaneles;
 
   // ── Cifras que cuentan hasta su valor la primera vez que se ven ────────────────────────────
-  var NUM = /([+−-]?)(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d+))?/;
+  // el número se lee como se escribió: en castellano, punto de miles y coma decimal; en inglés, al revés
+  var NUM = PM.en ? /([+−-]?)(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?/ : /([+−-]?)(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d+))?/;
   function contar(el) {
     if (el.children.length || el.dataset.contado) return;
     var t = el.textContent, m = NUM.exec(t);
     el.dataset.contado = '1';
     if (!m) return;
-    var dec = m[3] ? m[3].length : 0, v = parseFloat(m[2].replace(/\./g, '') + '.' + (m[3] || '0'));
+    var dec = m[3] ? m[3].length : 0, v = parseFloat(m[2].replace(PM.en ? /,/g : /\./g, '') + '.' + (m[3] || '0'));
     if (m[1] === '−' || m[1] === '-') v = -v;
     var antes = t.slice(0, m.index), despues = t.slice(m.index + m[0].length), mas = m[1] === '+';
-    var f = new Intl.NumberFormat('es-BO', { minimumFractionDigits: dec, maximumFractionDigits: dec }), t0 = null, dur = 900;
+    var f = new Intl.NumberFormat(LOCAL, { minimumFractionDigits: dec, maximumFractionDigits: dec }), t0 = null, dur = 900;
     var paso = function (ts) {
       if (t0 === null) t0 = ts;
       var k = Math.min(1, (ts - t0) / dur), e = 1 - Math.pow(1 - k, 3), x = v * e;
@@ -776,7 +829,7 @@
       var c = String(colorSerie(s)).toUpperCase(), grupo = porColor[c];
       if (grupo.length < 3) { final.push(s); return; }
       if (puesto[c]) return;
-      puesto[c] = 1; final.push({ name: PM.leyendaResto || 'Otros', itemStyle: { color: colorSerie(s) } });
+      puesto[c] = 1; final.push({ name: PM.leyendaResto || PM.t('Otros', 'Others'), itemStyle: { color: colorSerie(s) } });
     });
     return final;
   }
@@ -947,16 +1000,21 @@
     }); });
   };
   // la línea de fuente de cada página ya empieza con «Fuente:»: no repetirlo en el CSV
-  function conFuente(t) { return /^\s*fuente/i.test(t) ? t.trim() : 'Fuente: ' + t; }
+  function conFuente(t) { return /^\s*(fuente|source)/i.test(t) ? t.trim() : PM.t('Fuente: ', 'Source: ') + t; }
+  // El CSV sigue al idioma, como lo abre la hoja de cálculo de cada uno: en castellano, punto y coma entre
+  // columnas y coma decimal; en inglés, coma entre columnas y punto decimal.
+  var SEP = PM.en ? ',' : ';';
+  function decimal(n) { var s = String(Math.round(n * 1e6) / 1e6); return PM.en ? s : s.replace('.', ','); }
+  function entreComillas(v) { v = String(v); return (PM.en ? /[,"\n]/ : /[;"\n]/).test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
   PM.descargarDatos = function () {
     var g = graficos[0]; if (!g) return;
     if (PM.tablaDatos) {   // la página declara su tabla (dispersiones, mapas: el eje X no es de categorías)
       var t = PM.tablaDatos(), celda = function (v) {
         if (v == null || (typeof v === 'number' && isNaN(v))) return '';
-        if (typeof v === 'number') return String(Math.round(v * 1e6) / 1e6).replace('.', ',');
-        v = String(v); return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+        if (typeof v === 'number') return decimal(v);
+        return entreComillas(v);
       };
-      var ft = [t.cols.map(celda).join(';')].concat(t.filas.map(function (r) { return r.map(celda).join(';'); }));
+      var ft = [t.cols.map(celda).join(SEP)].concat(t.filas.map(function (r) { return r.map(celda).join(SEP); }));
       ft.push('', conFuente(texto('.source-txt')));
       bajar(slug(texto('.sec-title')) + '-' + new Date().toISOString().slice(0, 10) + '.csv', new Blob(['\ufeff' + ft.join('\r\n')], { type: 'text/csv;charset=utf-8' }));
       return;
@@ -972,9 +1030,11 @@
         cols[s.name][i] = cols[s.name][i] == null ? +n : cols[s.name][i] + +n;   // partes de una misma serie (por año o por signo) se juntan
       });
     });
-    var fmt = function (n) { return n == null ? '' : String(Math.round(n * 1e6) / 1e6).replace('.', ','); };
-    var filas = ['Período;' + orden.join(';')];
-    x.forEach(function (k, i) { filas.push(k + ';' + orden.map(function (n) { return fmt(cols[n][i]); }).join(';')); });
+    var fmt = function (n) { return n == null ? '' : decimal(n); };
+    // en castellano los nombres de las series van tal cual, como siempre; en inglés la coma separa columnas
+    var nombre = function (n) { return PM.en ? entreComillas(n) : n; };
+    var filas = [PM.t('Período', 'Period') + SEP + orden.map(nombre).join(SEP)];
+    x.forEach(function (k, i) { filas.push(k + SEP + orden.map(function (n) { return fmt(cols[n][i]); }).join(SEP)); });
     var titulo = texto('.sec-title');
     filas.push('', conFuente(texto('.source-txt')));
     bajar(slug(titulo) + '-' + new Date().toISOString().slice(0, 10) + '.csv', new Blob(['\ufeff' + filas.join('\r\n')], { type: 'text/csv;charset=utf-8' }));
@@ -994,7 +1054,10 @@
     if (src) ponerMarca(src);
     if (!src || src.querySelector('.dls')) return;
     var caja = document.createElement('span'); caja.className = 'dls';
-    caja.innerHTML = '<button type="button" class="dl" data-dl="img" title="Descargar el gráfico como imagen (PNG)">' + ICONO + '<span><span class="dl-t">Descargar </span>imagen</span></button>' +
+    caja.innerHTML = PM.en
+      ? '<button type="button" class="dl" data-dl="img" title="Download the chart as an image (PNG)">' + ICONO + '<span><span class="dl-t">Download </span>image</span></button>' +
+        '<button type="button" class="dl" data-dl="csv" title="Download the chart data (CSV)">' + ICONO + '<span><span class="dl-t">Download </span>data</span></button>'
+      : '<button type="button" class="dl" data-dl="img" title="Descargar el gráfico como imagen (PNG)">' + ICONO + '<span><span class="dl-t">Descargar </span>imagen</span></button>' +
       '<button type="button" class="dl" data-dl="csv" title="Descargar los datos del gráfico (CSV)">' + ICONO + '<span><span class="dl-t">Descargar </span>datos</span></button>';
     var txt = src.querySelector('.source-txt');
     if (txt && txt.nextSibling) src.insertBefore(caja, txt.nextSibling); else src.appendChild(caja);

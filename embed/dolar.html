@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tipo de Cambio Oficial y USDT · Populi</title>
+  <title data-en="Official Exchange Rate and USDT · Populi">Tipo de Cambio Oficial y USDT · Populi</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
@@ -15,8 +15,8 @@
   <div class="wrap">
     <!-- Encabezado -->
     <div class="sec-hd">
-      <h2 class="sec-title"><span class="accent-bar"></span>Tipo de Cambio Oficial y USDT</h2>
-      <p class="sec-sub">Tipo de Cambio Oficial (TCO) del BCB, venta en bancos y USDT Binance P2P · Serie diaria</p>
+      <h2 class="sec-title" data-en='<span class="accent-bar"></span>Official Exchange Rate and USDT'><span class="accent-bar"></span>Tipo de Cambio Oficial y USDT</h2>
+      <p class="sec-sub" data-en="BCB Official Exchange Rate (TCO), selling rate at banks and USDT on Binance P2P · Daily series">Tipo de Cambio Oficial (TCO) del BCB, venta en bancos y USDT Binance P2P · Serie diaria</p>
     </div>
 
     <!-- Cifras -->
@@ -29,9 +29,9 @@
           <div class="tog-grp" id="pastillas"></div>
           <div class="hz-grp" id="b-rango"></div>
         </div>
-        <div class="grafico" id="chart"><div class="loading"><div class="spinner"></div><span>Cargando datos de tipo de cambio…</span></div></div>
+        <div class="grafico" id="chart"><div class="loading"><div class="spinner"></div><span data-en="Loading exchange rate data…">Cargando datos de tipo de cambio…</span></div></div>
         <div class="source">
-          <span class="source-txt">Fuente: <a href="https://www.bcb.gob.bo" target="_blank" rel="noopener">BCB</a> · <a href="https://p2p.binance.com" target="_blank" rel="noopener">Binance P2P</a> · Elaboración: <a href="https://populi.org.bo" target="_blank" rel="noopener">Centro de Estudios POPULI</a></span>
+          <span class="source-txt" data-en='Source: <a href="https://www.bcb.gob.bo" target="_blank" rel="noopener">BCB</a> · <a href="https://p2p.binance.com" target="_blank" rel="noopener">Binance P2P</a> · Analysis: <a href="https://populi.org.bo" target="_blank" rel="noopener">Centro de Estudios POPULI</a>'>Fuente: <a href="https://www.bcb.gob.bo" target="_blank" rel="noopener">BCB</a> · <a href="https://p2p.binance.com" target="_blank" rel="noopener">Binance P2P</a> · Elaboración: <a href="https://populi.org.bo" target="_blank" rel="noopener">Centro de Estudios POPULI</a></span>
           <svg viewBox="0 0 310 130" xmlns="http://www.w3.org/2000/svg" style="height:16px;width:auto;opacity:.18;flex-shrink:0" aria-hidden="true">
             <text x="6" y="112" font-family="'Playfair Display',Georgia,serif" font-size="145" font-weight="700" fill="#C71E1D">P</text>
             <text x="92" y="87" font-family="'Playfair Display',Georgia,serif" font-size="55" font-weight="400" font-style="italic" letter-spacing="1" fill="currentColor">opuli</text>
@@ -40,11 +40,11 @@
       </div>
 
       <div class="panel">
-        <div class="panel-hd"><span class="panel-hd-t">Lectura del indicador</span><span class="panel-hd-d" id="panel-fecha"></span></div>
+        <div class="panel-hd"><span class="panel-hd-t" data-en="Reading the indicator">Lectura del indicador</span><span class="panel-hd-d" id="panel-fecha"></span></div>
         <div class="panel-body" id="panel"></div>
         <div class="panel-ft">
           <a href="https://centro-de-estudios-populi.github.io/Dolar_Bolivia/" target="_blank" rel="noopener" class="amp">
-            <span>Ampliar análisis</span>
+            <span data-en="Expand analysis">Ampliar análisis</span>
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
           </a>
         </div>
@@ -58,6 +58,7 @@
   <script>
   (function () {
     var C = PM.C, NB = ' ';
+    var T = PM.t;             // T('castellano', 'inglés'): con ?lang=en el gráfico sale en inglés
     var BCB_OFICIAL = 6.96;   // tipo de cambio oficial FIJO (Bs/$), nov-2011 → 26-jun-2026
     // TCO turquesa, venta roja, USDT oro (punteada) y la referencia del 6,96 en petróleo, que en
     // tema oscuro sube a menta. Validado con todos los pares: daltonismo ΔE ≥ 12,4 en claro y
@@ -67,14 +68,17 @@
     var PIZARRA = { claro: C.pizarra, oscuro: '#8A9699' };
     var SERIES = [
       { k: 'c', nombre: 'TCO', color: COL.c, forma: 'linea' },
-      { k: 'v', nombre: 'Venta', color: COL.v, forma: 'linea' },
+      { k: 'v', nombre: T('Venta', 'Selling rate'), color: COL.v, forma: 'linea' },
       { k: 'usdt', nombre: 'USDT', color: COL.usdt, forma: 'punteada' }
     ];
-    var NOMBRE_VENTA = 'Venta oficial (hasta sep 2026)', NOMBRE_REF = 'Oficial (6,96)';
+    var NOMBRE_VENTA = T('Venta oficial (hasta sep 2026)', 'Official selling rate (until Sep 2026)'), NOMBRE_REF = T('Oficial (6,96)', 'Official (6.96)');
     var CLAVE = {};                                   // nombre de la serie en el gráfico → color y forma
     CLAVE.TCO = [COL.c, 'linea']; CLAVE[NOMBRE_VENTA] = [COL.v, 'linea']; CLAVE.USDT = [COL.usdt, 'punteada']; CLAVE[NOMBRE_REF] = [PIZARRA, 'punteada'];
 
-    function fbs(v) { return (v == null || isNaN(v)) ? '—' : PM.num(v, 2) + NB + 'Bs'; }
+    // En inglés «Bs» va adelante del número («Bs 6.96»); el castellano queda como estaba («6,96 Bs»)
+    function fbs(v) { return (v == null || isNaN(v)) ? '—' : PM.en ? 'Bs' + NB + PM.num(v, 2) : PM.num(v, 2) + NB + 'Bs'; }
+    // Sólo para el inglés: diferencia con signo, el signo delante de la moneda como en PM.mm («+Bs 0.10» · «−Bs 0.10»)
+    function bsSignoEn(v) { var s = PM.signo(v, 2), sg = /^[+−-]/.test(s) ? s.charAt(0) : ''; return sg + 'Bs' + NB + s.slice(sg.length); }
     function fpct(v) { return (v == null || isNaN(v)) ? '—' : PM.pct(v, 1, true); }
     function localDateStr(d) {
       var y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), da = String(d.getDate()).padStart(2, '0');
@@ -142,7 +146,7 @@
       var hist = r[0], tco = r[1], btc = r[2];
       var R = buildSerie(hist, tco), serie = R.serie, current = R.current, currentPrev = R.currentPrev, REGIME_TCO = R.regimeTco;
       var N = serie.length;
-      if (!N || current.c == null) { PM.error(document.getElementById('chart'), 'Sin datos de tipo de cambio disponibles.'); return; }
+      if (!N || current.c == null) { PM.error(document.getElementById('chart'), T('Sin datos de tipo de cambio disponibles.', 'No exchange rate data available.')); return; }
 
       var dev = current.c != null ? (current.c / BCB_OFICIAL - 1) * 100 : null;      // devaluación vs 6,96
       // Venta que publican los bancos hoy (mediana entre bancos): reemplaza a la
@@ -166,19 +170,19 @@
         var ult60 = function (f) { return PM.ultimos(habiles.map(f).filter(function (x) { return x != null && !isNaN(x); }), 60); };
         var tcoDe = function (p) { return p.reg === 'tco' ? p.c : null; };
         var kpis = [
-          { rotulo: 'TCO · rige hoy', valor: current.c, prev: pr0.c, color: COL.c, serie: ult60(tcoDe) },
+          { rotulo: T('TCO · rige hoy', 'TCO · in force today'), valor: current.c, prev: pr0.c, color: COL.c, serie: ult60(tcoDe) },
           current.v != null
-            ? { rotulo: 'Venta oficial', valor: current.v, prev: pr0.v, color: COL.v, serie: ult60(function (p) { return p.reg === 'tco' ? p.v : null; }) }
-            : { rotulo: 'Venta en bancos · mediana', valor: ventaBancos, prev: null, color: COL.v },
+            ? { rotulo: T('Venta oficial', 'Official selling rate'), valor: current.v, prev: pr0.v, color: COL.v, serie: ult60(function (p) { return p.reg === 'tco' ? p.v : null; }) }
+            : { rotulo: T('Venta en bancos · mediana', 'Selling rate at banks · median'), valor: ventaBancos, prev: null, color: COL.v },
           { rotulo: 'USDT Binance', valor: current.usdt, prev: pr0.usdt, color: COL.usdt, serie: ult60(function (p) { return p.usdt; }) },
-          { rotulo: 'Devaluación vs 6,96', valor: dev, prev: devPrev, color: COL.oficial, esPct: true,
+          { rotulo: T('Devaluación vs 6,96', 'Devaluation vs 6.96'), valor: dev, prev: devPrev, color: COL.oficial, esPct: true,
             serie: ult60(function (p) { var c = tcoDe(p); return c == null ? null : (c / BCB_OFICIAL - 1) * 100; }) }
         ];
         document.getElementById('kpis').innerHTML = kpis.map(function (k) {
           var hay = k.prev != null && !isNaN(k.prev) && k.valor != null;
           var d = hay ? (k.valor - k.prev) : 0, plano = !hay || Math.abs(d) < 0.005;
-          var delta = !hay ? '— sin sesión previa'
-            : PM.flecha(d, 0.005) + ' ' + (k.esPct ? PM.num(Math.abs(d), 1) + NB + 'pp' : PM.num(Math.abs(d), 2) + NB + 'Bs');
+          var delta = !hay ? T('— sin sesión previa', '— no previous session')
+            : PM.flecha(d, 0.005) + ' ' + (k.esPct ? PM.num(Math.abs(d), 1) + NB + 'pp' : PM.en ? 'Bs' + NB + PM.num(Math.abs(d), 2) : PM.num(Math.abs(d), 2) + NB + 'Bs');
           // un dólar más caro es depreciación del boliviano: subir es malo
           return PM.kpi({ color: k.color, rotulo: k.rotulo, valor: k.esPct ? fpct(k.valor) : fbs(k.valor), delta: delta, tono: plano ? 'neutro' : d > 0 ? 'malo' : 'bueno', serie: k.serie });
         }).join('');
@@ -203,29 +207,45 @@
         var devPt = p.c != null ? (p.c / BCB_OFICIAL - 1) * 100 : null;
         var prima = (p.usdt != null && refDe(p) != null) ? p.usdt - refDe(p) : null;   // USDT sobre el TCO (antes del 26-jun, sobre la venta referencial)
         var dC = (p.c != null && pr.c != null) ? p.c - pr.c : null;
-        document.getElementById('panel-fecha').textContent = PM.fecha(p.f) + (p.carried ? ' · vigente' : '');
+        document.getElementById('panel-fecha').textContent = PM.fecha(p.f) + (p.carried ? T(' · vigente', ' · in force') : '');
         var tDev = PM.dt(COL.oficial, fpct(devPt)), txt;
-        if (devPt == null) txt = 'Punto del <strong>mercado paralelo referencial</strong>, antes del estreno del Tipo de Cambio Oficial flexible (27 de junio de 2026).';
-        else if (devPt > 38) txt = 'Frente al tipo de cambio oficial fijo de <strong>Bs 6,96</strong> (ancla nominal 2011–2026), el TCO implica una devaluación de ' + tDev + '. El abandono del tipo fijo reconoce el agotamiento de las reservas y la presión cambiaria acumulada; el nuevo régimen busca que el precio del dólar refleje la oferta y demanda reales.';
-        else if (devPt > 20) txt = 'El TCO se ubica ' + tDev + ' por encima del viejo tipo fijo de <strong>Bs 6,96</strong>. La devaluación implícita traslada a precios la escasez de divisas que el mercado paralelo ya anticipaba.';
-        else txt = 'El TCO está ' + tDev + ' respecto al tipo fijo de <strong>Bs 6,96</strong>.';
+        if (devPt == null) txt = T(
+          'Punto del <strong>mercado paralelo referencial</strong>, antes del estreno del Tipo de Cambio Oficial flexible (27 de junio de 2026).',
+          'Data point from the <strong>reference parallel market</strong>, before the launch of the flexible Official Exchange Rate (June 27, 2026).');
+        else if (devPt > 38) txt = T(
+          'Frente al tipo de cambio oficial fijo de <strong>Bs 6,96</strong> (ancla nominal 2011–2026), el TCO implica una devaluación de ' + tDev + '. El abandono del tipo fijo reconoce el agotamiento de las reservas y la presión cambiaria acumulada; el nuevo régimen busca que el precio del dólar refleje la oferta y demanda reales.',
+          'Against the fixed official exchange rate of <strong>Bs 6.96</strong> (nominal anchor 2011–2026), the TCO implies a devaluation of ' + tDev + '. Abandoning the fixed rate acknowledges the depletion of reserves and the accumulated exchange-rate pressure; the new regime seeks to have the price of the dollar reflect actual supply and demand.');
+        else if (devPt > 20) txt = T(
+          'El TCO se ubica ' + tDev + ' por encima del viejo tipo fijo de <strong>Bs 6,96</strong>. La devaluación implícita traslada a precios la escasez de divisas que el mercado paralelo ya anticipaba.',
+          'The TCO stands ' + tDev + ' above the old fixed rate of <strong>Bs 6.96</strong>. The implied devaluation passes through to prices the foreign exchange shortage that the parallel market was already anticipating.');
+        else txt = T(
+          'El TCO está ' + tDev + ' respecto al tipo fijo de <strong>Bs 6,96</strong>.',
+          'The TCO is ' + tDev + ' relative to the fixed rate of <strong>Bs 6.96</strong>.');
         var descC = isTco
-          ? (p.metodo === 'mediana' ? 'Mediana ponderada' : 'Promedio ponderado') + ' por monto de las <strong>compras de dólares de la banca</strong> el <strong>' + PM.fecha(p.sesion || p.f) +
+          ? T((p.metodo === 'mediana' ? 'Mediana ponderada' : 'Promedio ponderado') + ' por monto de las <strong>compras de dólares de la banca</strong> el <strong>' + PM.fecha(p.sesion || p.f) +
             '</strong>; rige como referencia el <strong>' + PM.fecha(p.f) + '</strong>.' +
-            (dC != null ? ' Variación de ' + PM.dt(COL.c, PM.signo(dC, 2) + NB + 'Bs') + ' vs. la sesión anterior.' : '')
-          : 'Precio de <strong>compra</strong> del dólar en el mercado paralelo referencial.';
-        var descV = !isTco ? 'Precio de <strong>venta</strong> del dólar en el mercado paralelo referencial.'
+            (dC != null ? ' Variación de ' + PM.dt(COL.c, PM.signo(dC, 2) + NB + 'Bs') + ' vs. la sesión anterior.' : ''),
+            (p.metodo === 'mediana' ? 'Amount-weighted median' : 'Amount-weighted average') + ' of <strong>dollar purchases by banks</strong> on <strong>' + PM.fecha(p.sesion || p.f) +
+            '</strong>; in force as the reference rate on <strong>' + PM.fecha(p.f) + '</strong>.' +
+            (dC != null ? ' Change of ' + PM.dt(COL.c, bsSignoEn(dC)) + ' vs. the previous session.' : ''))
+          : T('Precio de <strong>compra</strong> del dólar en el mercado paralelo referencial.', '<strong>Buying</strong> price of the dollar in the reference parallel market.');
+        var descV = !isTco ? T('Precio de <strong>venta</strong> del dólar en el mercado paralelo referencial.', '<strong>Selling</strong> price of the dollar in the reference parallel market.')
           : (p.v != null
-            ? 'Tope de <strong>venta al público</strong> fijado por el BCB hasta el 24 de septiembre de 2026 (valor referencial de venta): TCO + <strong>0,10 Bs</strong>.'
-            : 'Desde fines de septiembre de 2026 cada banco fija y publica su propio precio de venta. Mediana de lo publicado hoy' +
-              (ventasB.length ? ' por ' + ventasB.length + ' bancos (entre ' + fbs(ventasB[0]) + ' y ' + fbs(ventasB[ventasB.length - 1]) + ')' : '') + '.');
-        var descU = p.usdt == null ? 'Sin dato de USDT para esta fecha.'
-          : (prima == null ? 'Mediana del USDT/BOB en Binance P2P.'
-            : 'Mediana del USDT/BOB en Binance P2P — cotiza ' + PM.dt(COL.usdt, PM.signo(prima, 2) + NB + 'Bs') + ' ' +
-              (Math.abs(prima) < 0.15 ? 'prácticamente en línea con' : (prima >= 0 ? 'por encima de' : 'por debajo de')) + ' ' + (isTco ? 'el TCO' : 'la venta referencial') + '.');
+            ? T('Tope de <strong>venta al público</strong> fijado por el BCB hasta el 24 de septiembre de 2026 (valor referencial de venta): TCO + <strong>0,10 Bs</strong>.',
+              'Cap on the <strong>selling rate to the public</strong> set by the BCB until September 24, 2026 (reference selling value): TCO + <strong>Bs 0.10</strong>.')
+            : T('Desde fines de septiembre de 2026 cada banco fija y publica su propio precio de venta. Mediana de lo publicado hoy' +
+              (ventasB.length ? ' por ' + ventasB.length + ' bancos (entre ' + fbs(ventasB[0]) + ' y ' + fbs(ventasB[ventasB.length - 1]) + ')' : '') + '.',
+              'Since late September 2026 each bank has set and published its own selling price. Median of what was published today' +
+              (ventasB.length ? ' by ' + ventasB.length + ' banks (between ' + fbs(ventasB[0]) + ' and ' + fbs(ventasB[ventasB.length - 1]) + ')' : '') + '.'));
+        var descU = p.usdt == null ? T('Sin dato de USDT para esta fecha.', 'No USDT data for this date.')
+          : (prima == null ? T('Mediana del USDT/BOB en Binance P2P.', 'Median of USDT/BOB on Binance P2P.')
+            : T('Mediana del USDT/BOB en Binance P2P — cotiza ' + PM.dt(COL.usdt, PM.signo(prima, 2) + NB + 'Bs') + ' ' +
+              (Math.abs(prima) < 0.15 ? 'prácticamente en línea con' : (prima >= 0 ? 'por encima de' : 'por debajo de')) + ' ' + (isTco ? 'el TCO' : 'la venta referencial') + '.',
+              'Median of USDT/BOB on Binance P2P — it trades ' + PM.dt(COL.usdt, bsSignoEn(prima)) + ' ' +
+              (Math.abs(prima) < 0.15 ? 'practically in line with' : (prima >= 0 ? 'above' : 'below')) + ' ' + (isTco ? 'the TCO' : 'the reference selling rate') + '.'));
         document.getElementById('panel').innerHTML =
-          PM.pb(COL.c, isTco ? 'Tipo de Cambio Oficial' : 'Compra (paralelo)', fbs(p.c), descC) +
-          PM.pb(COL.v, !isTco ? 'Venta (paralelo)' : (p.v != null ? 'Venta oficial' : 'Venta en bancos'), fbs(isTco && p.v == null ? ventaBancos : p.v), descV) +
+          PM.pb(COL.c, isTco ? T('Tipo de Cambio Oficial', 'Official Exchange Rate') : T('Compra (paralelo)', 'Buying rate (parallel)'), fbs(p.c), descC) +
+          PM.pb(COL.v, !isTco ? T('Venta (paralelo)', 'Selling rate (parallel)') : (p.v != null ? T('Venta oficial', 'Official selling rate') : T('Venta en bancos', 'Selling rate at banks')), fbs(isTco && p.v == null ? ventaBancos : p.v), descV) +
           PM.pb(COL.usdt, 'USDT Binance P2P', fbs(p.usdt), descU) +
           PM.ctx(txt);
       }
@@ -255,7 +275,7 @@
         if (REGIME_TCO && K.indexOf(REGIME_TCO) >= 0) ref.markLine = {
           silent: true, symbol: 'none', animation: false,
           lineStyle: { color: PM.col(PIZARRA), type: 'dashed', width: 1.25 },
-          label: { show: true, formatter: 'Cambio de régimen · TCO', position: 'end', distance: 6, fontFamily: 'Inter', fontSize: 9.5, fontWeight: 600, color: PM.tx(PIZARRA) },
+          label: { show: true, formatter: T('Cambio de régimen · TCO', 'Regime change · TCO'), position: 'end', distance: 6, fontFamily: 'Inter', fontSize: 9.5, fontWeight: 600, color: PM.tx(PIZARRA) },
           data: [{ xAxis: REGIME_TCO }]
         };
         series.push(ref);
@@ -271,8 +291,8 @@
             panel(si + i);
             var h = PM.ttTitulo(PM.fecha(K[i])), tco = V[i].reg === 'tco';
             // antes del 27 de junio de 2026 la serie es el paralelo referencial: se nombra como en el panel
-            var rotulo = { TCO: tco ? 'TCO' : 'Compra (paralelo)' };
-            rotulo[NOMBRE_VENTA] = tco ? 'Venta oficial' : 'Venta (paralelo)';
+            var rotulo = { TCO: tco ? 'TCO' : T('Compra (paralelo)', 'Buying rate (parallel)') };
+            rotulo[NOMBRE_VENTA] = tco ? T('Venta oficial', 'Official selling rate') : T('Venta (paralelo)', 'Selling rate (parallel)');
             ps.forEach(function (p) {
               if (p.value == null) return;
               var c = CLAVE[p.seriesName] || [COL.oficial, 'linea'];
@@ -290,18 +310,30 @@
         var el = document.getElementById('preguntas');
         var abiertas = [].map.call(el.querySelectorAll('.edu'), function (e) { return e.classList.contains('open'); });
         PM.preguntas(el, [
-          ['¿Qué es el Tipo de Cambio Oficial (TCO)?', '<p>Desde el <strong>27 de junio de 2026</strong>, el <strong>Banco Central de Bolivia (BCB)</strong> reemplazó el tipo de cambio fijo por el <strong>Tipo de Cambio Oficial (TCO)</strong>, que resume las <strong>operaciones de compra de dólares de la banca</strong>: desde la sesión del 25 de septiembre es su <strong>mediana ponderada por monto</strong> (antes, el promedio ponderado). El BCB lo publica a las 23:30 y rige como referencia desde el día siguiente (R.D. 142/2026).</p>' +
+          [T('¿Qué es el Tipo de Cambio Oficial (TCO)?', 'What is the Official Exchange Rate (TCO)?'), T('<p>Desde el <strong>27 de junio de 2026</strong>, el <strong>Banco Central de Bolivia (BCB)</strong> reemplazó el tipo de cambio fijo por el <strong>Tipo de Cambio Oficial (TCO)</strong>, que resume las <strong>operaciones de compra de dólares de la banca</strong>: desde la sesión del 25 de septiembre es su <strong>mediana ponderada por monto</strong> (antes, el promedio ponderado). El BCB lo publica a las 23:30 y rige como referencia desde el día siguiente (R.D. 142/2026).</p>' +
             '<p>Hasta el 24 de septiembre la venta tenía un <strong>tope oficial</strong> de TCO más ' + PM.dt(COL.v, '0,10' + NB + 'Bs') + '; la R.D. 142/2026 lo eliminó y desde entonces cada banco fija y publica su propia venta. Hoy el TCO rige en ' + PM.dt(COL.c, fbs(current.c)) +
-            (ventaBancos != null ? ' y la venta que publican los bancos tiene una mediana de ' + PM.dt(COL.v, fbs(ventaBancos)) : '') + '.</p>'],
-          ['El fin del tipo fijo de Bs 6,96', '<p>Entre <strong>noviembre de 2011 y junio de 2026</strong>, el boliviano estuvo anclado a un tipo de cambio fijo de ' + PM.dt(COL.oficial, 'Bs' + NB + '6,96') + ' por dólar. Ese ancla nominal buscaba estabilidad de precios, pero exigía reservas suficientes para vender dólares a ese precio.</p>' +
-            '<p>Agotadas las reservas, el BCB abandonó el tipo fijo. El TCO arrancó en <strong>Bs 9,73</strong> y hoy implica una <strong>devaluación de ' + PM.dt(COL.oficial, fpct(dev)) + '</strong> frente al viejo 6,96.</p>'],
-          ['¿Qué es el USDT y por qué importa?', '<p>El <strong>USDT (Tether)</strong> es una criptomoneda estable vinculada 1:1 al dólar. En Bolivia se negocia en <strong>Binance P2P</strong> y funciona como un <strong>«dólar digital»</strong> cuyo precio refleja la demanda real de divisas.</p>' +
+            (ventaBancos != null ? ' y la venta que publican los bancos tiene una mediana de ' + PM.dt(COL.v, fbs(ventaBancos)) : '') + '.</p>',
+            '<p>On <strong>June 27, 2026</strong>, the <strong>Central Bank of Bolivia (BCB)</strong> replaced the fixed exchange rate with the <strong>Official Exchange Rate (TCO)</strong>, which summarizes the <strong>dollar purchase transactions of banks</strong>: since the September 25 session it is their <strong>amount-weighted median</strong> (before, the weighted average). The BCB publishes it at 11:30 p.m. and it is in force as the reference rate from the following day (Board Resolution R.D. 142/2026).</p>' +
+            '<p>Until September 24 the selling rate had an <strong>official cap</strong> of TCO plus ' + PM.dt(COL.v, 'Bs' + NB + '0.10') + '; R.D. 142/2026 removed it and since then each bank sets and publishes its own selling rate. Today the TCO is in force at ' + PM.dt(COL.c, fbs(current.c)) +
+            (ventaBancos != null ? ' and the selling rate published by banks has a median of ' + PM.dt(COL.v, fbs(ventaBancos)) : '') + '.</p>')],
+          [T('El fin del tipo fijo de Bs 6,96', 'The end of the Bs 6.96 fixed rate'), T('<p>Entre <strong>noviembre de 2011 y junio de 2026</strong>, el boliviano estuvo anclado a un tipo de cambio fijo de ' + PM.dt(COL.oficial, 'Bs' + NB + '6,96') + ' por dólar. Ese ancla nominal buscaba estabilidad de precios, pero exigía reservas suficientes para vender dólares a ese precio.</p>' +
+            '<p>Agotadas las reservas, el BCB abandonó el tipo fijo. El TCO arrancó en <strong>Bs 9,73</strong> y hoy implica una <strong>devaluación de ' + PM.dt(COL.oficial, fpct(dev)) + '</strong> frente al viejo 6,96.</p>',
+            '<p>Between <strong>November 2011 and June 2026</strong>, the boliviano was anchored to a fixed exchange rate of ' + PM.dt(COL.oficial, 'Bs' + NB + '6.96') + ' per dollar. That nominal anchor sought price stability, but it required sufficient reserves to sell dollars at that price.</p>' +
+            '<p>With reserves depleted, the BCB abandoned the fixed rate. The TCO started at <strong>Bs 9.73</strong> and today implies a <strong>devaluation of ' + PM.dt(COL.oficial, fpct(dev)) + '</strong> against the old 6.96.</p>')],
+          [T('¿Qué es el USDT y por qué importa?', 'What is USDT and why does it matter?'), T('<p>El <strong>USDT (Tether)</strong> es una criptomoneda estable vinculada 1:1 al dólar. En Bolivia se negocia en <strong>Binance P2P</strong> y funciona como un <strong>«dólar digital»</strong> cuyo precio refleja la demanda real de divisas.</p>' +
             '<p>Hoy cotiza en ' + PM.dt(COL.usdt, fbs(current.usdt)) + ', ' + (primaHoy == null ? 'sin comparación disponible con el TCO.'
               : (Math.abs(primaHoy) < 0.15 ? 'prácticamente en línea con el TCO — ambos mercados convergen.'
                 : primaHoy >= 0 ? '<strong>' + PM.num(primaHoy, 2) + NB + 'Bs por encima</strong> del TCO, señal de que aún hay presión de demanda.'
-                : '<strong>' + PM.num(Math.abs(primaHoy), 2) + NB + 'Bs por debajo</strong> del TCO.')) + '</p>'],
-          ['¿Por qué se disparó el precio del dólar?', '<p>La escasez de divisas tiene raíz <strong>fiscal y monetaria</strong>: la caída sostenida de las <strong>reservas internacionales</strong> dejó al BCB sin capacidad de sostener el tipo fijo, mientras el financiamiento del déficit público presionaba la demanda de dólares.</p>' +
-            '<p>El TCO flexible traslada esa presión al precio de forma explícita, en lugar de contenerla con un mercado paralelo cada vez más amplio. Es un cambio de régimen, no un ajuste puntual.</p>']
+                : '<strong>' + PM.num(Math.abs(primaHoy), 2) + NB + 'Bs por debajo</strong> del TCO.')) + '</p>',
+            '<p><strong>USDT (Tether)</strong> is a stablecoin pegged 1:1 to the dollar. In Bolivia it is traded on <strong>Binance P2P</strong> and works as a <strong>“digital dollar”</strong> whose price reflects the actual demand for foreign exchange.</p>' +
+            '<p>Today it trades at ' + PM.dt(COL.usdt, fbs(current.usdt)) + ', ' + (primaHoy == null ? 'with no comparison available with the TCO.'
+              : (Math.abs(primaHoy) < 0.15 ? 'practically in line with the TCO — the two markets converge.'
+                : primaHoy >= 0 ? '<strong>Bs' + NB + PM.num(primaHoy, 2) + ' above</strong> the TCO, a sign that there is still demand pressure.'
+                : '<strong>Bs' + NB + PM.num(Math.abs(primaHoy), 2) + ' below</strong> the TCO.')) + '</p>')],
+          [T('¿Por qué se disparó el precio del dólar?', 'Why did the price of the dollar soar?'), T('<p>La escasez de divisas tiene raíz <strong>fiscal y monetaria</strong>: la caída sostenida de las <strong>reservas internacionales</strong> dejó al BCB sin capacidad de sostener el tipo fijo, mientras el financiamiento del déficit público presionaba la demanda de dólares.</p>' +
+            '<p>El TCO flexible traslada esa presión al precio de forma explícita, en lugar de contenerla con un mercado paralelo cada vez más amplio. Es un cambio de régimen, no un ajuste puntual.</p>',
+            '<p>The foreign exchange shortage has <strong>fiscal and monetary</strong> roots: the sustained fall in <strong>international reserves</strong> left the BCB unable to sustain the fixed rate, while the financing of the public deficit put pressure on the demand for dollars.</p>' +
+            '<p>The flexible TCO passes that pressure through to the price explicitly, instead of containing it with an ever-wider parallel market. It is a regime change, not a one-off adjustment.</p>')]
         ]);
         abiertas.forEach(function (a, i) {
           var e = el.children[i];
@@ -312,7 +344,7 @@
       // ── Montaje ────────────────────────────────────────────────
       cifras();
       PM.pastillas(document.getElementById('pastillas'), SERIES, activas, function () { grafico.redibujar(); });
-      PM.botonera(document.getElementById('b-rango'), [['1m', '1 mes'], ['3m', '3 meses'], ['todo', 'Todo']], rango,
+      PM.botonera(document.getElementById('b-rango'), [['1m', T('1 mes', '1 month')], ['3m', T('3 meses', '3 months')], ['todo', T('Todo', 'All')]], rango,
         function (v) { rango = v; grafico.redibujar(); });
       var el = document.getElementById('chart');
       el.innerHTML = '';
@@ -321,7 +353,7 @@
       panel(N - 1);
       preguntas();
       PM.alCambiarTema(function () { cifras(); panel(curIdx); preguntas(); });
-    }).catch(function (e) { console.error(e); PM.error(document.getElementById('chart'), 'Error al cargar datos. Intente recargar.'); });
+    }).catch(function (e) { console.error(e); PM.error(document.getElementById('chart'), T('Error al cargar datos. Intente recargar.', 'Error loading data. Please try reloading.')); });
   })();
   </script>
 </body>
